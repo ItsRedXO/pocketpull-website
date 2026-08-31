@@ -1,0 +1,323 @@
+========================================================================================================================
+POCKETPULL PACK ODDS & EV AUDIT REPORT
+Simulations per pack: 100,000
+========================================================================================================================
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Grass 50/50 ($35) | Price: $35 | Total pull_chance: 100.0010% | Cards: 6
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $26.8657
+  Simulated  EV: $26.9007 (diff: 0.13%)
+  ROI: -23.14% (EV - Price = $-8.10)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Mega Venusaur ex                              god       0.6500     0.6610     $164.64    OK
+  Bulbasaur - 166/165                           god       7.3000     7.3040     $90        OK
+  Ivysaur - 167/165                             secret    3.8000     3.8790     $55        OK
+  Venusaur                                      ultra     18.2510    18.2220    $50        OK
+  Bulbasaur - 037                               ultra     20.0000    19.9610    $40        OK
+  Grass Energy                                  common    50.0000    49.9730    $0.02      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Water 50/50 ($35) | Price: $35 | Total pull_chance: 100.0000% | Cards: 4
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $23.8642
+  Simulated  EV: $23.8190 (diff: 0.19%)
+  ROI: -31.95% (EV - Price = $-11.18)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Kingdra ex - 131                              god       0.5920     0.5440     $110       OK
+  Gyarados - 21/98                              secret    9.6940     9.6930     $55        OK
+  Palafin ex 151/131                            ultra     39.7140    39.7320    $45        OK
+  Water Energy                                  common    50.0000    50.0310    $0.02      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Electric 50/50 ($40) | Price: $40 | Total pull_chance: 100.0000% | Cards: 5
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $31.7600
+  Simulated  EV: $31.8394 (diff: 0.25%)
+  ROI: -20.40% (EV - Price = $-8.16)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Pikachu & Zekrom GX                           god       5.0000     5.0340     $150       OK
+  Plusle                                        secret    10.0000    10.0530    $60        OK
+  Minun - 194/182                               secret    15.0000    14.9620    $55        OK
+  Iono's Bellibolt ex - 183/159                 ultra     20.0000    20.0350    $50        OK
+  Electric Energy                               common    50.0000    49.9160    $0.02      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Fire 50/50 ($45) | Price: $45 | Total pull_chance: 100.0000% | Cards: 6
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $33.2610
+  Simulated  EV: $33.0891 (diff: 0.52%)
+  ROI: -26.47% (EV - Price = $-11.91)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Reshiram EX (95 Full Art)                     god       2.5000     2.4580     $200       OK
+  Mega Emboar ex                                god       5.0000     4.9500     $78        OK
+  Charmander                                    secret    7.5000     7.5650     $72        OK
+  Chandelure                                    ultra     15.0000    14.8510    $66.34     OK
+  Mega Charizard X ex                           ultra     20.0000    20.0070    $45        OK
+  Fire Energy                                   common    50.0000    50.1690    $0.02      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Ultra Pack ($1) | Price: $1 | Total pull_chance: 100.0000% | Cards: 24
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $0.5811
+  Simulated  EV: $0.5870 (diff: 1.01%)
+  ROI: -41.30% (EV - Price = $-0.41)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Persian - 078/064                             god       0.0010     0.0010     $103.2     OK
+  Hisuian Growlithe - 181/167                   god       0.0040     0.0060     $40.62     OK
+  Articuno - 161/159                            god       0.0040     0.0030     $29.31     OK
+  Marshadow - 146/132                           god       0.0030     0.0020     $19.81     OK
+  Darumaka - 097/086                            secret    0.0010     0.0030     $11.97     OK
+  Palpitoad - 104/086                           secret    0.0050     0.0070     $11.99     OK
+  Swoobat - 120/086                             secret    0.0050     0.0060     $10.54     OK
+  Pignite - 097/086                             secret    0.0040     0.0040     $9.25      OK
+  Sawk - 130/086                                ultra     0.0140     0.0180     $8         OK
+  Vullaby - 144/086                             ultra     0.0530     0.0590     $6.31      OK
+  Stunfisk - 118/086                            ultra     0.1190     0.1190     $5.29      OK
+  Reshiram ex - 158/086                         ultra     0.0300     0.0290     $4.21      OK
+  Klang - 140/086                               ultra     0.0250     0.0300     $4.99      OK
+  Zekrom ex - 158/086                           ultra     0.1810     0.1710     $4.88      OK
+  Boldore - 128/086                             ultra     3.8640     3.9890     $4.3       OK
+  Harlequin - 163/086                           rare      5.2850     5.2910     $1.25      OK
+  Hydreigon ex - 161/086                        rare      4.0840     3.9920     $1         OK
+  Bouffalant ex - 162/086                       rare      9.0430     9.1920     $0.85      OK
+  Jellicent ex                                  uncommon  12.9090    12.7600    $0.5       OK
+  Keldeo ex                                     uncommon  11.6170    11.4870    $0.45      OK
+  Bouffalant ex                                 uncommon  12.3570    12.3510    $0.4       OK
+  Dewott                                        common    12.9990    13.1710    $0.13      OK
+  Scraggy                                       common    14.3910    14.2930    $0.12      OK
+  Haban Berry                                   common    13.0020    13.0160    $0.02      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Master Trainer ($400) | Price: $400 | Total pull_chance: 99.9970% | Cards: 23
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $262.0317
+  Simulated  EV: $261.8520 (diff: 0.07%)
+  ROI: -34.54% (EV - Price = $-138.15)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Latias & Latios GX                            god       0.0250     0.0130     $3000      OK
+  Gengar & Mimikyu GX                           god       0.0230     0.0250     $2200      OK
+  Umbreon VMAX                                  god       0.0240     0.0240     $2500      OK
+  Umbreon ex - 161/131                          god       0.2250     0.2380     $1600      OK
+  Mega Gengar ex - 284/217                      god       0.1000     0.0960     $1500      OK
+  Pikachu ex (1)                                god       0.1000     0.0810     $1337.74   OK
+  Mew ex                                        secret    0.1000     0.1040     $921.34    OK
+  M Charizard EX (1)                            secret    0.5000     0.5210     $874.58    OK
+  Mega Charizard X ex                           secret    0.5000     0.4830     $874.43    OK
+  Charizard GX                                  secret    3.4050     3.3760     $507.23    OK
+  Lugia V                                       god       1.7230     1.6450     $486.27    OK
+  Pikachu ex (2)                                secret    1.7120     1.7870     $469.36    OK
+  Charizard ex (1)                              secret    1.7120     1.6540     $443.51    OK
+  Charizard V (1)                               god       1.7120     1.7320     $351.89    OK
+  Pikachu ex (3)                                secret    8.4240     8.5540     $336.45    OK
+  Charizard ex (2)                              secret    3.5000     3.5620     $333.99    OK
+  M Charizard EX (2)                            secret    9.2120     9.2150     $297.92    OK
+  M Charizard EX (3)                            secret    6.5000     6.4910     $295.57    OK
+  Charizard EX                                  secret    12.0000    11.9360    $238.95    OK
+  Pikachu & Zekrom GX                           secret    7.5000     7.5580     $216.69    OK
+  Pikachu VMAX                                  secret    10.0000    10.1120    $203.94    OK
+  Charizard VMAX                                secret    15.5000    15.4250    $149.19    OK
+  Charizard ex (3)                              secret    15.5000    15.3680    $139.59    OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Crown Pack ($9) | Price: $9 | Total pull_chance: 100.2370% | Cards: 28
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  *** WEIGHT SUM ERROR: 100.2370% (expected 100%) ***
+  Analytical EV: $5.3033
+  Simulated  EV: $5.2818 (diff: 0.41%)
+  ROI: -41.31% (EV - Price = $-3.72)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Bulbasaur                                     god       0.0230     0.0160     $133.42    OK
+  Squirtle                                      god       0.0020     0.0010     $120.6     OK
+  Dachsbun ex (god)                             secret    0.0050     0.0070     $81.31     OK
+  Terapagos ex (god)                            secret    0.0040     0.0110     $64.35     OK
+  Hydrapple ex (god)                            secret    0.0090     0.0080     $37.14     OK
+  Galvantula ex                                 secret    0.0270     0.0200     $19.26     OK
+  Lacey (god)                                   secret    0.0180     0.0130     $18.98     OK
+  Milcery                                       rare      0.1100     0.1030     $18.99     OK
+  Zeraora                                       rare      0.0930     0.0970     $14.27     OK
+  Crispin                                       ultra     1.2780     1.2980     $14.25     OK
+  Area Zero Underdepths                         ultra     0.1220     0.1080     $11.05     OK
+  Briar                                         ultra     0.7910     0.8040     $12.93     OK
+  Gulpin                                        rare      1.2400     1.2240     $12.84     OK
+  Terapagos ex                                  rare      2.3720     2.4040     $11.38     OK
+  Raboot                                        rare      2.6150     2.5860     $8.42      OK
+  Lileep                                        rare      4.0780     4.0300     $8.34      OK
+  Joltik                                        rare      1.4840     1.5000     $7.85      OK
+  Meditite                                      rare      5.1260     5.0240     $7.81      OK
+  Ledian                                        rare      4.7200     4.7100     $6.26      OK
+  Lapras ex                                     rare      8.1470     8.0820     $5.99      OK
+  Bravery Charm                                 rare      5.7030     5.6550     $5.35      OK
+  Turtonator                                    rare      8.2430     8.3570     $4.4       OK
+  Blastoise ex                                  rare      7.0860     7.1690     $4.25      OK
+  Dachsbun ex                                   rare      7.3300     7.1550     $4.18      OK
+  Archaludon                                    rare      11.9720    11.8910    $3.77      OK
+  Hydrapple ex                                  rare      9.3740     9.4740     $3.22      OK
+  Cinderace ex                                  rare      9.2900     9.4110     $3.68      OK
+  Lacey                                         rare      8.9750     8.8420     $2.89      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Rivals Pack ($9) | Price: $9 | Total pull_chance: 100.0549% | Cards: 28
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  *** WEIGHT SUM ERROR: 100.0549% (expected 100%) ***
+  Analytical EV: $5.4850
+  Simulated  EV: $5.4976 (diff: 0.23%)
+  ROI: -38.92% (EV - Price = $-3.50)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Team Rocket's Mewtwo ex (1)                   secret    0.0320     0.0320     $565.86    OK
+  Cynthia's Garchomp ex                         secret    0.0030     0.0040     $290.89    OK
+  Ethan's Ho-Oh ex (1)                          secret    0.0370     0.0360     $174.19    OK
+  Team Rocket's Nidoking ex                     secret    0.0030     0.0010     $125.27    OK
+  Team Rocket's Moltres ex                      secret    0.0029     4.9820     $125.13    DRIFT
+  Misty's Psyduck                               secret    0.0420     0.0500     $82.52     OK
+  Team Rocket's Crobat ex                       secret    0.0900     0.0830     $76.12     OK
+  Team Rocket's Mewtwo ex (2)                   secret    0.1630     0.1640     $72.58     OK
+  Team Rocket's Meowth                          secret    1.0020     0.9880     $31.37     OK
+  Misty's Lapras                                secret    0.0480     0.0450     $42.71     OK
+  Team Rocket's Giovanni                        ultra     0.9660     0.9910     $36.61     OK
+  Hydrapple                                     ultra     4.0930     4.1270     $4.42      OK
+  Rapidash                                      ultra     1.3260     1.3270     $10.14     OK
+  Cynthia's Roserade                            rare      2.5610     2.5780     $17.18     OK
+  Shaymin                                       rare      2.2890     2.3180     $13.66     OK
+  Team Rocket's Spidops                         rare      3.9330     3.8690     $7.18      OK
+  Team Rocket's Moltres ex                      rare      4.8810     4.9820     $5.85      OK
+  Ethan's Ho-Oh ex (2)                          rare      5.2740     5.3760     $5.73      OK
+  Team Rocket's Ariana                          rare      4.1840     4.1220     $6.31      OK
+  Clamperl                                      rare      6.6390     6.6400     $5.38      OK
+  Zamazenta                                     rare      7.5820     7.7120     $5.27      OK
+  Yanma                                         rare      7.5820     7.4770     $5.23      OK
+  Rotom                                         rare      6.1480     6.1150     $5.07      OK
+  Emcee's Hype                                  rare      6.5060     6.4460     $2.21      OK
+  Cetitan ex                                    rare      10.0320    9.9960     $1.43      OK
+  Arven's Mabosstiff ex                         rare      9.0840     9.1100     $2         OK
+  Dondozo ex                                    rare      7.7760     7.8070     $1.12      OK
+  Regirock ex                                   rare      7.7760     7.6040     $1.16      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Mythic Trainer ($100) | Price: $100 | Total pull_chance: 100.0000% | Cards: 28
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $68.0122
+  Simulated  EV: $67.9664 (diff: 0.07%)
+  ROI: -32.03% (EV - Price = $-32.03)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Mega Gengar ex - 284/217                      god       0.0170     0.0130     $1500      OK
+  Pikachu with Grey Felt Hat                    god       0.0360     0.0360     $990.25    OK
+  Gengar VMAX                                   god       0.0180     0.0130     $891.81    OK
+  Giratina V                                    god       0.0150     0.0180     $827.7     OK
+  Mega Dragonite ex                             god       0.0300     0.0280     $830.31    OK
+  Gengar EX                                     god       0.1400     0.1260     $719.55    OK
+  Mewtwo GX                                     god       0.0250     0.0280     $635.8     OK
+  Palkia EX                                     god       0.0250     0.0190     $545.13    OK
+  Dragonite V                                   god       0.1570     0.1440     $492.73    OK
+  Blastoise & Piplup GX                         god       0.1670     0.1890     $432.48    OK
+  Kyogre EX                                     secret    2.0790     2.1150     $112.39    OK
+  Team Aqua's Kyogre EX                         god       0.1000     0.1070     $390       OK
+  Galarian Moltres V                            secret    1.5790     1.6100     $214.18    OK
+  Charizard VSTAR                               secret    3.7450     3.7340     $92.3      OK
+  Galarian Rapidash V                           secret    6.2160     6.2440     $85.47     OK
+  Garchomp V                                    secret    7.3180     7.3180     $85.35     OK
+  Marnie's Grimmsnarl ex                        secret    7.0920     7.1160     $85.03     OK
+  Mimikyu                                       ultra     8.4210     8.3870     $79.5      OK
+  Morty's Conviction                            ultra     6.4350     6.4770     $78.99     OK
+  Mimikyu VMAX                                  ultra     3.9200     3.8410     $77.32     OK
+  Zoroark                                       ultra     3.9200     3.9980     $63.3      OK
+  Lucario & Melmetal GX                         ultra     6.9510     6.9590     $59.94     OK
+  Gholdengo ex                                  ultra     7.9600     8.0090     $49.62     OK
+  Steelix                                       rare      6.1660     6.1240     $41.09     OK
+  Tinkatuff                                     rare      2.5780     2.5440     $38.81     OK
+  Ethan's Typhlosion                            rare      7.9600     7.9340     $33.86     OK
+  Tepig                                         rare      8.9700     8.9480     $32.36     OK
+  Tirtouga                                      rare      7.9600     7.9210     $29.85     OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Water Trainer ($3) | Price: $3 | Total pull_chance: 100.5431% | Cards: 19
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  *** WEIGHT SUM ERROR: 100.5431% (expected 100%) ***
+  Analytical EV: $2.4611
+  Simulated  EV: $2.4732 (diff: 0.49%)
+  ROI: -17.56% (EV - Price = $-0.53)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Blastoise & Piplup GX                         god       0.0210     0.0250     $429.5     OK
+  Squirtle                                      god       0.0810     0.0640     $119.85    OK
+  Gyarados GX (1)                               secret    0.0850     0.1040     $68.98     OK
+  Gyarados GX (2)                               secret    0.1360     0.1520     $26.05     OK
+  Gyarados V                                    ultra     0.7176     0.7240     $18.41     OK
+  Veluza                                        ultra     0.2450     0.2350     $10.55     OK
+  Tympole                                       ultra     0.2060     0.2120     $9.8       OK
+  Simipour                                      ultra     2.6600     2.6910     $6.59      OK
+  Manaphy                                       rare      3.0100     2.9190     $6.54      OK
+  Gyarados GX (3)                               rare      3.8525     3.8370     $5.91      OK
+  Empoleon V                                    rare      2.7580     2.7220     $5.87      OK
+  Lapras V                                      rare      2.4730     2.4920     $5.53      OK
+  Palkia GX                                     rare      1.9890     2.0140     $5.2       OK
+  Dewgong                                       uncommon  4.0570     4.0270     $4.99      OK
+  Wishiwashi GX                                 uncommon  15.9890    16.0820    $2.36      OK
+  Inteleon VMAX                                 uncommon  17.0650    17.2490    $1.53      OK
+  Lumineon V                                    uncommon  13.0670    12.9520    $0.83      OK
+  Lapras                                        common    15.0650    15.0790    $0.21      OK
+  Magikarp                                      common    17.0660    16.4200    $0.11      OK
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+PACK: Small Pack ($0.50) | Price: $0.5 | Total pull_chance: 99.9900% | Cards: 22
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Analytical EV: $0.2948
+  Simulated  EV: $0.2954 (diff: 0.19%)
+  ROI: -40.92% (EV - Price = $-0.20)
+
+  Card Name                                     Rarity    Config%    Sim%       Value      Status
+  Eevee - 188/167                               god       0.0010     0.0000     $104.99    OK
+  Mega Latias ex - 181/132                      god       0.0020     0.0050     $96.81     OK
+  Mega Absol ex - 180/132                       god       0.0140     0.0120     $74        OK
+  Acerola's Mischief - 183/132                  god       0.0020     0.0020     $38.28     OK
+  Team Rocket's Ariana - 224/182                secret    0.0080     0.0050     $7         OK
+  Zamazenta - 201/182                           secret    0.0080     0.0070     $5         OK
+  Hop's Wooloo - 170/159                        rare      0.0450     0.0380     $4         OK
+  Lycanroc - 166/159                            rare      0.1440     0.1590     $3         OK
+  Iono's Bellibolt ex - 172/159                 rare      0.1360     0.1480     $3         OK
+  Salamence ex - 177/159                        rare      0.0580     0.0480     $2.5       OK
+  Emcee's Hype - 220/182                        ultra     0.0870     0.0790     $2         OK
+  Empoleon ex - 114/094                         ultra     0.1210     0.1270     $2         OK
+  Arven's Mabosstiff ex - 218/182               ultra     0.1680     0.1670     $1.75      OK
+  Nymble - 096/094                              ultra     0.1280     0.1190     $1.5       OK
+  Oricorio ex - 110/094                         ultra     0.2820     0.2560     $1.25      OK
+  Firebreather - 119/094                        ultra     0.1380     0.1630     $1         OK
+  Mega Lopunny ex - 084/094                     uncommon  6.5500     6.5570     $0.75      OK
+  Mega Heracross ex - 004/094                   uncommon  8.8180     8.6880     $0.5       OK
+  Mandibuzz ex                                  uncommon  17.5620    17.6130    $0.4       OK
+  Charmander - ME02                             uncommon  21.9060    22.1600    $0.35      OK
+  Larry's Braviary - ME                         common    17.5620    17.4820    $0.05      OK
+  Drampa - ME                                   common    26.2500    26.1650    $0.02      OK
+
+========================================================================================================================
+SUMMARY - PACKS RANKED BY ROI (descending)
+========================================================================================================================
+Pack                           Price    Total%       EV           ROI        Status
+------------------------------------------------------------------------------------------------------------------------
+Water Trainer ($3)             $3       100.54%      $2.4611      -17.56%      FLAG: WEIGHT=100.54%
+Electric 50/50 ($40)           $40      100.00%      $31.7600     -20.40%      OK
+Grass 50/50 ($35)              $35      100.00%      $26.8657     -23.14%      OK
+Fire 50/50 ($45)               $45      100.00%      $33.2610     -26.47%      OK
+Water 50/50 ($35)              $35      100.00%      $23.8642     -31.95%      OK
+Mythic Trainer ($100)          $100     100.00%      $68.0122     -32.03%      OK
+Master Trainer ($400)          $400     100.00%      $262.0317    -34.54%      OK
+Rivals Pack ($9)               $9       100.05%      $5.4850      -38.92%      FLAG: WEIGHT=100.05%
+Small Pack ($0.50)             $0.5     99.99%      $0.2948      -40.92%      OK
+Ultra Pack ($1)                $1       100.00%      $0.5811      -41.30%      OK
+Crown Pack ($9)                $9       100.24%      $5.3033      -41.31%      FLAG: WEIGHT=100.24%
+
+========================================================================================================================
+WEIGHT SUM ERROR PACKS (>0.01% from 100%):
+========================================================================================================================
+  Water Trainer ($3): total=100.5431% (OVER by 0.5431%)
+  Rivals Pack ($9): total=100.0549% (OVER by 0.0549%)
+  Crown Pack ($9): total=100.2370% (OVER by 0.2370%)

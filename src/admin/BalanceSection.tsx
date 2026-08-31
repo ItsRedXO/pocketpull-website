@@ -1,0 +1,99 @@
+import React, { useState } from 'react';
+import { blink } from '../lib/blink';
+import { UserRow } from './types';
+import { useQueryClient } from '@tanstack/react-query';
+
+interface BalanceSectionProps {
+  user: UserRow;
+  showToast: (m: string, ok?: boolean) => void;
+  onUpdate: (user: UserRow) => void;
+  logAdminAction: (action: string, targetUser: string, details?: any) => void;
+}
+
+export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: BalanceSectionProps) {
+  const qc = useQueryClient();
+  const [balanceDelta, setBalanceDelta] = useState('');
+  const [savingBalance, setSavingBalance] = useState(false);
+
+  const handleBalanceUpdate = async () => {
+    if (!balanceDelta.trim()) return;
+    const delta = parseFloat(balanceDelta);
+    if (isNaN(delta)) {
+      showToast('Enter a valid number (e.g. +10 or -5)', false);
+      return;
+    }
+    setSavingBalance(true);
+    try {
+      const nb = Math.max(0, user.balance + delta);
+      await blink.db.users.update(user.id, { balance: nb });
+      onUpdate({ ...user, balance: nb });
+      qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+      setBalanceDelta('');
+      showToast(`Balance updated to ${nb.toFixed(2)}`);
+      logAdminAction('Admin Adjusted Balance', user.username, {
+        delta,
+        newBalance: nb,
+        previousBalance: user.balance,
+      });
+    } catch {
+      showToast('Balance update failed.', false);
+    }
+    setSavingBalance(false);
+  };
+
+  const handleSetBalance = async () => {
+    if (!balanceDelta.trim()) return;
+    const nb = parseFloat(balanceDelta);
+    if (isNaN(nb) || nb < 0) {
+      showToast('Enter a valid non-negative amount.', false);
+      return;
+    }
+    setSavingBalance(true);
+    try {
+      await blink.db.users.update(user.id, { balance: nb });
+      onUpdate({ ...user, balance: nb });
+      qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+      setBalanceDelta('');
+      showToast(`Balance set to ${nb.toFixed(2)}`);
+      logAdminAction('Admin Set Balance', user.username, {
+        newBalance: nb,
+        previousBalance: user.balance,
+      });
+    } catch {
+      showToast('Balance update failed.', false);
+    }
+    setSavingBalance(false);
+  };
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display mb-3">Adjust Balance</h4>
+      <div className="flex gap-2">
+        <input
+          type="number"
+          step="0.01"
+          value={balanceDelta}
+          onChange={(e) => setBalanceDelta(e.target.value)}
+          placeholder="Amount (e.g. 10 or -5)"
+          className="admin-input flex-1 text-[13px]"
+        />
+        <button
+          onClick={handleBalanceUpdate}
+          disabled={savingBalance || !balanceDelta.trim()}
+          className="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 transition-all"
+          style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}
+        >
+          {savingBalance ? '...' : '± Add'}
+        </button>
+        <button
+          onClick={handleSetBalance}
+          disabled={savingBalance || !balanceDelta.trim()}
+          className="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 transition-all"
+          style={{ background: 'rgba(0,200,255,0.1)', border: '1px solid rgba(0,200,255,0.25)', color: '#00c8ff' }}
+        >
+          {savingBalance ? '...' : '= Set'}
+        </button>
+      </div>
+    </div>
+  );
+}

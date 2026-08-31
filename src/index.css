@@ -1,0 +1,326 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Admin panel shared input style ── */
+.admin-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.admin-input:focus {
+  border-color: rgba(155,92,255,0.5);
+  background: rgba(255,255,255,0.07);
+}
+.admin-input::placeholder { color: rgba(255,255,255,0.2); }
+.admin-input option { background: #0d0f1c; color: #fff; }
+
+:root {
+  /* Core Brand */
+  --background: 240 10% 4%;
+  --foreground: 0 0% 96%;
+  --card: 240 8% 6%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 10% 5%;
+  --popover-foreground: 0 0% 96%;
+
+  /* Primary: Neon Blue */
+  --primary: 195 100% 50%;
+  --primary-foreground: 240 10% 4%;
+
+  /* Secondary: Electric Purple */
+  --secondary: 267 100% 67%;
+  --secondary-foreground: 0 0% 100%;
+
+  /* Accent: Gold */
+  --accent: 45 100% 50%;
+  --accent-foreground: 240 10% 4%;
+
+  --muted: 240 8% 12%;
+  --muted-foreground: 240 5% 55%;
+  --border: 240 8% 14%;
+  --input: 240 8% 12%;
+  --ring: 195 100% 50%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --radius: 0.75rem;
+
+  /* Rarity Colors */
+  --rarity-common: 240 5% 65%;
+  --rarity-uncommon: 142 76% 36%;
+  --rarity-rare: 195 100% 50%;
+  --rarity-ultra: 267 100% 67%;
+  --rarity-secret: 45 100% 50%;
+}
+
+.light {
+  --background: 220 20% 96%;
+  --foreground: 240 10% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 8%;
+  --muted: 220 14% 90%;
+  --muted-foreground: 240 5% 42%;
+  --border: 220 13% 85%;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, .font-display {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--secondary) / 0.5);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--secondary));
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .neon-glow-blue {
+    box-shadow: 0 0 20px -5px hsl(195 100% 50% / 0.6), 0 0 40px -15px hsl(195 100% 50% / 0.3);
+  }
+  .neon-glow-purple {
+    box-shadow: 0 0 20px -5px hsl(267 100% 67% / 0.6), 0 0 40px -15px hsl(267 100% 67% / 0.3);
+  }
+  .neon-glow-gold {
+    box-shadow: 0 0 20px -5px hsl(45 100% 50% / 0.6), 0 0 40px -15px hsl(45 100% 50% / 0.3);
+  }
+  .neon-glow-green {
+    box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.6);
+  }
+
+  .text-glow-blue {
+    text-shadow: 0 0 20px hsl(195 100% 50% / 0.8), 0 0 40px hsl(195 100% 50% / 0.4);
+  }
+  .text-glow-gold {
+    text-shadow: 0 0 20px hsl(45 100% 50% / 0.8), 0 0 40px hsl(45 100% 50% / 0.4);
+  }
+  .text-glow-purple {
+    text-shadow: 0 0 20px hsl(267 100% 67% / 0.8);
+  }
+
+  .shimmer-btn {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 70%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2.5s infinite;
+  }
+
+  .rainbow-border {
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+  }
+  .rainbow-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8f00ff, #ff0000);
+    background-size: 300% 300%;
+    animation: rainbow-shift 3s linear infinite;
+    z-index: -1;
+  }
+
+  .btn-primary {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    padding: 12px 28px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px -5px hsl(195 100% 50% / 0.5);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px -5px hsl(195 100% 50% / 0.8);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
+
+  .rarity-common { color: hsl(var(--rarity-common)); }
+  .rarity-uncommon { color: hsl(var(--rarity-uncommon)); }
+  .rarity-rare { color: hsl(var(--rarity-rare)); }
+  .rarity-ultra { color: hsl(var(--rarity-ultra)); }
+  .rarity-secret { color: hsl(var(--rarity-secret)); }
+  .rarity-rainbow {
+    background: linear-gradient(90deg, #ff0060, #ff7f00, #ffff00, #00ff80, #00c8ff, #9b5cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ===================== KEYFRAMES ===================== */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(var(--rotate, 0deg)); }
+  50% { transform: translateY(-20px) rotate(var(--rotate, 0deg)); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 15px -5px hsl(195 100% 50% / 0.5); }
+  50% { box-shadow: 0 0 30px -5px hsl(195 100% 50% / 0.9), 0 0 60px -20px hsl(195 100% 50% / 0.4); }
+}
+
+@keyframes rainbow-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(60px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes blink-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes count-up-flash {
+  0% { color: hsl(195 100% 50%); }
+  100% { color: inherit; }
+}
+
+@keyframes card-flip {
+  0% { transform: rotateY(0deg); }
+  50% { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+
+@keyframes screen-flash {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes level-fill {
+  from { width: 0; }
+  to { width: 72%; }
+}
+
+/* Animation Classes */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+  display: flex;
+}
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+.animate-blink-dot {
+  animation: blink-dot 1s ease-in-out infinite;
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Media queries for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
