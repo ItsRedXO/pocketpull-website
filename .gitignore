@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Local database exports — contain private user/payment/auth data
+/database/*.csv
+/database/*.zip
+/database_inventory.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
