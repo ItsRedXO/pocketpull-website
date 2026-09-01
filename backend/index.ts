@@ -1,68 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { getBlinkServer } from './lib/auth';
-import adminPacksRoutes from './routes/adminPacks';
-import catalogRoutes from './routes/catalog';
-import profileRoutes from './routes/profile';
-import stripeRoutes from './routes/stripe';
-import coinbaseRoutes from './routes/coinbase';
-import packOpeningRoutes from './routes/packOpening';
-import upgraderRoutes from './routes/upgrader';
-import exchangerRoutes from './routes/exchanger';
-import battleRoutes from './routes/battles/index';
-import cashoutRoutes from './routes/cashout';
-import cashoutAdminRoutes from './routes/cashoutAdmin';
-import inventoryRoutes from './routes/inventory';
-import upgraderSettingsRoutes from './routes/upgraderSettings';
-import sendTestEmailsRoutes from './routes/sendTestEmails';
-import logsRoutes from './routes/logs';
-import provablyFairRoutes from './routes/provablyFair';
-
-const app = new Hono();
-app.use('*', cors());
-app.get('/health', c => c.json({ status: 'ok', time: new Date().toISOString(), version: 'v5-postgresql' }));
-app.route('/', catalogRoutes);
-app.route('/', profileRoutes);
-app.route('/', stripeRoutes);
-app.route('/', coinbaseRoutes);
-app.route('/', packOpeningRoutes);
-app.route('/', upgraderRoutes);
-app.route('/', exchangerRoutes);
-app.route('/battles', battleRoutes);
-app.route('/', cashoutRoutes);
-app.route('/', cashoutAdminRoutes);
-app.route('/', inventoryRoutes);
-app.route('/', upgraderSettingsRoutes);
-app.route('/', sendTestEmailsRoutes);
-app.route('/', logsRoutes);
-app.route('/', provablyFairRoutes);
-app.route('/', adminPacksRoutes);
-
-function hashDateToTarget(dateStr: string): number { let hash = 0; for (let i = 0; i < dateStr.length; i++) { hash = ((hash << 5) - hash) + dateStr.charCodeAt(i); hash |= 0; } return 40000 + (Math.abs(hash) % 40001); }
-function getDailyPacksOpened(): number { const pacificNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })); const startOfDay = new Date(pacificNow.getFullYear(), pacificNow.getMonth(), pacificNow.getDate()); const elapsedMs = pacificNow.getTime() - startOfDay.getTime(); const dateSeed = `${startOfDay.getFullYear()}-${startOfDay.getMonth() + 1}-${startOfDay.getDate()}`; const target = hashDateToTarget(dateSeed); let t = Math.min(elapsedMs / 86400000, 1); t = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; return Math.floor(target * t); }
-
-app.get('/battles/stats', async c => { const database = getBlinkServer(c.env as any).db; try { const activeBattles = await database.battles.list({ where: { status: { in: ['waiting', 'live'] }, isPublic: 1 }, limit: 100 }); return c.json({ success: true, liveBattles: activeBattles?.length || 0, packsOpened: getDailyPacksOpened(), timestamp: new Date().toISOString() }); } catch { return c.json({ error: 'Failed to fetch battle stats' }, 500); } });
-
-app.get('/referrals', async c => {
-  const blink = getBlinkServer(c.env as any);
-  const auth = await blink.auth.verifyToken(c.req.header('Authorization'));
-  if (!auth.valid || !auth.userId) return c.json({ error: 'Unauthorized' }, 401);
-  const database = blink.db;
-  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
-  const limit = 10;
-  const offset = (page - 1) * limit;
-  try {
-    const referredUsers = await database.users.list({ where: { referredById: auth.userId }, orderBy: { createdAt: 'desc' }, limit, offset });
-    const total = await database.users.count({ where: { referredById: auth.userId } });
-    const data = await Promise.all((referredUsers as any[]).map(async u => {
-      let status: 'Reward Paid' | 'Deposit Pending' | 'Signed Up' = 'Signed Up';
-      let deposited = false;
-      if (u.referralRewardPaid || Number(u.referralRewardPaid) > 0) { status = 'Reward Paid'; deposited = true; }
-      else { const qualifying = await database.transactions.exists({ where: { userId: u.id, type: 'deposit', amount: { gte: 5 } } }); if (qualifying) { status = 'Deposit Pending'; deposited = true; } else deposited = await database.transactions.exists({ where: { userId: u.id, type: 'deposit' } }); }
-      return { id: u.id, username: u.username || u.displayName || 'Trainer', email: u.isDeleted ? 'Released' : (u.email || 'Hidden'), status, deposited, createdAt: u.createdAt };
-    }));
-    return c.json({ data, total, page, totalPages: Math.ceil(total / limit) });
-  } catch (err: any) { return c.json({ error: err.message || 'Failed to load referrals' }, 500); }
-});
-
+import adminPacksRoutes from './routes/adminPacks'; import catalogRoutes from './routes/catalog'; import profileRoutes from './routes/profile'; import stripeRoutes from './routes/stripe'; import coinbaseRoutes from './routes/coinbase'; import packOpeningRoutes from './routes/packOpening'; import upgraderRoutes from './routes/upgrader'; import exchangerRoutes from './routes/exchanger'; import battleRoutes from './routes/battles/index'; import cashoutRoutes from './routes/cashout'; import cashoutAdminRoutes from './routes/cashoutAdmin'; import inventoryRoutes from './routes/inventory'; import upgraderSettingsRoutes from './routes/upgraderSettings'; import sendTestEmailsRoutes from './routes/sendTestEmails'; import logsRoutes from './routes/logs'; import provablyFairRoutes from './routes/provablyFair'; import leaderboardRoutes from './routes/leaderboard';
+const app=new Hono();app.use('*',cors());app.get('/health',c=>c.json({status:'ok',time:new Date().toISOString(),version:'v6-postgresql'}));app.route('/',catalogRoutes);app.route('/',profileRoutes);app.route('/',stripeRoutes);app.route('/',coinbaseRoutes);app.route('/',packOpeningRoutes);app.route('/',upgraderRoutes);app.route('/',exchangerRoutes);app.route('/battles',battleRoutes);app.route('/',cashoutRoutes);app.route('/',cashoutAdminRoutes);app.route('/',inventoryRoutes);app.route('/',upgraderSettingsRoutes);app.route('/',sendTestEmailsRoutes);app.route('/',logsRoutes);app.route('/',provablyFairRoutes);app.route('/',adminPacksRoutes);app.route('/',leaderboardRoutes);
+function hashDateToTarget(s:string){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return 40000+Math.abs(h)%40001}function getDailyPacksOpened(){const now=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'})),start=new Date(now.getFullYear(),now.getMonth(),now.getDate()),p=(now.getTime()-start.getTime())/86400000,s=`${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`,target=hashDateToTarget(s),t=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;return Math.floor(target*t)}
+app.get('/battles/stats',async c=>{try{const active=await getBlinkServer(c.env as any).db.battles.list({where:{status:{in:['waiting','live']},isPublic:1},limit:100});return c.json({success:true,liveBattles:active.length,packsOpened:getDailyPacksOpened(),timestamp:new Date().toISOString()})}catch{return c.json({error:'Failed to fetch battle stats'},500)}});
+app.get('/referrals',async c=>{const blink=getBlinkServer(c.env as any);try{const auth=await blink.auth.verifyToken(c.req.header('Authorization'));if(!auth.valid||!auth.userId)return c.json({error:'Unauthorized'},401);const page=Math.max(1,parseInt(c.req.query('page')||'1')),limit=10,rows=await blink.db.users.list({where:{referredById:auth.userId},orderBy:{createdAt:'desc'},limit,offset:(page-1)*limit}),total=await blink.db.users.count({where:{referredById:auth.userId}});const data=await Promise.all((rows as any[]).map(async u=>{const paid=Number(u.referralRewardPaid||0)>0,qual=await blink.db.transactions.exists({where:{userId:u.id,type:'deposit',amount:{gte:5}}});return{id:u.id,username:u.username||u.displayName||'Trainer',email:Number(u.isDeleted||0)?'Released':u.email||'Hidden',status:paid?'Reward Paid':qual?'Deposit Pending':'Signed Up',deposited:paid||qual,createdAt:u.createdAt}}));return c.json({data,total,page,totalPages:Math.ceil(total/limit)})}catch(err:any){return c.json({error:err.message||'Failed to load referrals'},500)}});
 export default app;
