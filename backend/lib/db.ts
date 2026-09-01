@@ -9,6 +9,7 @@ export interface DatabaseEnv {
   PGDATABASE?: string;
   PGSSL?: string;
   PGSSLMODE?: string;
+  PGPOOL_MAX?: string;
 }
 
 export interface DatabaseConfig {
@@ -291,11 +292,8 @@ export class PostgresDatabase {
   }
 
   async sql<T extends QueryResultRow = any>(text: string, values: any[] = []): Promise<QueryResult<T>> {
-    const converted = text.replace(/\?/g, (_, offset, source) => {
-      const before = source.slice(0, offset);
-      const count = (before.match(/\$\d+/g) || []).length;
-      return `$${count + 1}`;
-    });
+    let parameter = 0;
+    const converted = text.replace(/\?/g, () => `$${++parameter}`);
     return this.query<T>(converted, values);
   }
 
