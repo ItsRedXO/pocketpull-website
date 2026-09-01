@@ -1,292 +1,87 @@
-/**
- * Stripe payment routes.
- *
- * POST /create-payment-intent  — create a Stripe PaymentIntent
- * POST /webhook/stripe          — handle Stripe webhook events
- * POST /verify-deposit          — fallback balance verification
- */
 import { Hono } from 'hono';
 import { Stripe } from 'stripe';
-import { getBlinkServer } from '../lib/auth';
+import { requireAuth, getBlinkServer } from '../lib/auth';
+import { getUserProfile } from '../db/repositories/users';
+import { getDb } from '../db/client';
 import { writeLog } from './logs';
 import { processFirstDepositBonus, processReferralReward } from '../lib/payments';
 import { processWalletTransaction } from '../lib/wallet';
 
 const app = new Hono();
-
 const getStripe = (env: any): Stripe => {
   const key = env.STRIPE_SECRET_KEY || env.VITE_STRIPE_SECRET_KEY;
   if (!key) throw new Error('STRIPE_SECRET_KEY is not set in environment');
-  return new Stripe(key, {
-    apiVersion: '2023-10-16' as any,
-  });
+  return new Stripe(key, { apiVersion: '2023-10-16' as any });
 };
 
-// ──────────────────────────────────────────────────────────────────────────────
-// POST /create-payment-intent
-// ──────────────────────────────────────────────────────────────────────────────
 app.post('/create-payment-intent', async (c) => {
-  console.log('[Stripe] create-payment-intent started');
+  let authUserId: string;
+  try { authUserId = await requireAuth(c); } catch { return c.json({ error: 'Authentication required' }, 401); }
   try {
     const body = await c.req.json().catch(() => ({}));
-    const { amountUsd, userId } = body;
-    let { username, email } = body;
-
-    if (!amountUsd || parseFloat(amountUsd) < 5) {
-      return c.json({ error: 'Minimum deposit is $5.00' }, 400);
-    }
-    if (!userId) {
-      return c.json({ error: 'User ID is required' }, 400);
-    }
-
+    const amountUsd = Number(body.amountUsd);
+    if (!Number.isFinite(amountUsd) || amountUsd < 5) return c.json({ error: 'Minimum deposit is $5.00' }, 400);
+    if (body.userId && body.userId !== authUserId) return c.json({ error: 'User mismatch' }, 403);
+    const user = await getUserProfile(c.env as any, authUserId);
+    if (!user) return c.json({ error: 'User not found' }, 404);
+    const username = body.username || user.username || user.displayName || 'Trainer';
+    const email = body.email || user.email || '';
     const stripe = getStripe(c.env);
-    const blink = getBlinkServer(c.env as any);
-    const amountCents = Math.round(parseFloat(amountUsd) * 100);
-
-    // Look up user from DB if not passed from frontend
-    if (!username || !email) {
-      try {
-        const userRow = await blink.db.users.get(userId) as any;
-        if (userRow) {
-          if (!username) username = userRow.username || userRow.displayName || 'Trainer';
-          if (!email) email = userRow.email || '';
-        }
-      } catch (lookupErr: any) {
-        console.warn('[Stripe] User lookup failed:', lookupErr.message);
-      }
-    }
-
-    const safeUsername = username || 'Unknown';
-    const safeEmail    = email    || '';
-
-    // Find or create Stripe customer
     let customerId: string | undefined;
-    if (safeEmail) {
-      try {
-        const existing = await stripe.customers.list({ email: safeEmail, limit: 1 });
-        if (existing.data.length > 0) {
-          customerId = existing.data[0].id;
-          await stripe.customers.update(customerId, {
-            name: safeUsername,
-            metadata: { userId, username: safeUsername, email: safeEmail },
-          });
-        } else {
-          const customer = await stripe.customers.create({
-            email: safeEmail,
-            name: safeUsername,
-            metadata: { userId, username: safeUsername, email: safeEmail },
-          });
-          customerId = customer.id;
-        }
-      } catch (custErr: any) {
-        console.warn('[Stripe] Customer lookup/create failed:', custErr.message);
-      }
+    if (email) {
+      const existing = await stripe.customers.list({ email, limit: 1 });
+      if (existing.data[0]) { customerId = existing.data[0].id; await stripe.customers.update(customerId, { name: username, metadata: { userId: authUserId } }); }
+      else customerId = (await stripe.customers.create({ email, name: username, metadata: { userId: authUserId } })).id;
     }
-
-    const description = safeEmail
-      ? `PocketPull deposit - ${safeUsername} (${safeEmail})`
-      : `PocketPull deposit - ${safeUsername} [${userId}]`;
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'usd',
-      automatic_payment_methods: { enabled: true },
-      ...(customerId ? { customer: customerId } : {}),
-      metadata: { userId, username: safeUsername, email: safeEmail, amountUsd: String(amountUsd) },
-      description,
-    });
-
-    console.log(`[Stripe] PaymentIntent created: ${paymentIntent.id}`);
-    return c.json({ clientSecret: paymentIntent.client_secret, id: paymentIntent.id });
-  } catch (err: any) {
-    console.error('[Stripe] create-payment-intent Error:', err.message);
-    return c.json({ error: err.message || 'Internal Server Error' }, 500);
-  }
+    const pi = await stripe.paymentIntents.create({ amount: Math.round(amountUsd * 100), currency: 'usd', automatic_payment_methods: { enabled: true }, ...(customerId ? { customer: customerId } : {}), metadata: { userId: authUserId, username, email, amountUsd: amountUsd.toFixed(2) }, description: `PocketPull deposit - ${username}` });
+    return c.json({ clientSecret: pi.client_secret, id: pi.id });
+  } catch (err: any) { console.error('[Stripe] create-payment-intent:', err?.message || err); return c.json({ error: err?.message || 'Internal Server Error' }, 500); }
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// POST /webhook/stripe
-// ──────────────────────────────────────────────────────────────────────────────
 app.post('/webhook/stripe', async (c) => {
-  console.log('[Stripe Webhook] Received request');
   const stripe = getStripe(c.env);
-  const blink  = getBlinkServer(c.env as any);
-  
   const signature = c.req.header('stripe-signature');
-  const webhookSecret = (c.env as any).STRIPE_WEBHOOK_SECRET;
-
-  if (!signature || !webhookSecret) {
-    console.error('[Stripe Webhook] Missing signature or secret');
-    return c.text('Missing signature or secret', 400);
-  }
-
+  const secret = c.env.STRIPE_WEBHOOK_SECRET;
+  if (!signature || !secret) return c.text('Missing signature or secret', 400);
   let event: Stripe.Event;
-  try {
-    const body = await c.req.text();
-    // Use constructEventAsync for better compatibility with Edge environments
-    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-  } catch (err: any) {
-    console.error(`[Stripe Webhook] Signature verification failed: ${err.message}`);
-    return c.text(`Webhook Error: ${err.message}`, 400);
-  }
-
-  console.log(`[Stripe Webhook] Event verified. Type: ${event.type}`);
-
+  try { event = await stripe.webhooks.constructEventAsync(await c.req.text(), signature, secret); }
+  catch (err: any) { return c.text(`Webhook Error: ${err?.message || 'invalid signature'}`, 400); }
   if (event.type === 'payment_intent.succeeded') {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    console.log(`[Stripe Webhook] Processing PI: ${paymentIntent.id}`);
-    try {
-      await processSuccessfulPayment(blink, paymentIntent);
-    } catch (processErr: any) {
-      console.error(`[Stripe Webhook] Error processing payment: ${processErr.message}`);
-      return c.json({ error: processErr.message }, 500);
-    }
+    try { await processSuccessfulPayment(c.env as any, event.data.object as Stripe.PaymentIntent); }
+    catch (err: any) { console.error('[Stripe Webhook] processing failed:', err?.message || err); return c.json({ error: err?.message || 'Processing failed' }, 500); }
   }
-
   return c.json({ received: true });
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// POST /verify-deposit  (fallback — call after frontend Stripe confirmation)
-// ──────────────────────────────────────────────────────────────────────────────
 app.post('/verify-deposit', async (c) => {
-  console.log('[Stripe] verify-deposit request received');
-  const blink  = getBlinkServer(c.env as any);
-  const stripe = getStripe(c.env);
+  let userId: string;
+  try { userId = await requireAuth(c); } catch { return c.json({ error: 'Authentication required' }, 401); }
   try {
-    const body = await c.req.json();
-    const { paymentIntentId } = body;
-    
+    const { paymentIntentId } = await c.req.json();
     if (!paymentIntentId) return c.json({ error: 'paymentIntentId required' }, 400);
-
-    console.log(`[Stripe] Verifying PI: ${paymentIntentId}`);
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status === 'succeeded') {
-      const result = await processSuccessfulPayment(blink, paymentIntent);
-      return c.json({ success: true, ...result });
-    } else {
-      console.warn(`[Stripe] PI not succeeded: ${paymentIntent.status}`);
-      return c.json({ error: `Payment intent status: ${paymentIntent.status}` }, 400);
-    }
-  } catch (err: any) {
-    console.error('[Stripe] verify-deposit Error:', err.message);
-    return c.json({ error: err.message }, 500);
-  }
+    const pi = await getStripe(c.env).paymentIntents.retrieve(paymentIntentId);
+    if (pi.status !== 'succeeded') return c.json({ error: `Payment intent status: ${pi.status}` }, 400);
+    if (pi.metadata?.userId !== userId) return c.json({ error: 'Payment intent does not belong to authenticated user' }, 403);
+    return c.json({ success: true, ...(await processSuccessfulPayment(c.env as any, pi)) });
+  } catch (err: any) { return c.json({ error: err?.message || 'Verification failed' }, 500); }
 });
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────────────────────────────────────
-
-/** Idempotent: credits balance for a succeeded PaymentIntent (won't double-credit). */
-async function processSuccessfulPayment(blink: any, paymentIntent: Stripe.PaymentIntent) {
+async function processSuccessfulPayment(env: any, paymentIntent: Stripe.PaymentIntent) {
   const meta = paymentIntent.metadata || {};
   const userId = meta.userId;
-  let amountUsd = meta.amountUsd;
-  const metaUsername = meta.username;
-  const metaEmail = meta.email;
-  const piId = paymentIntent.id;
-
-  // Fallback: If amountUsd is missing from metadata, use the PaymentIntent amount
-  if (!amountUsd && paymentIntent.amount) {
-    amountUsd = (paymentIntent.amount / 100).toFixed(2);
-    console.log(`[Stripe] amountUsd missing in metadata, falling back to PI amount: ${amountUsd}`);
-  }
-
-  console.log(`[Stripe] Processing payment for PI: ${piId}, User: ${userId}, Amount: ${amountUsd}`);
-
-  if (!userId || !amountUsd) {
-    console.error(`[Stripe] Missing critical metadata for PI ${piId}. Metadata: ${JSON.stringify(meta)}`);
-    return { error: 'Missing critical metadata (userId or amount)' };
-  }
-
-  const depositAmt = parseFloat(amountUsd);
-  const txnId = `txn_stripe_${piId}`;
-
-  try {
-    const existingTxn = await blink.db.transactions.get(txnId);
-    if (existingTxn) {
-      console.log(`[Stripe] PI ${piId} already processed. Skipping.`);
-      return { status: 'already_processed' };
-    }
-  } catch {}
-
-  try {
-    const user = await blink.db.users.get(userId);
-    if (!user) {
-      console.error(`[Stripe] User ${userId} not found`);
-      return { error: 'User not found' };
-    }
-
-    const u2 = user as any;
-    const resolvedUsername = metaUsername || u2.username || u2.displayName || 'Trainer';
-    const resolvedEmail    = metaEmail    || u2.email    || '';
-
-    const walletResult = await processWalletTransaction(blink, {
-      userId,
-      type: 'deposit',
-      amount: depositAmt,
-      sourceId: piId,
-    });
-
-    if (!walletResult.success) {
-      console.error(`[Stripe] Wallet transaction failed for PI ${piId}: ${walletResult.error}`);
-      return { error: walletResult.error || 'Failed to credit balance' };
-    }
-
-    const newBal = walletResult.balanceAfter;
-    console.log(`[Stripe] Balance updated for user ${userId}: ${walletResult.balanceBefore.toFixed(2)} -> ${newBal.toFixed(2)}`);
-
-    const txnDescription = resolvedEmail
-      ? `Stripe deposit — ${depositAmt.toFixed(2)} · ${resolvedUsername} (${resolvedEmail})`
-      : `Stripe deposit — ${depositAmt.toFixed(2)} · ${resolvedUsername}`;
-
-    await blink.db.transactions.create({
-      id: txnId,
-      userId,
-      type: 'deposit',
-      amount: depositAmt,
-      description: txnDescription,
-      createdAt: new Date().toISOString(),
-    } as any);
-
-    try {
-      await writeLog(blink, {
-        type: 'deposit',
-        userId,
-        username: resolvedUsername,
-        action: 'Stripe Deposit Confirmed',
-        details: {
-          amount: depositAmt,
-          paymentIntentId: piId,
-          paymentMethod: 'Stripe',
-          status: 'completed',
-          email: resolvedEmail,
-        },
-        valueIn: depositAmt,
-        valueOut: 0,
-        result: 'success',
-      });
-    } catch (logErr) {
-      console.warn('[Stripe] Activity log failed', logErr);
-    }
-
-    // First deposit bonus — 100% match up to $100, once per account
-    if (!u2.firstDepositBonusPaid && Number(u2.firstDepositBonusPaid) === 0) {
-      await processFirstDepositBonus(blink, userId, depositAmt);
-    }
-
-    // Referral reward — $10 to BOTH referrer and referred user on first deposit ≥ $5
-    if (depositAmt >= 5 && u2.referredById && !u2.referralRewardPaid) {
-      await processReferralReward(blink, userId, u2.referredById, depositAmt);
-    }
-
-    return { status: 'success', newBalance: newBal };
-  } catch (err: any) {
-    console.error(`[Stripe] processSuccessfulPayment Critical Error:`, err.message);
-    throw err;
-  }
+  const depositAmt = Number(meta.amountUsd || (paymentIntent.amount / 100));
+  if (!userId || !Number.isFinite(depositAmt) || depositAmt <= 0) throw new Error('Missing critical payment metadata');
+  const user = await getUserProfile(env, userId);
+  if (!user) throw new Error('User not found');
+  const blink = getBlinkServer(env);
+  const wallet = await processWalletTransaction(blink, { userId, type: 'deposit', amount: depositAmt, sourceId: paymentIntent.id, metadata: { provider: 'stripe', paymentIntentId: paymentIntent.id } });
+  if (!wallet.success) throw new Error(wallet.error || 'Failed to credit balance');
+  const txnId = `txn_stripe_${paymentIntent.id}`;
+  await getDb(env).query(`INSERT INTO transactions (id,user_id,type,amount,description,created_at) VALUES ($1,$2,'deposit',$3,$4,NOW()) ON CONFLICT (id) DO NOTHING`, [txnId, userId, depositAmt, `Stripe deposit — ${depositAmt.toFixed(2)} · ${meta.username || user.username || 'Trainer'}`]);
+  await writeLog(blink, { type: 'deposit', userId, username: meta.username || user.username || 'Trainer', action: 'Stripe Deposit Confirmed', details: { amount: depositAmt, paymentIntentId: paymentIntent.id, paymentMethod: 'Stripe', status: 'completed' }, valueIn: depositAmt, valueOut: 0, result: 'success' });
+  if (!user.firstDepositBonusPaid) await processFirstDepositBonus(blink, userId, depositAmt);
+  if (depositAmt >= 5 && user.referredById && !user.referralRewardPaid) await processReferralReward(blink, userId, user.referredById, depositAmt);
+  return { status: 'success', newBalance: wallet.balanceAfter };
 }
 
 export default app;
