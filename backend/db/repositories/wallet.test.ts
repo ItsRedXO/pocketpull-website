@@ -17,4 +17,8 @@ describe('calculateWalletBalances', () => {
   it('never changes matched balance on a zero-value transaction', () => {
     expect(calculateWalletBalances(20, 7, 0, 7)).toEqual({ balanceAfter: 20, matchedAfter: 7 });
   });
+
+  it('does not let a debit produce a negative real balance', () => {
+    expect(calculateWalletBalances(2, 3, -10, 0)).toEqual({ balanceAfter: 0, matchedAfter: 3 });
+  });
 });
