@@ -44,7 +44,10 @@ app.post('/open-pack', async (c) => {
     if (!serverSeed) return c.json({ error: 'Provably fair system not initialized. Please contact support.' }, 500);
     const actualSeedHash = await sha256(serverSeed);
     const seed = await getActiveOrPendingServerSeed(c.env as any, actualSeedHash);
-    if (!seed) return c.json({ error: 'Provably fair integrity error. Please contact support.' }, 500);
+    if (!seed) {
+      console.error('[open-pack] server seed hash mismatch or no active seed');
+      return c.json({ error: 'Provably fair integrity error. Please contact support.' }, 500);
+    }
 
     const oddsJson = buildOddsSnapshot(dbCards);
     const oddsVersionHash = await sha256(oddsJson);
