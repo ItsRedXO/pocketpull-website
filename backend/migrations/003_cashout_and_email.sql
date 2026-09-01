@@ -1,0 +1,41 @@
+-- PocketPull PostgreSQL migration 003
+
+CREATE TABLE IF NOT EXISTS cashout_requests (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  username TEXT,
+  confirmation_number TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending',
+  total_value NUMERIC(18,2) NOT NULL DEFAULT 0,
+  total_cards INTEGER NOT NULL DEFAULT 0,
+  cards_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  shipping_name TEXT,
+  shipping_address TEXT,
+  shipping_city TEXT,
+  shipping_state TEXT,
+  shipping_zip TEXT,
+  shipping_country TEXT DEFAULT 'US',
+  notes TEXT,
+  id_image_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_cashout_requests_user_created ON cashout_requests(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cashout_requests_status_created ON cashout_requests(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS outbound_emails (
+  id TEXT PRIMARY KEY,
+  recipient TEXT,
+  sender TEXT,
+  subject TEXT,
+  email_type TEXT,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  cashout_id TEXT REFERENCES cashout_requests(id) ON DELETE SET NULL,
+  text_content TEXT,
+  html_content TEXT,
+  status TEXT NOT NULL,
+  provider_message_id TEXT,
+  error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_outbound_emails_sent_at ON outbound_emails(sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_outbound_emails_cashout ON outbound_emails(cashout_id);
