@@ -1,5 +1,6 @@
 import type { Context } from 'hono';
 import { createClient } from '@blinkdotnew/sdk';
+import { createDatabase } from './db';
 
 /** Verify the user JWT from Authorization header. Returns userId or throws. */
 export async function requireAuth(c: Context): Promise<string> {
@@ -8,8 +9,9 @@ export async function requireAuth(c: Context): Promise<string> {
   if (!auth.valid || !auth.userId) {
     throw new Error('UNAUTHORIZED');
   }
-  
-  // Check if user is deleted/deactivated
+
+  // Database lookups are now handled by PostgreSQL. Auth remains provider-backed
+  // so existing user sessions/tokens do not need to be invalidated by the DB migration.
   try {
     const user = await blink.db.users.get(auth.userId) as any;
     if (user && Number(user.isDeleted || user.is_deleted || 0) > 0) {
@@ -17,18 +19,30 @@ export async function requireAuth(c: Context): Promise<string> {
     }
   } catch (err: any) {
     if (err.message === 'ACCOUNT_DEACTIVATED') throw err;
-    // ignore DB errors here to avoid blocking auth if DB is slow, 
-    // routes will check again when they fetch user data
+    throw new Error(`DATABASE_UNAVAILABLE: ${err.message || 'PostgreSQL request failed'}`);
   }
 
   return auth.userId;
 }
 
+/**
+ * Compatibility server facade during the migration.
+ * Authentication continues to use the existing Blink auth issuer, while ALL
+ * application database reads/writes are routed through PostgreSQL.
+ */
 export function getBlinkServer(env: Record<string, string>) {
-  return createClient({
+  const blink = createClient({
     projectId: env.BLINK_PROJECT_ID,
     secretKey: env.BLINK_SECRET_KEY,
   });
+
+  return {
+    auth: blink.auth,
+    db: createDatabase(env),
+    realtime: {
+      async publish() { return undefined; },
+    },
+  };
 }
 
 /** Generate a short unique ID */
