@@ -2,3 +2,13 @@ ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS email TEXT;
 CREATE INDEX IF NOT EXISTS idx_admin_credentials_username ON admin_credentials(username);
 CREATE INDEX IF NOT EXISTS idx_admin_credentials_email ON admin_credentials(email);
+
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS glow_color TEXT;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS border_color TEXT;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS name_color TEXT;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS description_color TEXT;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS price_color TEXT;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS button_text_color TEXT;
+ALTER TABLE packs_catalog ADD COLUMN IF NOT EXISTS open_another_button_text_color TEXT;
+ALTER TABLE pack_cards ADD COLUMN IF NOT EXISTS original_quantity INTEGER NOT NULL DEFAULT 0;
