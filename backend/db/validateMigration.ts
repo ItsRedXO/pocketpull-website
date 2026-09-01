@@ -1,17 +1,28 @@
 import { query } from '../lib/postgres';
 
-const TABLES = ['users','packs_catalog','pack_cards','inventory','transactions','packs_opened','server_seeds','pack_odds_versions','user_nonces','battles','battle_participants','battle_results','battle_pull_audits','upgrader_settings','upgrader_history','exchanger_activity','cashouts','activity_logs','outbound_emails'];
+const TABLES = ['users','packs_catalog','pack_cards','inventory','transactions','packs_opened','server_seeds','pack_odds_versions','user_nonces','battles','battle_players','battle_participants','battle_results','battle_pull_audits','wallet_transactions','upgrader_settings','upgrader_history','exchanger_activity','cashouts','activity_logs','outbound_emails','leaderboard_stats'];
 
 export async function validateMigration() {
-  const counts: Record<string, number> = {};
+  const counts: Record<string,number> = {};
   for (const table of TABLES) {
-    const rows = await query<{ count: string }>(`SELECT count(*)::text AS count FROM ${table}`);
+    const rows = await query<{count:string}>(`SELECT count(*)::text AS count FROM ${table}`);
     counts[table] = Number(rows[0]?.count ?? 0);
   }
-  const orphanInventory = await query<{ count: string }>('SELECT count(*)::text AS count FROM inventory i LEFT JOIN users u ON u.id=i.user_id WHERE u.id IS NULL');
-  const orphanCards = await query<{ count: string }>('SELECT count(*)::text AS count FROM pack_cards pc LEFT JOIN packs_catalog p ON p.id=pc.pack_id WHERE p.id IS NULL');
-  const duplicateSources = await query<{ count: string }>('SELECT count(*)::text AS count FROM (SELECT source_id FROM transactions WHERE source_id IS NOT NULL GROUP BY source_id HAVING count(*) > 1) x');
-  return { counts, orphanInventory: Number(orphanInventory[0]?.count ?? 0), orphanCards: Number(orphanCards[0]?.count ?? 0), duplicateSources: Number(duplicateSources[0]?.count ?? 0) };
+  const orphanInventory = await query<{count:string}>('SELECT count(*)::text AS count FROM inventory i LEFT JOIN users u ON u.id=i.user_id WHERE u.id IS NULL');
+  const orphanCards = await query<{count:string}>('SELECT count(*)::text AS count FROM pack_cards pc LEFT JOIN packs_catalog p ON p.id=pc.pack_id WHERE p.id IS NULL');
+  const orphanBattlePlayers = await query<{count:string}>('SELECT count(*)::text AS count FROM battle_players bp LEFT JOIN battles b ON b.id=bp.battle_id WHERE b.id IS NULL');
+  const duplicateSources = await query<{count:string}>('SELECT count(*)::text AS count FROM (SELECT source_id FROM transactions WHERE source_id IS NOT NULL GROUP BY source_id HAVING count(*) > 1) x');
+  const duplicateWalletIds = await query<{count:string}>('SELECT count(*)::text AS count FROM (SELECT id FROM wallet_transactions GROUP BY id HAVING count(*) > 1) x');
+  const walletRows = await query<{count:string}>('SELECT count(*)::text AS count FROM wallet_transactions w LEFT JOIN users u ON u.id=w.user_id WHERE u.id IS NULL');
+  return {
+    counts,
+    orphanInventory:Number(orphanInventory[0]?.count ?? 0),
+    orphanCards:Number(orphanCards[0]?.count ?? 0),
+    orphanBattlePlayers:Number(orphanBattlePlayers[0]?.count ?? 0),
+    duplicateSources:Number(duplicateSources[0]?.count ?? 0),
+    duplicateWalletIds:Number(duplicateWalletIds[0]?.count ?? 0),
+    orphanWalletTransactions:Number(walletRows[0]?.count ?? 0),
+  };
 }
 
-if (process.argv[1]?.endsWith('validateMigration.ts')) validateMigration().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.orphanInventory || r.orphanCards || r.duplicateSources ? 1 : 0); }).catch(e => { console.error(e); process.exit(1); });
+if (process.argv[1]?.endsWith('validateMigration.ts')) validateMigration().then(r => { console.log(JSON.stringify(r,null,2)); const bad = r.orphanInventory || r.orphanCards || r.orphanBattlePlayers || r.duplicateSources || r.duplicateWalletIds || r.orphanWalletTransactions; process.exit(bad ? 1 : 0); }).catch(e => { console.error(e); process.exit(1); });
