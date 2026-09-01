@@ -29,7 +29,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_battles_private_code ON battles(private_co
 CREATE TABLE IF NOT EXISTS battle_players (
   id TEXT PRIMARY KEY,
   battle_id TEXT NOT NULL REFERENCES battles(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  -- user_id intentionally has no FK: AI opponents use synthetic ai_* identities.
+  user_id TEXT NOT NULL,
   username TEXT,
   avatar TEXT,
   is_ai INTEGER NOT NULL DEFAULT 0,
@@ -48,7 +49,8 @@ CREATE TABLE IF NOT EXISTS battle_pull_audits (
   id TEXT PRIMARY KEY,
   battle_id TEXT NOT NULL REFERENCES battles(id) ON DELETE CASCADE,
   battle_player_id TEXT NOT NULL REFERENCES battle_players(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  -- user_id intentionally has no FK for the same AI identity reason.
+  user_id TEXT NOT NULL,
   pack_id TEXT NOT NULL REFERENCES packs_catalog(id) ON DELETE RESTRICT,
   pack_name TEXT,
   card_name TEXT,
