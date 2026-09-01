@@ -35,6 +35,14 @@ export async function finalizePackOpen(
   try {
     await client.query('BEGIN');
 
+    // Serialize openings for the same user/pack even when no cooldown row exists yet.
+    // This closes the first-open race where two concurrent requests could both pass
+    // the cooldown check before either request had inserted its row.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(hashtextextended($1 || ':' || $2, 0))`,
+      [input.userId, input.pack.id],
+    );
+
     const userResult = await client.query<{ balance: string; matched_balance: string; is_deleted: boolean; is_banned: boolean }>(
       `SELECT balance, matched_balance, is_deleted, is_banned
          FROM users WHERE id = $1 FOR UPDATE`,
@@ -45,16 +53,27 @@ export async function finalizePackOpen(
     if (user.is_deleted) throw new Error('Account deactivated');
     if (user.is_banned) throw new Error('Account banned');
 
-    const spendable = Number(user.balance) + Number(user.matched_balance);
-    if (spendable < input.pack.price) throw new Error('Insufficient balance');
-
-    const packResult = await client.query<{ quantity_limit: number; current_quantity: number; cooldown_hours: number; expires_at: string | null; pack_type: string }>(
-      `SELECT quantity_limit, current_quantity, cooldown_hours, expires_at, pack_type
+    const packResult = await client.query<{
+      price: string;
+      quantity_limit: number;
+      current_quantity: number;
+      cooldown_hours: number;
+      expires_at: string | null;
+      pack_type: string;
+    }>(
+      `SELECT price, quantity_limit, current_quantity, cooldown_hours, expires_at, pack_type
          FROM packs_catalog WHERE id = $1 AND is_active = TRUE FOR UPDATE`,
       [input.pack.id],
     );
     const pack = packResult.rows[0];
     if (!pack) throw new Error('Pack not found or inactive');
+
+    // The database is authoritative for price. Never debit a client-supplied/stale price.
+    const debit = Number(pack.price);
+    if (!Number.isFinite(debit) || debit < 0) throw new Error('Invalid pack price');
+
+    const spendable = Number(user.balance) + Number(user.matched_balance);
+    if (spendable < debit) throw new Error('Insufficient balance');
     if (pack.expires_at && new Date(pack.expires_at) < input.now) throw new Error('This pack has expired');
     if (Number(pack.quantity_limit) > 0 && Number(pack.current_quantity) <= 0) throw new Error('Pack is sold out');
 
@@ -88,7 +107,6 @@ export async function finalizePackOpen(
       await client.query(`UPDATE packs_catalog SET current_quantity = GREATEST(0, current_quantity - 1) WHERE id = $1`, [input.pack.id]);
     }
 
-    const debit = input.pack.price;
     const balanceBefore = Number(user.balance);
     const matchedBefore = Number(user.matched_balance);
     const matchedSpent = Math.min(matchedBefore, debit);
