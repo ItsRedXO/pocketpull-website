@@ -1,13 +1,31 @@
 # Blink → PostgreSQL import
 
-Export PocketPull application tables from the existing Blink database into one JSON object keyed by the PostgreSQL table names. Preserve string IDs, timestamps, numeric amounts, nullable values, and structured fields.
+The migration keeps Blink as the authentication provider but moves PocketPull application data into PostgreSQL.
 
-Set `DATABASE_URL` in the server environment. Validate an export without modifying PostgreSQL with:
+## 1. Export Blink data
+
+In an environment that has the existing Blink credentials:
+
+`BLINK_PROJECT_ID=... BLINK_SECRET_KEY=... npm run db:export -- ./blink-export.json`
+
+The exporter writes the application tables using the PostgreSQL table names and preserves IDs, timestamps, numeric values, nulls, and structured JSON fields. It does not modify or delete Blink data.
+
+## 2. Prepare PostgreSQL
+
+Set `DATABASE_URL` in the server environment and run:
+
+`npm run db:migrate`
+
+## 3. Dry-run the import
 
 `npm run db:import -- ./blink-export.json --dry-run`
 
-Import with:
+## 4. Import
 
 `npm run db:import -- ./blink-export.json`
 
-After import, run `npm run db:validate` to check row counts and critical orphan/idempotency invariants. The importer never contacts Blink and never deletes source data.
+## 5. Validate
+
+`npm run db:validate`
+
+The importer is idempotent for primary/composite keys and never deletes source data.
