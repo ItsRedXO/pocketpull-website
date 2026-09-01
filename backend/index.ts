@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { getBlinkServer } from './lib/auth';
 import adminPacksRoutes from './routes/adminPacks';
+import catalogRoutes from './routes/catalog';
 import stripeRoutes from './routes/stripe';
 import coinbaseRoutes from './routes/coinbase';
 import packOpeningRoutes from './routes/packOpening';
@@ -19,7 +20,7 @@ import provablyFairRoutes from './routes/provablyFair';
 const app = new Hono();
 app.use('*', cors());
 app.get('/health', (c) => c.json({ status: 'ok', time: new Date().toISOString(), version: 'v4-postgresql' }));
-app.route('/', stripeRoutes); app.route('/', coinbaseRoutes); app.route('/', packOpeningRoutes); app.route('/', upgraderRoutes); app.route('/', exchangerRoutes); app.route('/battles', battleRoutes);
+app.route('/', catalogRoutes); app.route('/', stripeRoutes); app.route('/', coinbaseRoutes); app.route('/', packOpeningRoutes); app.route('/', upgraderRoutes); app.route('/', exchangerRoutes); app.route('/battles', battleRoutes);
 app.route('/', cashoutRoutes); app.route('/', cashoutAdminRoutes); app.route('/', inventoryRoutes); app.route('/', upgraderSettingsRoutes); app.route('/', sendTestEmailsRoutes); app.route('/', logsRoutes); app.route('/', provablyFairRoutes); app.route('/', adminPacksRoutes);
 
 function hashDateToTarget(dateStr: string): number { let hash = 0; for (let i = 0; i < dateStr.length; i++) { hash = ((hash << 5) - hash) + dateStr.charCodeAt(i); hash |= 0; } return 40000 + (Math.abs(hash) % 40001); }
