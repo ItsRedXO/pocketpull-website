@@ -1,24 +1,30 @@
 import type { Context } from 'hono';
 import { createClient } from '@blinkdotnew/sdk';
+import { getUserAuthState } from '../db/repositories/users';
 
-/** Verify the user JWT from Authorization header. Returns userId or throws. */
+/**
+ * Verify the existing Blink JWT so current logins/sessions keep working during
+ * the migration, then validate the corresponding account state in PostgreSQL.
+ */
 export async function requireAuth(c: Context): Promise<string> {
-  const blink = getBlinkServer(c.env as any);
+  const env = c.env as Record<string, string>;
+  const blink = getBlinkServer(env);
   const auth = await blink.auth.verifyToken(c.req.header('Authorization'));
   if (!auth.valid || !auth.userId) {
     throw new Error('UNAUTHORIZED');
   }
-  
-  // Check if user is deleted/deactivated
-  try {
-    const user = await blink.db.users.get(auth.userId) as any;
-    if (user && Number(user.isDeleted || user.is_deleted || 0) > 0) {
-      throw new Error('ACCOUNT_DEACTIVATED');
-    }
-  } catch (err: any) {
-    if (err.message === 'ACCOUNT_DEACTIVATED') throw err;
-    // ignore DB errors here to avoid blocking auth if DB is slow, 
-    // routes will check again when they fetch user data
+
+  // Business account state now comes from PostgreSQL. Blink remains auth-only
+  // in this migration phase.
+  const user = await getUserAuthState(env, auth.userId);
+  if (!user) {
+    throw new Error('USER_NOT_FOUND');
+  }
+  if (user.isDeleted) {
+    throw new Error('ACCOUNT_DEACTIVATED');
+  }
+  if (user.isBanned) {
+    throw new Error('ACCOUNT_BANNED');
   }
 
   return auth.userId;
