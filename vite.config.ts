@@ -5,20 +5,15 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(import.meta.dirname, './src'),
-    },
-    // @blinkdotnew/ui + framer-motion + R3F peers must share one React instance or hooks
-    // crash inside motion with: Cannot read properties of null (reading 'useRef')
+    alias: { '@': path.resolve(import.meta.dirname, './src') },
     dedupe: ['react', 'react-dom'],
   },
-  optimizeDeps: {
-    include: ['react', 'react-dom', 'react/jsx-runtime', 'framer-motion'],
-  },
+  optimizeDeps: { include: ['react', 'react-dom', 'react/jsx-runtime', 'framer-motion'] },
   server: {
     port: 3000,
     strictPort: true,
     host: true,
     allowedHosts: true,
-  }
+    proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: true, rewrite: path => path.replace(/^\/api/, '') } },
+  },
 });
