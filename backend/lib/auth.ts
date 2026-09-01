@@ -19,6 +19,9 @@ export async function requireAuth(c: Context): Promise<string> {
  * exposed through the legacy blink.db API is now backed by PostgreSQL.
  */
 export function getBlinkServer(env: Record<string,string>) {
+  // Hono deployments expose secrets through c.env. The PostgreSQL helper
+  // reads process.env, so bridge the database binding once per request.
+  if (env.DATABASE_URL && typeof process !== 'undefined') process.env.DATABASE_URL = env.DATABASE_URL;
   const client: any = createClient({ projectId: env.BLINK_PROJECT_ID, secretKey: env.BLINK_SECRET_KEY });
   return new Proxy(client, { get(target, property, receiver) { return property === 'db' ? postgresBlinkDb : Reflect.get(target, property, receiver); } });
 }
