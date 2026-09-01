@@ -1,19 +1,24 @@
 import { uid } from './auth';
-import { createActivityLog } from '../db/repositories/activityLogs';
+import { getDb } from '../db/client';
 
 type EmailPayload = { to: string | string[]; from?: string; subject: string; [key: string]: unknown };
 type EmailLogContext = { emailType: string; cashoutId?: string };
 
+async function recordEmail(env: any, row: { id: string; recipient: string; subject: string; template: string; status: string; providerId?: string | null; metadata?: Record<string, unknown> }) {
+  if (!env) return;
+  await getDb(env).query(`INSERT INTO outbound_emails (id,to_email,subject,template,status,provider_id,metadata,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,NOW()) ON CONFLICT (id) DO NOTHING`, [row.id, row.recipient, row.subject, row.template, row.status, row.providerId || null, JSON.stringify(row.metadata || {})]);
+}
+
 export async function sendEmailWithLog(blink: any, payload: EmailPayload, context: EmailLogContext) {
   const env = blink?.__pocketpullEnv;
   const recipient = Array.isArray(payload.to) ? payload.to.join(', ') : payload.to;
-  const base = { id: `email_${uid()}`, recipient, sender: payload.from || 'platform-default', subject: payload.subject, emailType: context.emailType, cashoutId: context.cashoutId || null, textContent: typeof payload.text === 'string' ? payload.text : null, htmlContent: typeof payload.html === 'string' ? payload.html : null };
+  const id = `email_${uid()}`;
   try {
     const result = await blink.notifications.email(payload);
-    if (env) await createActivityLog(env, { id: base.id, type: 'email', userId: null, username: 'System', action: 'Outbound Email', details: { ...base, status: 'success', providerMessageId: result?.messageId || null }, result: 'success', metadata: { cashoutId: context.cashoutId || null } });
+    await recordEmail(env, { id, recipient, subject: payload.subject, template: context.emailType, status: 'success', providerId: result?.messageId || null, metadata: { cashoutId: context.cashoutId || null, from: payload.from || null } }).catch(err => console.error('[emailLogging] audit write failed:', err?.message || err));
     return result;
   } catch (error: any) {
-    if (env) await createActivityLog(env, { id: base.id, type: 'email', userId: null, username: 'System', action: 'Outbound Email', details: { ...base, status: 'failure', errorMessage: error?.message || String(error) }, result: 'failure', metadata: { cashoutId: context.cashoutId || null } }).catch(() => undefined);
+    await recordEmail(env, { id, recipient, subject: payload.subject, template: context.emailType, status: 'failure', providerId: null, metadata: { cashoutId: context.cashoutId || null, errorMessage: error?.message || String(error), from: payload.from || null } }).catch(err => console.error('[emailLogging] audit write failed:', err?.message || err));
     throw error;
   }
 }
