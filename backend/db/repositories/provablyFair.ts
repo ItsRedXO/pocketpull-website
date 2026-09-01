@@ -15,24 +15,31 @@ export async function getActiveOrPendingServerSeed(env: DbEnv, seedHash?: string
   return { id: row.id, seedHash: row.seed_hash, revealedSeed: row.revealed_seed, status: row.status };
 }
 
-export async function getUserNonce(env: DbEnv, userId: string): Promise<number> {
-  const result = await getDb(env).query(
-    `SELECT pack_nonce FROM user_nonces WHERE user_id = $1 LIMIT 1`,
-    [userId],
-  );
-  return Number(result.rows[0]?.pack_nonce || 0);
-}
-
 export async function incrementPackNonce(env: DbEnv, userId: string): Promise<number> {
   const result = await getDb(env).query(
-    `INSERT INTO user_nonces (user_id, pack_nonce)
-     VALUES ($1, 1)
+    `INSERT INTO user_nonces (user_id, pack_nonce, upgrade_nonce) VALUES ($1, 1, 0)
      ON CONFLICT (user_id)
      DO UPDATE SET pack_nonce = user_nonces.pack_nonce + 1
      RETURNING pack_nonce`,
     [userId],
   );
   return Number(result.rows[0]?.pack_nonce || 0);
+}
+
+export async function incrementUpgradeNonce(client: { query: (text: string, values?: unknown[]) => Promise<{ rows: any[] }> }, userId: string): Promise<number> {
+  const result = await client.query(
+    `INSERT INTO user_nonces (user_id, pack_nonce, upgrade_nonce) VALUES ($1, 0, 1)
+     ON CONFLICT (user_id)
+     DO UPDATE SET upgrade_nonce = user_nonces.upgrade_nonce + 1
+     RETURNING upgrade_nonce`,
+    [userId],
+  );
+  return Number(result.rows[0]?.upgrade_nonce || 0);
+}
+
+export async function getUpgradeNonce(env: DbEnv, userId: string): Promise<number> {
+  const result = await getDb(env).query(`SELECT upgrade_nonce FROM user_nonces WHERE user_id = $1 LIMIT 1`, [userId]);
+  return Number(result.rows[0]?.upgrade_nonce || 0);
 }
 
 export async function recordPackOddsVersion(
