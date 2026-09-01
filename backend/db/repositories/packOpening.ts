@@ -36,8 +36,6 @@ export async function finalizePackOpen(
     await client.query('BEGIN');
 
     // Serialize openings for the same user/pack even when no cooldown row exists yet.
-    // This closes the first-open race where two concurrent requests could both pass
-    // the cooldown check before either request had inserted its row.
     await client.query(
       `SELECT pg_advisory_xact_lock(hashtextextended($1 || ':' || $2, 0))`,
       [input.userId, input.pack.id],
@@ -52,6 +50,19 @@ export async function finalizePackOpen(
     if (!user) throw new Error('User not found');
     if (user.is_deleted) throw new Error('Account deactivated');
     if (user.is_banned) throw new Error('Account banned');
+
+    // Reserve the next pack nonce inside this same transaction. A failed opening
+    // rolls it back, keeping PF sequencing atomic with the reward transaction.
+    const nonceResult = await client.query<{ pack_nonce: string }>(
+      `INSERT INTO user_nonces (user_id, pack_nonce) VALUES ($1, 1)
+       ON CONFLICT (user_id)
+       DO UPDATE SET pack_nonce = user_nonces.pack_nonce + 1
+       RETURNING pack_nonce`,
+      [input.userId],
+    );
+    const reservedNonce = Number(nonceResult.rows[0]?.pack_nonce);
+    if (!Number.isInteger(reservedNonce) || reservedNonce < 1) throw new Error('Failed to reserve pack nonce');
+    if (reservedNonce !== input.nonce) throw new Error('Provably fair nonce conflict. Please retry.');
 
     const packResult = await client.query<{
       price: string;
@@ -94,8 +105,7 @@ export async function finalizePackOpen(
         [input.card.id, input.pack.id],
       );
       if (!cardResult.rows[0]) {
-        await client.query('ROLLBACK');
-        return { success: false, conflict: true, error: 'That Mystery Pack card just sold out. Please try again.' };
+        throw Object.assign(new Error('That Mystery Pack card just sold out. Please try again.'), { conflict: true });
       }
       selectedCard = cardResult.rows[0] as PackCard;
       await client.query(`UPDATE pack_cards SET quantity = quantity - 1 WHERE id = $1`, [selectedCard.id]);
@@ -152,8 +162,9 @@ export async function finalizePackOpen(
     await client.query('COMMIT');
     return { success: true, balanceAfter, matchedAfter };
   } catch (err: any) {
+    const conflict = err?.conflict === true;
     await client.query('ROLLBACK').catch(() => undefined);
-    return { success: false, error: err?.message || 'Failed to finalize pack opening' };
+    return { success: false, conflict, error: err?.message || 'Failed to finalize pack opening' };
   } finally {
     client.release();
   }
