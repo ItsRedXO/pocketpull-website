@@ -10,9 +10,7 @@ app.post('/auth/lookup', async (c) => {
     const body = await c.req.json();
     const identifier = String(body.identifier || '').trim();
     if (!identifier) return c.json({ error: 'Identifier required' }, 400);
-    const result = identifier.includes('@')
-      ? await getDb(c.env as any).query<any>('SELECT email,is_banned,is_deleted FROM users WHERE LOWER(email)=LOWER($1) LIMIT 1', [identifier])
-      : await getDb(c.env as any).query<any>('SELECT email,is_banned,is_deleted FROM users WHERE LOWER(username)=LOWER($1) OR LOWER(display_name)=LOWER($1) LIMIT 1', [identifier]);
+    const result = identifier.includes('@') ? await getDb(c.env as any).query<any>('SELECT email,is_banned,is_deleted FROM users WHERE LOWER(email)=LOWER($1) LIMIT 1', [identifier]) : await getDb(c.env as any).query<any>('SELECT email,is_banned,is_deleted FROM users WHERE LOWER(username)=LOWER($1) OR LOWER(display_name)=LOWER($1) LIMIT 1', [identifier]);
     const user = result.rows[0];
     if (!user || user.is_deleted) return c.json({ error: 'INVALID_CREDENTIALS' }, 404);
     if (user.is_banned) return c.json({ error: 'BANNED_ACCOUNT' }, 403);
@@ -27,10 +25,7 @@ app.post('/auth/validate-signup', async (c) => {
     const username = String(body.username || '').trim();
     if (!email || !username) return c.json({ error: 'Email and username required' }, 400);
     const emailResult = await getDb(c.env as any).query<any>('SELECT is_banned,is_deleted FROM users WHERE LOWER(email)=LOWER($1) LIMIT 1', [email]);
-    if (emailResult.rows[0] && !emailResult.rows[0].is_deleted) {
-      if (emailResult.rows[0].is_banned) return c.json({ error: 'EMAIL_BANNED' }, 409);
-      return c.json({ error: 'EMAIL_TAKEN' }, 409);
-    }
+    if (emailResult.rows[0] && !emailResult.rows[0].is_deleted) return c.json({ error: emailResult.rows[0].is_banned ? 'EMAIL_BANNED' : 'EMAIL_TAKEN' }, 409);
     const usernameResult = await getDb(c.env as any).query<any>('SELECT 1 FROM users WHERE (LOWER(username)=LOWER($1) OR LOWER(display_name)=LOWER($1)) AND is_deleted=FALSE LIMIT 1', [username]);
     if (usernameResult.rows[0]) return c.json({ error: 'USERNAME_TAKEN' }, 409);
     return c.json({ valid: true });
@@ -51,12 +46,9 @@ app.post('/users/bootstrap', async (c) => {
     if (existing.rows[0]) {
       await db.query(`UPDATE users SET email=COALESCE(NULLIF($2,''),email),username=COALESCE(NULLIF($3,''),username),display_name=COALESCE(NULLIF($4,''),display_name),avatar_url=COALESCE($5,avatar_url),updated_at=NOW() WHERE id=$1`, [userId, email, username, displayName, body.avatarUrl || null]);
     } else {
-      const referralCode = String(body.referralCode || localStorage).trim().toUpperCase();
+      const referralCode = String(body.referralCode || '').trim().toUpperCase();
       let referrerId: string | null = null;
-      if (referralCode && referralCode !== 'LOCALSTORAGE') {
-        const ref = await db.query<any>('SELECT id FROM users WHERE referral_code=$1 AND id<>$2 LIMIT 1', [referralCode, userId]);
-        referrerId = ref.rows[0]?.id || null;
-      }
+      if (referralCode) { const ref = await db.query<any>('SELECT id FROM users WHERE referral_code=$1 AND id<>$2 LIMIT 1', [referralCode, userId]); referrerId = ref.rows[0]?.id || null; }
       const ownCode = generateReferralCode();
       await db.query(`INSERT INTO users (id,email,display_name,username,avatar_url,balance,matched_balance,email_verified,role,is_banned,is_bot,referral_code,referred_by_id,referral_reward_paid,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,0,0,TRUE,'user',FALSE,FALSE,$6,$7,FALSE,NOW(),NOW()) ON CONFLICT (id) DO NOTHING`, [userId, email, displayName, username, body.avatarUrl || '', ownCode, referrerId]);
     }
