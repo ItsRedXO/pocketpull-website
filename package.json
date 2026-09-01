@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:db": "vitest run backend/db/**/*.test.ts",
+    "typecheck:backend": "tsc -p tsconfig.backend.json",
     "lint:css": "stylelint \"src/**/*.css\" --fix --quiet",
     "lint:js": "eslint . --ext ts,tsx --report-unused-disable-directives",
     "lint:types": "tsc --noEmit",
