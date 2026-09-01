@@ -1,19 +1,19 @@
 /**
  * Centralized wallet transaction system.
  *
- * processWalletTransaction is the SINGLE authoritative function for ALL
- * balance changes. Every route that modifies a user's balance MUST call
- * this function instead of writing to blink.db.users directly.
+ * PostgreSQL is now the authoritative store for balances and the wallet ledger.
+ * Every balance mutation must pass through processWalletTransaction so the
+ * balance update and ledger row commit atomically under a row lock.
  */
 import { uid } from './auth';
 
 export interface WalletTransaction {
   userId: string;
-  type: string;          // 'sell' | 'sell_all' | 'pack_open' | 'upgrade' | 'battle_entry' | 'battle_cancel' | 'battle_join' | 'battle_entry_refund' | 'exchange_refund' | 'deposit' | 'referral_reward' | 'referral_signup_bonus' | 'first_deposit_bonus' | 'admin_credit' | 'admin_debit'
-  amount: number;        // positive = credit, negative = debit
-  sourceId?: string;     // inventoryId, battleId, paymentIntentId, chargeId, etc.
+  type: string;
+  amount: number;
+  sourceId?: string;
   metadata?: Record<string, any>;
-  matchedAmount?: number; // if set on debit: deducted from matched_balance first; if set on credit: added to BOTH balance AND matched_balance
+  matchedAmount?: number;
 }
 
 export interface WalletResult {
@@ -23,6 +23,46 @@ export interface WalletResult {
   balanceAfter: number;
   matchedBefore: number;
   matchedAfter: number;
+}
+
+export interface WalletBalanceCalculation {
+  balanceAfter: number;
+  matchedAfter: number;
+}
+
+/**
+ * Apply PocketPull's balance semantics without touching the database.
+ * Matched funds are consumed first when matchedAmount is supplied. Only the
+ * portion not covered by matched funds reduces the real balance.
+ */
+export function calculateWalletBalances(
+  currentBalance: number,
+  matchedBalance: number,
+  amount: number,
+  spendMatchedFirst: boolean,
+  matchedAmount = 0,
+): WalletBalanceCalculation {
+  if (amount >= 0) {
+    return {
+      balanceAfter: currentBalance + amount,
+      matchedAfter: amount > 0 && matchedAmount > 0 ? matchedBalance + matchedAmount : matchedBalance,
+    };
+  }
+
+  const debit = Math.abs(amount);
+  if (!spendMatchedFirst || matchedAmount <= 0) {
+    return {
+      balanceAfter: Math.max(0, currentBalance - debit),
+      matchedAfter: matchedBalance,
+    };
+  }
+
+  const fromMatched = Math.min(matchedBalance, debit);
+  const fromReal = debit - fromMatched;
+  return {
+    balanceAfter: Math.max(0, currentBalance - fromReal),
+    matchedAfter: Math.max(0, matchedBalance - fromMatched),
+  };
 }
 
 interface WalletLedgerRow {
@@ -35,150 +75,118 @@ interface WalletLedgerRow {
   matchedBefore: number;
   matchedAfter: number;
   sourceId: string | null;
-  metadata: string;
+  metadata: Record<string, any>;
   createdAt: string;
 }
 
-/**
- * The single authoritative function for ALL wallet balance changes.
- *
- * Handles:
- *  - Balance arithmetic (real + matched)
- *  - Matched-balance depletion (spend matched first on debits)
- *  - Matched-balance crediting (for first-deposit bonuses)
- *  - Idempotency via ledger ID
- *  - Ledger recording to wallet_transactions table
- *  - Realtime broadcast to `user-updates-{userId}`
- *  - DB persistence
- */
-export async function processWalletTransaction(
-  blink: any,
-  txn: WalletTransaction,
-): Promise<WalletResult> {
-  try {
-    // ── Idempotency: generate unique ledger ID (scoped to user) ──────────
-    const ledgerId = `wt_${txn.type}_${txn.userId}_${txn.sourceId || uid()}`;
+export async function processWalletTransaction(blink: any, txn: WalletTransaction): Promise<WalletResult> {
+  const ledgerId = `wt_${txn.type}_${txn.userId}_${txn.sourceId || uid()}`;
 
-    try {
-      const existing = await blink.db.table<WalletLedgerRow>('walletTransactions').get(ledgerId);
-      if (existing) {
-        console.log(`[Wallet] Ledger ${ledgerId} already exists — idempotent return.`);
+  try {
+    const result = await blink.db.transaction(async (client: any) => {
+      // The ledger id is deterministic for idempotent operations. Check it
+      // inside the same transaction as the balance lock.
+      const existing = await client.query(
+        'SELECT id, balance_before, balance_after, matched_before, matched_after FROM wallet_transactions WHERE id = $1 LIMIT 1',
+        [ledgerId],
+      );
+      if (existing.rows[0]) {
+        const row = existing.rows[0];
         return {
           success: true,
-          balanceBefore: Number(existing.balanceBefore),
-          balanceAfter: Number(existing.balanceAfter),
-          matchedBefore: Number(existing.matchedBefore),
-          matchedAfter: Number(existing.matchedAfter),
-        };
+          balanceBefore: Number(row.balance_before),
+          balanceAfter: Number(row.balance_after),
+          matchedBefore: Number(row.matched_before),
+          matchedAfter: Number(row.matched_after),
+        } as WalletResult;
       }
-    } catch {
-      // No existing ledger — proceed
-    }
 
-    // ── Read current state ──────────────────────────────────────────────
-    const user = await blink.db.users.get(txn.userId);
-    if (!user) {
-      console.error(`[Wallet] User ${txn.userId} not found for txn type=${txn.type}`);
+      // Serialize all balance mutations for this user.
+      const userResult = await client.query(
+        'SELECT id, balance, matched_balance, is_deleted, is_banned FROM users WHERE id = $1 FOR UPDATE',
+        [txn.userId],
+      );
+      const user = userResult.rows[0];
+      if (!user) {
+        return { success: false, error: 'User not found', balanceBefore: 0, balanceAfter: 0, matchedBefore: 0, matchedAfter: 0 } as WalletResult;
+      }
+
+      const currentBalance = Number(user.balance || 0);
+      const matchedBalance = Number(user.matched_balance || 0);
+      const balances = calculateWalletBalances(
+        currentBalance,
+        matchedBalance,
+        txn.amount,
+        Boolean(txn.matchedAmount && txn.matchedAmount > 0),
+        Number(txn.matchedAmount || 0),
+      );
+
+      await client.query(
+        'UPDATE users SET balance = $1, matched_balance = $2, updated_at = NOW() WHERE id = $3',
+        [balances.balanceAfter, balances.matchedAfter, txn.userId],
+      );
+
+      await client.query(
+        `INSERT INTO wallet_transactions
+          (id, user_id, type, amount, balance_before, balance_after, matched_before, matched_after, source_id, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
+        [
+          ledgerId,
+          txn.userId,
+          txn.type,
+          txn.amount,
+          currentBalance,
+          balances.balanceAfter,
+          matchedBalance,
+          balances.matchedAfter,
+          txn.sourceId || null,
+          JSON.stringify(txn.metadata || {}),
+        ],
+      );
+
       return {
-        success: false,
-        error: 'User not found',
-        balanceBefore: 0,
-        balanceAfter: 0,
-        matchedBefore: 0,
-        matchedAfter: 0,
-      };
-    }
-
-    const currentBalance = Number(user.balance || 0);
-    const matchedBalance = Number(user.matchedBalance || user.matched_balance || 0);
-
-    let newBalance: number;
-    let newMatched: number;
-
-    if (txn.amount >= 0) {
-      // ── Credit ────────────────────────────────────────────────────────
-      newBalance = currentBalance + txn.amount;
-
-      if (txn.matchedAmount && txn.matchedAmount > 0) {
-        // Credits can also add to matched balance (e.g. first_deposit_bonus).
-        // Only add matched when the transaction itself is a real credit (amount > 0).
-        // $0 transactions (free packs) should never alter matched balance.
-        if (txn.amount > 0) {
-          newMatched = matchedBalance + txn.matchedAmount;
-        } else {
-          newMatched = matchedBalance;
-        }
-      } else {
-        newMatched = matchedBalance;
-      }
-    } else {
-      // ── Debit ─────────────────────────────────────────────────────────
-      const absAmount = Math.abs(txn.amount);
-
-      if (txn.matchedAmount && txn.matchedAmount > 0) {
-        // fromMatched covers as much of the purchase as possible from
-        // matched balance, capped at the purchase amount (can't spend
-        // more matched than the item costs) and at available matched.
-        const fromMatched = Math.min(matchedBalance, absAmount);
-        const fromReal = absAmount - fromMatched;
-        // Total balance drops by absAmount regardless of split source.
-        newBalance = Math.max(0, currentBalance - absAmount);
-        newMatched = Math.max(0, matchedBalance - fromMatched);
-      } else {
-        newBalance = Math.max(0, currentBalance - absAmount);
-        newMatched = matchedBalance;
-      }
-    }
-
-    // ── Write to DB ─────────────────────────────────────────────────────
-    await blink.db.users.update(txn.userId, {
-      balance: newBalance,
-      matchedBalance: newMatched,
+        success: true,
+        balanceBefore: currentBalance,
+        balanceAfter: balances.balanceAfter,
+        matchedBefore: matchedBalance,
+        matchedAfter: balances.matchedAfter,
+      } as WalletResult;
     });
 
-    // ── Write ledger entry ──────────────────────────────────────────────
-    await blink.db.table<WalletLedgerRow>('walletTransactions').create({
-      id: ledgerId,
-      userId: txn.userId,
-      type: txn.type,
-      amount: txn.amount,
-      balanceBefore: currentBalance,
-      balanceAfter: newBalance,
-      matchedBefore: matchedBalance,
-      matchedAfter: newMatched,
-      sourceId: txn.sourceId || null,
-      metadata: JSON.stringify(txn.metadata || {}),
-    });
-
-    // ── Realtime broadcast ──────────────────────────────────────────────
-    try {
-      await blink.realtime.publish(`user-updates-${txn.userId}`, 'balance_updated', {
-        newBalance,
-        newMatchedBalance: newMatched,
-      });
-    } catch (realtimeErr: any) {
-      console.warn(`[Wallet] Realtime publish failed for user ${txn.userId}:`, realtimeErr?.message);
+    if (result.success) {
+      console.log(
+        `[Wallet] OK ${txn.type} | user=${txn.userId} | amt=${txn.amount.toFixed(2)} ` +
+        `bal=${result.balanceBefore.toFixed(2)}→${result.balanceAfter.toFixed(2)} ` +
+        `matched=${result.matchedBefore.toFixed(2)}→${result.matchedAfter.toFixed(2)} | ledger=${ledgerId}`,
+      );
     }
 
-    console.log(
-      `[Wallet] ✅ ${txn.type} | user=${txn.userId} | amt=${txn.amount.toFixed(2)} ` +
-      `bal=${currentBalance.toFixed(2)}→${newBalance.toFixed(2)} ` +
-      `matched=${matchedBalance.toFixed(2)}→${newMatched.toFixed(2)} ` +
-      `ledger=${ledgerId}`,
-    );
-
-    return {
-      success: true,
-      balanceBefore: currentBalance,
-      balanceAfter: newBalance,
-      matchedBefore: matchedBalance,
-      matchedAfter: newMatched,
-    };
+    return result;
   } catch (err: any) {
-    console.error(`[Wallet] ❌ Fatal error processing ${txn.type} for user ${txn.userId}:`, err.message);
+    // Concurrent duplicate delivery of the same idempotency key can race at
+    // the unique ledger constraint. The first committed transaction wins;
+    // return its result rather than treating the duplicate as a failed charge.
+    if (err?.code === '23505') {
+      try {
+        const existing = await blink.db.table<WalletLedgerRow>('walletTransactions').get(ledgerId);
+        if (existing) {
+          return {
+            success: true,
+            balanceBefore: Number(existing.balanceBefore),
+            balanceAfter: Number(existing.balanceAfter),
+            matchedBefore: Number(existing.matchedBefore),
+            matchedAfter: Number(existing.matchedAfter),
+          };
+        }
+      } catch {
+        // Fall through to the normal error response.
+      }
+    }
+
+    console.error(`[Wallet] Fatal error processing ${txn.type} for ${txn.userId}:`, err?.message || err);
     return {
       success: false,
-      error: err.message || 'Internal wallet transaction error',
+      error: err?.message || 'Internal wallet transaction error',
       balanceBefore: 0,
       balanceAfter: 0,
       matchedBefore: 0,
