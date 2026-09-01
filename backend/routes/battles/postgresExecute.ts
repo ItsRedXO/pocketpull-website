@@ -1,15 +1,16 @@
 import { Hono } from 'hono';
-import { requireAuth, getBlinkServer } from '../../lib/auth';
+import { requireAuth } from '../../lib/auth';
 import { executeBattle } from '../../db/repositories/battleExecute';
+import { getBattleState } from '../../db/repositories/battles';
 
 const app = new Hono();
 
 /**
  * PostgreSQL battle-execute migration endpoint.
  *
- * This is intentionally isolated from the existing executor. It keeps Blink
- * authentication/authorization while allowing the settlement transaction to
- * run against PostgreSQL during migration verification.
+ * Blink is retained only for authentication. Battle authorization and
+ * settlement are both read from PostgreSQL so this endpoint exercises the
+ * migrated data path end-to-end.
  */
 app.post('/execute', async (c) => {
   let userId: string;
@@ -22,15 +23,15 @@ app.post('/execute', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
-
   try {
     const { battleId } = await c.req.json();
     if (!battleId) return c.json({ error: 'battleId required' }, 400);
 
-    const battle = await blink.db.battles.get(battleId) as any;
-    if (!battle) return c.json({ error: 'Battle not found' }, 404);
-    if (battle.hostUserId !== userId) {
+    const state = await getBattleState(c.env as any, battleId);
+    if (!state) return c.json({ error: 'Battle not found' }, 404);
+
+    const battle = state.battle as any;
+    if (battle.hostUserId !== userId && battle.host_user_id !== userId) {
       return c.json({ error: 'Only host can execute battle' }, 403);
     }
 
