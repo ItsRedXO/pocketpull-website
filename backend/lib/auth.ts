@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { createClient } from '@blinkdotnew/sdk';
 import { getUser } from '../repositories/users';
+import { postgresBlinkDb } from './postgresBlinkDb';
 
 export async function requireAuth(c: Context): Promise<string> {
   const blink = getBlinkServer(c.env as any);
@@ -12,7 +13,16 @@ export async function requireAuth(c: Context): Promise<string> {
   } catch (err: any) { if (err.message === 'ACCOUNT_DEACTIVATED') throw err; }
   return auth.userId;
 }
-export function getBlinkServer(env: Record<string,string>) { return createClient({ projectId: env.BLINK_PROJECT_ID, secretKey: env.BLINK_SECRET_KEY }); }
+
+/**
+ * Blink remains the authentication provider, but ALL application DB access
+ * exposed through the legacy blink.db API is now backed by PostgreSQL.
+ */
+export function getBlinkServer(env: Record<string,string>) {
+  const client: any = createClient({ projectId: env.BLINK_PROJECT_ID, secretKey: env.BLINK_SECRET_KEY });
+  return new Proxy(client, { get(target, property, receiver) { return property === 'db' ? postgresBlinkDb : Reflect.get(target, property, receiver); } });
+}
+
 export function uid(): string { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 export function generateReferralCode(): string { const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let code=''; for(let i=0;i<8;i++) code += chars.charAt(Math.floor(Math.random()*chars.length)); return code; }
 export const BOT_REWARD_RECIPIENT_ID='usr_ro8OEE9fdBs2';
