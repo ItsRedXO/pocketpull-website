@@ -2,7 +2,7 @@ export type BlinkExportRow = Record<string, unknown>;
 export type BlinkExport = Record<string, BlinkExportRow[]>;
 
 export const IMPORT_ORDER = [
-  'users', 'packs_catalog', 'pack_cards', 'server_seeds', 'pack_odds_versions', 'user_nonces',
+  'users', 'packs_catalog', 'pack_cards', 'server_seeds', 'pack_odds_versions', 'user_nonces', 'pack_cooldowns',
   'battles', 'battle_players', 'battle_participants', 'battle_results', 'battle_pull_audits',
   'inventory', 'transactions', 'packs_opened', 'wallet_transactions', 'upgrader_settings',
   'upgrader_history', 'exchanger_activity', 'cashouts', 'activity_logs', 'outbound_emails', 'leaderboard_stats',
