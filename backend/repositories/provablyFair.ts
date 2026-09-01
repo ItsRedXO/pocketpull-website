@@ -1,0 +1,4 @@
+import { query, transaction } from '../lib/postgres';
+export async function getActiveSeed(){return (await query('SELECT * FROM server_seeds WHERE active=1 ORDER BY created_at DESC LIMIT 1'))[0]||null;}
+export async function nextNonce(userId:string){return transaction(async client=>{const r=await client.query('INSERT INTO user_nonces(user_id,nonce) VALUES($1,1) ON CONFLICT(user_id) DO UPDATE SET nonce=user_nonces.nonce+1,updated_at=now() RETURNING nonce',[userId]);return Number(r.rows[0].nonce);});}
+export async function saveOddsVersion(id:string,packId:string,version:number,hash:string,snapshot:unknown){return (await query('INSERT INTO pack_odds_versions(id,pack_id,version,hash,snapshot) VALUES($1,$2,$3,$4,$5) ON CONFLICT(pack_id,version) DO UPDATE SET hash=EXCLUDED.hash,snapshot=EXCLUDED.snapshot RETURNING *',[id,packId,version,hash,JSON.stringify(snapshot)]))[0];}
