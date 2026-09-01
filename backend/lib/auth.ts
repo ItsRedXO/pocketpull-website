@@ -2,22 +2,27 @@ import type { Context } from 'hono';
 import { createClient } from '@blinkdotnew/sdk';
 import { getUserAuthState } from '../db/repositories/users';
 
-export async function requireAuth(c: Context): Promise<string> {
-  const env = c.env as Record<string, string>;
-  const blink = getBlinkServer(env);
-  const auth = await blink.auth.verifyToken(c.req.header('Authorization'));
-  if (!auth.valid || !auth.userId) throw new Error('UNAUTHORIZED');
-  const user = await getUserAuthState(env, auth.userId);
-  if (!user) throw new Error('USER_NOT_FOUND');
-  if (user.isDeleted) throw new Error('ACCOUNT_DEACTIVATED');
-  if (user.isBanned) throw new Error('ACCOUNT_BANNED');
-  return auth.userId;
-}
-
 export function getBlinkServer(env: Record<string, string>) {
   const client = createClient({ projectId: env.BLINK_PROJECT_ID, secretKey: env.BLINK_SECRET_KEY });
   (client as any).__pocketpullEnv = env;
   return client;
+}
+
+export async function verifyBlinkIdentity(c: Context): Promise<string> {
+  const blink = getBlinkServer(c.env as Record<string, string>);
+  const auth = await blink.auth.verifyToken(c.req.header('Authorization'));
+  if (!auth.valid || !auth.userId) throw new Error('UNAUTHORIZED');
+  return auth.userId;
+}
+
+export async function requireAuth(c: Context): Promise<string> {
+  const env = c.env as Record<string, string>;
+  const userId = await verifyBlinkIdentity(c);
+  const user = await getUserAuthState(env, userId);
+  if (!user) throw new Error('USER_NOT_FOUND');
+  if (user.isDeleted) throw new Error('ACCOUNT_DEACTIVATED');
+  if (user.isBanned) throw new Error('ACCOUNT_BANNED');
+  return userId;
 }
 
 export function uid(): string { return Date.now().toString(36) + crypto.randomUUID().slice(0, 8); }
