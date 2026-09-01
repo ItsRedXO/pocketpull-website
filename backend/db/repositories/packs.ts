@@ -1,0 +1,111 @@
+import { getDb, type DbEnv } from '../client';
+
+export interface PackCatalog {
+  id: string;
+  name: string;
+  price: number;
+  description: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  quantityLimit: number;
+  currentQuantity: number;
+  cooldownHours: number;
+  expiresAt: string | null;
+  packType: string;
+}
+
+export interface PackCard {
+  id: string;
+  packId: string;
+  cardName: string;
+  rarity: string | null;
+  pullChance: number;
+  estimatedValue: number;
+  cardImageUrl: string | null;
+  sortOrder: number;
+  quantity: number;
+  originalQuantity: number;
+}
+
+function mapPack(row: any): PackCatalog {
+  return {
+    id: row.id,
+    name: row.name,
+    price: Number(row.price || 0),
+    description: row.description,
+    imageUrl: row.image_url,
+    isActive: Boolean(row.is_active),
+    quantityLimit: Number(row.quantity_limit || 0),
+    currentQuantity: Number(row.current_quantity || 0),
+    cooldownHours: Number(row.cooldown_hours || 0),
+    expiresAt: row.expires_at,
+    packType: row.pack_type || 'standard',
+  };
+}
+
+function mapCard(row: any): PackCard {
+  return {
+    id: row.id,
+    packId: row.pack_id,
+    cardName: row.card_name,
+    rarity: row.rarity,
+    pullChance: Number(row.pull_chance || 0),
+    estimatedValue: Number(row.estimated_value || 0),
+    cardImageUrl: row.card_image_url,
+    sortOrder: Number(row.sort_order || 0),
+    quantity: Number(row.quantity ?? 0),
+    originalQuantity: Number(row.original_quantity ?? 0),
+  };
+}
+
+export async function getPack(env: DbEnv, packId: string): Promise<PackCatalog | null> {
+  const result = await getDb(env).query(
+    `SELECT id, name, price, description, image_url, is_active,
+            quantity_limit, current_quantity, cooldown_hours, expires_at, pack_type
+       FROM packs_catalog WHERE id = $1 LIMIT 1`,
+    [packId],
+  );
+  return result.rows[0] ? mapPack(result.rows[0]) : null;
+}
+
+export async function listPackCards(env: DbEnv, packId: string): Promise<PackCard[]> {
+  const result = await getDb(env).query(
+    `SELECT id, pack_id, card_name, rarity, pull_chance, estimated_value,
+            card_image_url, sort_order, quantity, original_quantity
+       FROM pack_cards WHERE pack_id = $1 ORDER BY sort_order ASC, id ASC`,
+    [packId],
+  );
+  return result.rows.map(mapCard);
+}
+
+export async function getPackCooldown(env: DbEnv, userId: string, packId: string): Promise<string | null> {
+  const result = await getDb(env).query(
+    `SELECT last_opened_at FROM pack_cooldowns WHERE user_id = $1 AND pack_id = $2 LIMIT 1`,
+    [userId, packId],
+  );
+  return result.rows[0]?.last_opened_at ?? null;
+}
+
+export async function decrementMysteryCard(env: DbEnv, cardId: string): Promise<boolean> {
+  const result = await getDb(env).query(
+    `UPDATE pack_cards SET quantity = quantity - 1
+      WHERE id = $1 AND COALESCE(quantity, 0) > 0
+      RETURNING id`,
+    [cardId],
+  );
+  return result.rowCount === 1;
+}
+
+export async function updateMysteryPackQuantity(env: DbEnv, packId: string): Promise<number> {
+  const result = await getDb(env).query<{ total_quantity: string }>(
+    `SELECT COALESCE(SUM(quantity), 0)::text AS total_quantity
+       FROM pack_cards WHERE pack_id = $1`,
+    [packId],
+  );
+  const total = Number(result.rows[0]?.total_quantity || 0);
+  await getDb(env).query(
+    `UPDATE packs_catalog SET current_quantity = $2 WHERE id = $1`,
+    [packId, total],
+  );
+  return total;
+}
