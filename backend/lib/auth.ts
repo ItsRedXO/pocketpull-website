@@ -20,7 +20,7 @@ export function getBlinkServer(env: Record<string, string>) {
   return client;
 }
 
-export function uid(): string { return `${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`; }
+export function uid(): string { return Date.now().toString(36) + crypto.randomUUID().slice(0, 8); }
 
 export function generateReferralCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -30,7 +30,7 @@ export function generateReferralCode(): string {
 
 export const BOT_REWARD_RECIPIENT_ID = 'usr_ro8OEE9fdBs2';
 export function getRewardUserId(originalUserId: string, isBot: boolean): string {
-  if (!originalUserId || isBot || originalUserId.startsWith('ai_')) return BOT_REWARD_RECIPIENT_ID;
+  if (!originalUserId || isBot || (typeof originalUserId === 'string' && originalUserId.startsWith('ai_'))) return BOT_REWARD_RECIPIENT_ID;
   return originalUserId;
 }
 
