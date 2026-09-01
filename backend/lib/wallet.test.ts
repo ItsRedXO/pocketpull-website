@@ -5,7 +5,7 @@ describe('calculateWalletBalances', () => {
   test('spends matched balance first without double-deducting real balance', () => {
     const result = calculateWalletBalances(100, 40, -30, true);
 
-    expect(result.balanceAfter).toBe(70);
+    expect(result.balanceAfter).toBe(100);
     expect(result.matchedAfter).toBe(10);
   });
 
