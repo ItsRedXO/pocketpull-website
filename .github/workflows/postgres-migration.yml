@@ -1,0 +1,22 @@
+name: PostgreSQL Migration Verification
+
+on:
+  push:
+    branches: [migration/postgres-foundation]
+  pull_request:
+    branches: [migration/postgres-foundation]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:backend
+      - run: npx tsc --noEmit --pretty false
+      - run: npx vitest run backend/db/client.test.ts backend/db/repositories/wallet.test.ts
+      - run: npm run build
