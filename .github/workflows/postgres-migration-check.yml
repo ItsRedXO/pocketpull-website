@@ -1,0 +1,28 @@
+name: PostgreSQL Migration Check
+
+on:
+  push:
+    branches:
+      - migration/postgresql
+  pull_request:
+    branches:
+      - migration/postgresql
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Backend unit tests
+        run: npm run test:backend
+      - name: Frontend typecheck
+        run: npm run lint:types
+      - name: Frontend build
+        run: npm run build
