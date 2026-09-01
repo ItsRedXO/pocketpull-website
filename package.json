@@ -11,7 +11,8 @@
     "lint:js": "eslint . --ext ts,tsx --report-unused-disable-directives",
     "lint:types": "tsc --noEmit",
     "lint": "bun run lint:types && bun run lint:js && bun run lint:css",
-    "test:backend": "node --test backend/**/*.test.ts"
+    "test:backend": "node --test backend/**/*.test.ts",
+    "migrate:postgres": "node scripts/migrate-postgres.ts"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
