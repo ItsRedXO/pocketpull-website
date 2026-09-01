@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { createClient } from '@blinkdotnew/sdk';
 import { getBlinkServer } from './lib/auth';
+import { checkDatabaseConnection } from './db/client';
+import { countLivePublicBattles } from './db/repositories/battles';
 
 // Route modules
 import stripeRoutes from './routes/stripe';
@@ -23,36 +24,44 @@ const app = new Hono();
 // Enable CORS for all routes
 app.use('*', cors());
 
-// ──────────────────────────────────────────────────────────────
-// Health check
-// ──────────────────────────────────────────────────────────────
-app.get('/health', (c) => c.json({ status: 'ok', time: new Date().toISOString(), version: 'v3-provably-fair' }));
+// Health check: API + PostgreSQL connectivity.
+app.get('/health', async (c) => {
+  try {
+    await checkDatabaseConnection(c.env as any);
+    return c.json({
+      status: 'ok',
+      database: 'ok',
+      time: new Date().toISOString(),
+      version: 'v4-postgres-migration',
+    });
+  } catch (err: any) {
+    console.error('[health] PostgreSQL connection failed:', err?.message || err);
+    return c.json({
+      status: 'degraded',
+      database: 'error',
+      time: new Date().toISOString(),
+      version: 'v4-postgres-migration',
+    }, 503);
+  }
+});
 
-// ──────────────────────────────────────────────────────────────
 // Payment routes
-// ──────────────────────────────────────────────────────────────
-app.route('/', stripeRoutes);    // POST /create-payment-intent, /webhook/stripe, /verify-deposit
-app.route('/', coinbaseRoutes);  // POST /create-coinbase-charge, GET /coinbase-charge-status, POST /webhook/coinbase
+app.route('/', stripeRoutes);
+app.route('/', coinbaseRoutes);
 
-// ──────────────────────────────────────────────────────────────
-// Economy routes — all security-sensitive logic is here
-// ──────────────────────────────────────────────────────────────
-app.route('/', packOpeningRoutes);      // POST /open-pack
-app.route('/', upgraderRoutes);         // POST /upgrader/spin
-app.route('/', exchangerRoutes);        // POST /exchanger/trade
-app.route('/battles', battleRoutes);    // /battles/*
+// Economy routes
+app.route('/', packOpeningRoutes);
+app.route('/', upgraderRoutes);
+app.route('/', exchangerRoutes);
+app.route('/battles', battleRoutes);
 
-// ──────────────────────────────────────────────────────────────
-// Daily Packs Opened — deterministic time-based counter
-// Resets at midnight Pacific, grows smoothly to 40k–80k by end of day.
-// ──────────────────────────────────────────────────────────────
 function hashDateToTarget(dateStr: string): number {
   let hash = 0;
   for (let i = 0; i < dateStr.length; i++) {
     hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
     hash |= 0;
   }
-  return 40000 + (Math.abs(hash) % 40001); // 40,000 – 80,000
+  return 40000 + (Math.abs(hash) % 40001);
 }
 
 function getDailyPacksOpened(): number {
@@ -64,40 +73,27 @@ function getDailyPacksOpened(): number {
   const dateSeed = `${startOfDay.getFullYear()}-${startOfDay.getMonth() + 1}-${startOfDay.getDate()}`;
   const target = hashDateToTarget(dateSeed);
 
-  // Sigmoid curve: slow start, accelerates through midday, slows at end
   let t = Math.min(elapsedMs / totalMsInDay, 1);
   if (t < 0.5) {
-    t = 4 * t * t * t;               // ease-in cubic
+    t = 4 * t * t * t;
   } else {
-    t = 1 - Math.pow(-2 * t + 2, 3) / 2; // ease-out cubic
+    t = 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
   return Math.floor(target * t);
 }
 
-// ──────────────────────────────────────────────────────────────
-
-// Explicitly mount stats to ensure it works
+// Same API response as before; source of truth for live battle count is PostgreSQL.
 app.get('/battles/stats', async (c) => {
-  const blink = getBlinkServer(c.env as any);
-
   try {
-    const activeBattles = await blink.db.battles.list({
-      where: {
-        status: { in: ['waiting', 'live'] },
-        isPublic: 1
-      },
-      limit: 100
-    });
-
-    const liveBattlesCount = activeBattles?.length || 0;
+    const liveBattlesCount = await countLivePublicBattles(c.env as any);
     const packsOpened = getDailyPacksOpened();
 
     return c.json({
       success: true,
       liveBattles: liveBattlesCount,
       packsOpened,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
     console.error('[battles/stats] error:', err.message);
@@ -105,17 +101,16 @@ app.get('/battles/stats', async (c) => {
   }
 });
 
-app.route('/', cashoutRoutes);          // POST /cashout/submit
-app.route('/', cashoutAdminRoutes);      // POST /admin/cashout/partial-fulfill, /admin/cashout/send-email
-app.route('/', inventoryRoutes);        // POST /inventory/lock, /inventory/favorite, /sell, /sell-all
-app.route('/', upgraderSettingsRoutes); // GET /upgrader/settings, POST /admin/upgrader/settings
-app.route('/', sendTestEmailsRoutes);   // POST /send-test-emails (admin)
-app.route('/', logsRoutes);             // GET /admin/logs, POST /admin/logs/action
-app.route('/', provablyFairRoutes);     // GET /provably-fair/seed-hash, POST /admin/provably-fair/*
+app.route('/', cashoutRoutes);
+app.route('/', cashoutAdminRoutes);
+app.route('/', inventoryRoutes);
+app.route('/', upgraderSettingsRoutes);
+app.route('/', sendTestEmailsRoutes);
+app.route('/', logsRoutes);
+app.route('/', provablyFairRoutes);
 
-// ──────────────────────────────────────────────────────────────
-// Referrals
-// ──────────────────────────────────────────────────────────────
+// Referrals remain on Blink during this migration slice. Authentication remains
+// Blink-backed until PostgreSQL data access is fully verified.
 app.get('/referrals', async (c) => {
   const blink = getBlinkServer(c.env as any);
   const authHeader = c.req.header('Authorization');
@@ -123,8 +118,8 @@ app.get('/referrals', async (c) => {
   if (!auth.valid || !auth.userId) return c.json({ error: 'Unauthorized' }, 401);
 
   const userId = auth.userId;
-  const page   = parseInt(c.req.query('page') || '1');
-  const limit  = 10;
+  const page = parseInt(c.req.query('page') || '1');
+  const limit = 10;
   const offset = (page - 1) * limit;
 
   try {
@@ -148,12 +143,11 @@ app.get('/referrals', async (c) => {
         const qualifyingDeposit = await blink.db.transactions.exists({
           where: { userId: u.id, type: 'deposit', amount: { gte: 5 } },
         });
-        
+
         if (qualifyingDeposit) {
           status = 'Deposit Pending';
           deposited = true;
         } else {
-          // Check if any deposit exists at all
           const anyDeposit = await blink.db.transactions.exists({
             where: { userId: u.id, type: 'deposit' },
           });
@@ -161,13 +155,13 @@ app.get('/referrals', async (c) => {
         }
       }
 
-      return { 
-        id: u.id, 
-        username: u.username || u.displayName || 'Trainer', 
+      return {
+        id: u.id,
+        username: u.username || u.displayName || 'Trainer',
         email: u.isDeleted ? 'Released' : (u.email || 'Hidden'),
-        status, 
+        status,
         deposited,
-        createdAt: u.createdAt 
+        createdAt: u.createdAt,
       };
     }));
 
