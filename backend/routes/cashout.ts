@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, uid } from '../lib/auth';
+import { requireAuth, getBlinkServer, uid } from '../lib/auth';
 import { transaction } from '../lib/postgres';
 import { writeLog } from './logs';
 import { sendEmailWithLog } from '../lib/emailLogging';
@@ -17,6 +17,7 @@ app.post('/cashout/submit', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
+  const blink = getBlinkServer(c.env as any);
   try {
     const body = await c.req.json().catch(() => ({}));
     const { inventoryIds, shipping, idImageUrl } = body;
@@ -35,19 +36,14 @@ app.post('/cashout/submit', async (c) => {
       const username = user.username || user.display_name || 'Trainer';
 
       const placeholders = inventoryIds.map((_: unknown, i: number) => `$${i + 2}`).join(',');
-      const cardRows = await client.query(
-        `SELECT * FROM inventory WHERE user_id=$1 AND id IN (${placeholders}) FOR UPDATE`,
-        [userId, ...inventoryIds]
-      );
+      const cardRows = await client.query(`SELECT * FROM inventory WHERE user_id=$1 AND id IN (${placeholders}) FOR UPDATE`, [userId, ...inventoryIds]);
       if (cardRows.rowCount !== inventoryIds.length) return { kind: 'invalid_cards' as const };
-
       const byId = new Map(cardRows.rows.map((row: any) => [row.id, row]));
       const selectedCards = inventoryIds.map((id: string) => byId.get(id) as any);
       for (const card of selectedCards) {
         if (Number(card.sold || 0) > 0) return { kind: 'already_sold' as const };
         if (Number(card.is_locked ?? card.locked ?? 0) > 0) return { kind: 'locked' as const };
       }
-
       const totalValue = selectedCards.reduce((sum: number, card: any) => sum + Number(card.value || 0), 0);
       if (totalValue < MIN_VALUE) return { kind: 'below_minimum' as const, totalValue };
 
@@ -64,21 +60,15 @@ app.post('/cashout/submit', async (c) => {
       })));
       const notes = `Email: ${shipping.email || ''} | Phone: ${shipping.phone || ''}`;
 
-      await client.query(
-        `INSERT INTO cashout_requests
-          (id,user_id,username,confirmation_number,status,total_value,total_cards,cards_json,
-           shipping_name,shipping_address,shipping_city,shipping_state,shipping_zip,shipping_country,
-           notes,id_image_url,created_at,updated_at)
-         VALUES($1,$2,$3,$4,'pending',$5,$6,$7,$8,$9,$10,$11,$12,'US',$13,$14,now(),now())`,
+      await client.query(`INSERT INTO cashout_requests
+        (id,user_id,username,confirmation_number,status,total_value,total_cards,cards_json,
+         shipping_name,shipping_address,shipping_city,shipping_state,shipping_zip,shipping_country,
+         notes,id_image_url,created_at,updated_at)
+        VALUES($1,$2,$3,$4,'pending',$5,$6,$7,$8,$9,$10,$11,$12,'US',$13,$14,now(),now())`,
         [cashoutId,userId,username,confNum,totalValue,selectedCards.length,cardsJson,
-          shipping.name,shipping.address,shipping.city,shipping.state,shipping.zip,notes,idImageUrl]
-      );
+          shipping.name,shipping.address,shipping.city,shipping.state,shipping.zip,notes,idImageUrl]);
 
-      await client.query(
-        `UPDATE inventory SET sold=1 WHERE user_id=$1 AND id IN (${placeholders}) AND sold=0`,
-        [userId, ...inventoryIds]
-      );
-
+      await client.query(`UPDATE inventory SET sold=1 WHERE user_id=$1 AND id IN (${placeholders}) AND sold=0`, [userId, ...inventoryIds]);
       return { kind: 'ok' as const, username, confNum, cashoutId, selectedCards, totalValue };
     });
 
@@ -94,7 +84,7 @@ app.post('/cashout/submit', async (c) => {
     if (shipping.email) {
       try {
         const cardSummary = selectedCards.map((card: any) => card.card_name || 'Card').join(', ');
-        await sendEmailWithLog(null as any, {
+        await sendEmailWithLog(blink, {
           to: shipping.email,
           from: 'support@pocketpulltcg.com',
           replyTo: 'support@pocketpulltcg.com',
@@ -102,14 +92,11 @@ app.post('/cashout/submit', async (c) => {
           text: `Hi ${username},\n\nYour cashout request #${confNum} has been received.\n\nCards: ${cardSummary}\nTotal Value: ${totalValue.toFixed(2)}\nShipping to: ${shipping.name}, ${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.zip}\n\nWe will process your request within 3-5 business days.\n\nThank you,\nPocketPull TCG Team\nsupport@pocketpulltcg.com`,
           html: `<p>Hi <strong>${username}</strong>,</p><p>Your cashout request <strong>#${confNum}</strong> has been received.</p><p><strong>Cards:</strong> ${cardSummary}</p><p><strong>Total Value:</strong> ${totalValue.toFixed(2)}</p><p><strong>Shipping to:</strong> ${shipping.name}, ${shipping.address}, ${shipping.city}, ${shipping.state} ${shipping.zip}</p><p>We will process your request within 3-5 business days.</p><p>Thank you,<br>PocketPull TCG Team<br>support@pocketpulltcg.com</p>`,
         }, { emailType: 'cashout_confirmation', cashoutId });
-      } catch (emailErr) {
-        console.error('[cashout/submit] email error (non-critical):', emailErr);
-      }
+      } catch (emailErr) { console.error('[cashout/submit] email error (non-critical):', emailErr); }
     }
 
     try {
-      const logBlink = { db: { activityLogs: { create: async (data: any) => data } } };
-      await writeLog(logBlink as any, {
+      await writeLog(blink, {
         type: 'cashout', userId, username, action: 'Cash Out Request Submitted',
         details: { confirmationNumber: confNum, totalCards: selectedCards.length, totalValue, cards: selectedCards.map((card: any) => ({ name: card.card_name, value: Number(card.value || 0), rarity: card.rarity })), shippingName: shipping.name, shippingCity: shipping.city, shippingState: shipping.state, status: 'pending' },
         valueIn: 0, valueOut: totalValue, result: 'pending',
