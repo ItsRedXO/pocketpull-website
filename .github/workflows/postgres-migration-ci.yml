@@ -9,6 +9,22 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pocketpull
+          POSTGRES_PASSWORD: pocketpull
+          POSTGRES_DB: pocketpull_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pocketpull -d pocketpull_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://pocketpull:pocketpull@127.0.0.1:5432/pocketpull_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,9 +32,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install --no-audit --no-fund
+      - name: Apply PostgreSQL migrations
+        run: npm run db:migrate
+      - name: Validate migrated schema
+        run: npm run db:validate
       - name: Typecheck backend
         run: npx tsc --noEmit --ignoreConfig --skipLibCheck --module ESNext --moduleResolution bundler --target ES2022 backend/index.ts backend/server.ts backend/lib/*.ts backend/repositories/*.ts backend/routes/*.ts backend/routes/battles/*.ts backend/db/*.ts backend/db/import/*.ts
       - name: Build frontend
         run: npm run build
+      - name: Smoke test PostgreSQL health endpoint
+        run: |
+          PORT=8787 npm run start:backend > /tmp/pocketpull-backend.log 2>&1 &
+          BACKEND_PID=$!
+          trap 'kill $BACKEND_PID || true' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8787/health | grep -q '"database":"postgresql"'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/pocketpull-backend.log
+          exit 1
       - name: Build backend container
         run: docker build -f Dockerfile.backend -t pocketpull-backend:test .
