@@ -1,19 +1,15 @@
--- Cashout partial fulfillment currently returns unselected cards to inventory
--- before updating fulfilled_card_ids. If a later fulfillment selects one of those
--- returned cards, remove the returned inventory copy so the same physical card
--- cannot remain in the user's inventory while also being shipped.
---
--- This trigger is deliberately conservative: it only considers unsold inventory
--- rows created since the previous cashout update and matches the snapshot card's
--- generated card_id + value. It is a safety net for legacy cashout rows too.
+-- Cashout partial fulfillment returns unselected cards to inventory before updating
+-- fulfilled_card_ids. If a later fulfillment selects one of those returned cards,
+-- remove the returned inventory copy so the same card cannot remain in inventory
+-- while also being shipped.
 
 CREATE OR REPLACE FUNCTION prevent_cashout_return_duplication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  old_ids jsonb := COALESCE(NULLIF(OLD.fulfilled_card_ids, '')::jsonb, '[]'::jsonb);
-  new_ids jsonb := COALESCE(NULLIF(NEW.fulfilled_card_ids, '')::jsonb, '[]'::jsonb);
+  old_ids jsonb := COALESCE(OLD.fulfilled_card_ids, '[]'::jsonb);
+  new_ids jsonb := COALESCE(NEW.fulfilled_card_ids, '[]'::jsonb);
   idx_text text;
   idx integer;
   card jsonb;
@@ -40,7 +36,7 @@ BEGIN
       CONTINUE;
     END;
 
-    card := (NEW.cards_json::jsonb -> idx);
+    card := NEW.cards_json::jsonb -> idx;
     IF card IS NULL OR jsonb_typeof(card) <> 'object' THEN
       CONTINUE;
     END IF;
