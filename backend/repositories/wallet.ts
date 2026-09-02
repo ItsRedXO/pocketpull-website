@@ -8,6 +8,11 @@ export interface WalletTransaction {
   amount: number;
   sourceId?: string;
   metadata?: Record<string, unknown>;
+  /**
+   * Mirrors the original PocketPull wallet behavior:
+   * - on credits, adds this amount to matched_balance as well as amount to total balance
+   * - on debits, any positive value signals that matched funds may be consumed first
+   */
   matchedAmount?: number;
   /** Set false for flows such as Upgrader where matched funds are not eligible. */
   allowMatchedDebit?: boolean;
@@ -24,17 +29,16 @@ export async function processWalletTransactionInClient(client: PoolClient, txn: 
   const balanceBefore=Number(user.rows[0].balance||0),matchedBefore=Number(user.rows[0].matched_balance||0);
   let balanceAfter=balanceBefore,matchedAfter=matchedBefore;
   if(txn.amount>=0){
-    balanceAfter+=txn.amount;
-    if((txn.matchedAmount||0)>0)matchedAfter+=Number(txn.matchedAmount);
+    balanceAfter=balanceBefore+txn.amount;
+    if(txn.amount>0 && Number(txn.matchedAmount||0)>0)matchedAfter=matchedBefore+Number(txn.matchedAmount);
   } else {
     const debit=Math.abs(txn.amount);
-    const allowMatchedDebit=txn.allowMatchedDebit!==false;
-    const available=allowMatchedDebit ? balanceBefore+matchedBefore : balanceBefore;
+    const canSpendMatched=txn.allowMatchedDebit!==false && Number(txn.matchedAmount||0)>0;
+    const realAvailable=Math.max(0,balanceBefore-matchedBefore);
+    const available=canSpendMatched?balanceBefore:realAvailable;
     if(available<debit)return{success:false,error:'Insufficient balance',balanceBefore,balanceAfter:balanceBefore,matchedBefore,matchedAfter:matchedBefore};
-    const matchedDebit=allowMatchedDebit ? Math.min(matchedBefore,debit) : 0;
-    const realDebit=debit-matchedDebit;
-    balanceAfter=balanceBefore-realDebit;
-    matchedAfter=matchedBefore-matchedDebit;
+    balanceAfter=balanceBefore-debit;
+    if(canSpendMatched){const matchedDebit=Math.min(matchedBefore,debit);matchedAfter=matchedBefore-matchedDebit;}
   }
 
   await client.query('UPDATE users SET balance=$1,matched_balance=$2,updated_at=now() WHERE id=$3',[balanceAfter,matchedAfter,txn.userId]);
