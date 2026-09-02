@@ -12,12 +12,12 @@ DECLARE
   new_ids jsonb := COALESCE(NEW.fulfilled_card_ids, '[]'::jsonb);
   idx integer;
   card jsonb;
-  card_name text;
-  card_id text;
-  card_value numeric;
-  card_rarity text;
-  card_image text;
-  card_pack text;
+  target_card_name text;
+  target_card_id text;
+  target_card_value numeric;
+  target_card_rarity text;
+  target_card_image text;
+  target_card_pack text;
   returned_id text;
   candidate_id text;
   was_fulfilled boolean;
@@ -37,12 +37,12 @@ BEGIN
       CONTINUE;
     END IF;
 
-    card_name := COALESCE(card->>'card_name', card->>'cardName', 'Unknown Card');
-    card_id := regexp_replace(lower(card_name), '[^a-z0-9]+', '-', 'g');
-    card_value := COALESCE(NULLIF(card->>'value', '')::numeric, 0);
-    card_rarity := COALESCE(card->>'rarity', 'common');
-    card_image := COALESCE(card->>'card_image_url', card->>'cardImageUrl');
-    card_pack := COALESCE(card->>'pack_name', card->>'packName');
+    target_card_name := COALESCE(card->>'card_name', card->>'cardName', 'Unknown Card');
+    target_card_id := regexp_replace(lower(target_card_name), '[^a-z0-9]+', '-', 'g');
+    target_card_value := COALESCE(NULLIF(card->>'value', '')::numeric, 0);
+    target_card_rarity := COALESCE(card->>'rarity', 'common');
+    target_card_image := COALESCE(card->>'card_image_url', card->>'cardImageUrl');
+    target_card_pack := COALESCE(card->>'pack_name', card->>'packName');
 
     was_fulfilled := old_ids @> jsonb_build_array(idx);
     is_fulfilled := new_ids @> jsonb_build_array(idx);
@@ -87,11 +87,11 @@ BEGIN
         FROM inventory i
         WHERE i.user_id = NEW.user_id
           AND COALESCE(i.sold, 0) = 0
-          AND i.card_id = card_id
-          AND ABS(COALESCE(i.value, 0) - card_value) < 0.0001
-          AND COALESCE(i.rarity, '') = COALESCE(card_rarity, '')
-          AND COALESCE(i.card_image_url, '') = COALESCE(card_image, '')
-          AND COALESCE(i.pack_name, '') = COALESCE(card_pack, '')
+          AND i.card_id = target_card_id
+          AND ABS(COALESCE(i.value, 0) - target_card_value) < 0.0001
+          AND COALESCE(i.rarity, '') = COALESCE(target_card_rarity, '')
+          AND COALESCE(i.card_image_url, '') = COALESCE(target_card_image, '')
+          AND COALESCE(i.pack_name, '') = COALESCE(target_card_pack, '')
           AND COALESCE(i.data->>'cashout_return_id', '') = ''
           AND i.created_at >= statement_timestamp() - interval '30 seconds'
         ORDER BY i.created_at DESC
@@ -115,11 +115,11 @@ BEGIN
         FROM inventory i
         WHERE i.user_id = NEW.user_id
           AND COALESCE(i.sold, 0) = 0
-          AND i.card_id = card_id
-          AND ABS(COALESCE(i.value, 0) - card_value) < 0.0001
-          AND COALESCE(i.rarity, '') = COALESCE(card_rarity, '')
-          AND COALESCE(i.card_image_url, '') = COALESCE(card_image, '')
-          AND COALESCE(i.pack_name, '') = COALESCE(card_pack, '')
+          AND i.card_id = target_card_id
+          AND ABS(COALESCE(i.value, 0) - target_card_value) < 0.0001
+          AND COALESCE(i.rarity, '') = COALESCE(target_card_rarity, '')
+          AND COALESCE(i.card_image_url, '') = COALESCE(target_card_image, '')
+          AND COALESCE(i.pack_name, '') = COALESCE(target_card_pack, '')
           AND COALESCE(i.data->>'cashout_return_id', '') = ''
           AND i.created_at >= statement_timestamp() - interval '30 seconds'
         ORDER BY i.created_at DESC
