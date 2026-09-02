@@ -30,13 +30,15 @@ async function identity(c: any) {
 
 app.post('/db', async (c, next) => {
   if (c.req.header('X-DB-Table') !== 'users') return next();
+  const identityResult = await identity(c);
+  if (identityResult.admin) return next();
   const body = await c.req.json<any>();
-  if (body.table !== 'users') return next();
+  if (body.table !== 'users') return c.json({ error: 'Invalid database table' }, 400);
   try {
-    const { userId, admin } = await identity(c);
+    const { userId } = identityResult;
     const where = body.where || {};
 
-    if (body.operation === 'list' && !admin) {
+    if (body.operation === 'list') {
       const allowedField = ['username', 'email', 'referralCode'].find((field) => typeof where[field] === 'string');
       if (!allowedField) return next();
       if (!userId && allowedField === 'referralCode') return c.json({ data: [] });
@@ -46,8 +48,7 @@ app.post('/db', async (c, next) => {
       return c.json({ data: rows.map(mapRow) });
     }
 
-    if (!userId && !admin) return next();
-    if (admin) return next();
+    if (!userId) return c.json({ error: 'UNAUTHORIZED' }, 401);
 
     if (body.operation === 'get') {
       if (body.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
@@ -78,7 +79,7 @@ app.post('/db', async (c, next) => {
       return c.json({ data: rows[0] ? mapRow(rows[0]) : null });
     }
 
-    return next();
+    return c.json({ error: 'Unsupported user database operation' }, 400);
   } catch (error: any) {
     return c.json({ error: error?.message || 'User database request failed' }, 500);
   }
