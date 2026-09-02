@@ -36,10 +36,10 @@ try {
     [cashoutId],
   );
 
-  let rows = await db.query(
+  let rows = (await db.query(
     `SELECT id, data FROM inventory WHERE user_id=$1 AND sold=0 ORDER BY created_at`,
     [userId],
-  );
+  )).rows;
   assert(rows.length === 1, `expected one returned inventory row after first partial update, got ${rows.length}`);
   assert(rows[0].id === firstInventoryId, 'first returned inventory row changed unexpectedly');
   assert(rows[0].data?.cashout_return_id === cashoutId, 'returned inventory row was not tagged with cashout id');
@@ -58,7 +58,7 @@ try {
     [cashoutId],
   );
 
-  rows = await db.query(`SELECT id FROM inventory WHERE user_id=$1 AND sold=0`, [userId]);
+  rows = (await db.query(`SELECT id FROM inventory WHERE user_id=$1 AND sold=0`, [userId])).rows;
   assert(rows.length === 1, `repeated partial fulfillment duplicated returned inventory; got ${rows.length} rows`);
   assert(rows[0].id === firstInventoryId, 'trigger removed the tracked returned row instead of the fresh duplicate');
 
@@ -77,7 +77,7 @@ try {
   }
   assert(blocked, 'cashout allowed a previously-returned card to ship after that inventory row was sold');
 
-  const cashout = await db.query(`SELECT status, fulfilled_card_ids FROM cashout_requests WHERE id=$1`, [cashoutId]);
+  const cashout = (await db.query(`SELECT status, fulfilled_card_ids FROM cashout_requests WHERE id=$1`, [cashoutId])).rows;
   assert(cashout[0]?.status === 'partial', 'failed fulfillment changed cashout status');
   assert(JSON.stringify(cashout[0]?.fulfilled_card_ids) === JSON.stringify([0]), 'failed fulfillment changed fulfilled card indices');
 
