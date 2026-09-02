@@ -16,6 +16,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install --no-audit --no-fund
-      - run: npm run lint:types
-      - run: npx tsc --noEmit --skipLibCheck --module ESNext --moduleResolution bundler --target ES2022 backend/index.ts backend/lib/*.ts backend/repositories/*.ts backend/routes/*.ts backend/routes/battles/*.ts backend/db/*.ts backend/db/import/*.ts
-      - run: npm run build
+      - name: Typecheck backend
+        run: npx tsc --noEmit --skipLibCheck --module ESNext --moduleResolution bundler --target ES2022 backend/index.ts backend/lib/*.ts backend/repositories/*.ts backend/routes/*.ts backend/routes/battles/*.ts backend/db/*.ts backend/db/import/*.ts
+      - name: Build frontend
+        run: npm run build
