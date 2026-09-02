@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, uid, getRewardUserId } from '../lib/auth';
+import { requireAuth, uid, getRewardUserId, getBlinkServer } from '../lib/auth';
 import { transaction } from '../lib/postgres';
 import { processWalletTransactionInClient } from '../repositories/wallet';
 import { writeLog } from './logs';
@@ -63,24 +63,15 @@ app.post('/exchanger/trade', async (c) => {
       const addedCards: any[] = [];
       for (const pc of receiveCards) {
         const newInvId = `inv_${uid()}`;
-        await client.query(
-          `INSERT INTO inventory (id,user_id,card_id,card_name,rarity,value,emoji,is_favorite,card_image_url,pack_name,sold,locked,created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,0,0,now())`,
-          [newInvId, recipientId, pc.id, pc.card_name, pc.rarity, Number(pc.estimated_value ?? pc.value ?? 0), RARITY_EMOJIS[pc.rarity] || '🃏', pc.card_image_url || pc.image_url || null, null]
-        );
+        await client.query(`INSERT INTO inventory (id,user_id,card_id,card_name,rarity,value,emoji,is_favorite,card_image_url,pack_name,sold,locked,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,0,0,now())`,
+          [newInvId, recipientId, pc.id, pc.card_name, pc.rarity, Number(pc.estimated_value ?? pc.value ?? 0), RARITY_EMOJIS[pc.rarity] || '🃏', pc.card_image_url || pc.image_url || null, null]);
         addedCards.push({ id: newInvId, userId: recipientId, cardId: pc.id, cardName: pc.card_name, rarity: pc.rarity, value: Number(pc.estimated_value ?? pc.value ?? 0), emoji: RARITY_EMOJIS[pc.rarity] || '🃏', cardImageUrl: pc.card_image_url || pc.image_url || null, packName: null, isLocked: false });
       }
 
       let newBalance = Number(user.balance || 0);
       if (refund > 0.01) {
         const refundSourceId = `exchange_refund_${offerInventoryIds.slice().sort().join('_')}`;
-        const wallet = await processWalletTransactionInClient(client, {
-          userId: recipientId,
-          type: 'exchange_refund',
-          amount: refund,
-          sourceId: refundSourceId.slice(0, 255),
-          metadata: { offerTotal, receiveTotal, offerInventoryIds, receivePackCardIds },
-        });
+        const wallet = await processWalletTransactionInClient(client, { userId: recipientId, type: 'exchange_refund', amount: refund, sourceId: refundSourceId.slice(0, 255), metadata: { offerTotal, receiveTotal, offerInventoryIds, receivePackCardIds } });
         if (!wallet.success) throw new Error(wallet.error || 'Failed to credit exchange refund');
         if (recipientId === userId) newBalance = wallet.balanceAfter;
         await client.query(`INSERT INTO transactions(id,user_id,type,amount,description,source_id,created_at) VALUES($1,$2,$3,$4,$5,$6,now())`,
@@ -105,20 +96,13 @@ app.post('/exchanger/trade', async (c) => {
 
     try {
       await writeLog(getBlinkServer(c.env as any), {
-        type: 'exchange',
-        userId,
-        username: result.username,
-        action: 'Card Exchange',
+        type: 'exchange', userId, username: result.username, action: 'Card Exchange',
         details: {
           offeredCards: result.offeredCards.map((card: any) => ({ name: card.card_name, value: Number(card.value || 0), rarity: card.rarity })),
           receivedCards: result.receiveCards.map((card: any) => ({ name: card.card_name, value: Number(card.estimated_value ?? card.value ?? 0), rarity: card.rarity })),
-          offerTotal: result.offerTotal,
-          receiveTotal: result.receiveTotal,
-          refund: result.refund,
+          offerTotal: result.offerTotal, receiveTotal: result.receiveTotal, refund: result.refund,
         },
-        valueIn: result.offerTotal,
-        valueOut: result.receiveTotal,
-        result: 'success',
+        valueIn: result.offerTotal, valueOut: result.receiveTotal, result: 'success',
       });
     } catch { /* non-critical */ }
 
