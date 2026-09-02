@@ -44,7 +44,9 @@ app.post('/db', async (c, next) => {
       if (!userId && allowedField === 'referralCode') return c.json({ data: [] });
       const field = snake(allowedField);
       const value = allowedField === 'email' ? where.email.trim().toLowerCase() : where[allowedField];
-      const rows = await query(`SELECT * FROM users WHERE ${field}=$1 LIMIT $2`, [value, Math.min(Math.max(Number(body.limit) || 5, 1), 5)]);
+      // Unauthenticated lookup is intentionally limited to the fields needed by
+      // signup/referral checks; never expose balances, email, roles, or profile data.
+      const rows = await query(`SELECT id, username, is_banned, is_deleted FROM users WHERE ${field}=$1 LIMIT $2`, [value, Math.min(Math.max(Number(body.limit) || 5, 1), 5)]);
       return c.json({ data: rows.map(mapRow) });
     }
 
