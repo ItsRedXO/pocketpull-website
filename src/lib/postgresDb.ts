@@ -19,9 +19,13 @@ async function request<T>(tokenProvider: TokenProvider, body: Record<string, unk
 }
 
 function tableClient(tokenProvider: TokenProvider, table: string) {
+  const list = <T = any>(options: any = {}) => request<T[]>(tokenProvider, { table, operation: 'list', ...options });
+  const get = <T = any>(id: string) => request<T>(tokenProvider, { table, operation: 'get', id });
   return {
-    get: <T = any>(id: string) => request<T>(tokenProvider, { table, operation: 'get', id }),
-    list: <T = any>(options: any = {}) => request<T[]>(tokenProvider, { table, operation: 'list', ...options }),
+    get,
+    findFirst: async <T = any>(options: any = {}) => (await list<T>(options))[0] ?? null,
+    findMany: list,
+    list,
     create: <T = any>(data: Record<string, unknown>) => request<T>(tokenProvider, { table, operation: 'create', data }),
     createMany: async <T = any>(rows: Record<string, unknown>[]) => {
       const results: T[] = [];
@@ -31,7 +35,7 @@ function tableClient(tokenProvider: TokenProvider, table: string) {
     update: <T = any>(id: string, data: Record<string, unknown>) => request<T>(tokenProvider, { table, operation: 'update', id, data }),
     delete: (id: string) => request<void>(tokenProvider, { table, operation: 'delete', id }),
     deleteMany: async (options: any = {}) => {
-      const rows = await request<any[]>(tokenProvider, { table, operation: 'list', ...options });
+      const rows = await list<any>(options);
       for (const row of rows) await request<void>(tokenProvider, { table, operation: 'delete', id: row.id });
       return rows.length;
     },
