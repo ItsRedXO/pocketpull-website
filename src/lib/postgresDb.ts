@@ -3,7 +3,7 @@ const BACKEND_BASE = 'https://b2nnhe2n.backend.blink.new';
 type TokenProvider = () => Promise<string | null>;
 
 async function request<T>(tokenProvider: TokenProvider, body: Record<string, unknown>): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-DB-Table': String(body.table || '') };
   try {
     const token = await tokenProvider();
     if (token) headers.Authorization = `Bearer ${token}`;
