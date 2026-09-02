@@ -1,25 +1,86 @@
 import { Hono } from 'hono';
+import { getBlinkServer } from '../lib/auth';
 import { query } from '../lib/postgres';
 
 const app = new Hono();
-const mapRow = (row: any) => ({
-  id: row.id,
-  email: row.email,
-  username: row.username,
-  displayName: row.display_name,
-  isBanned: row.is_banned,
-  isDeleted: row.is_deleted,
-});
+const snake = (key: string) => key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+const mapRow = (row: any) => {
+  const out: any = {};
+  for (const [key, value] of Object.entries(row)) out[key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = value;
+  return out;
+};
+
+async function identity(c: any) {
+  const blink = getBlinkServer(c.env as any);
+  let userId: string | null = null;
+  let admin = false;
+  try {
+    const result = await blink.auth.verifyToken(c.req.header('Authorization'));
+    if (result.valid && result.userId) userId = result.userId;
+  } catch {}
+  const secret = c.req.header('X-Admin-Secret');
+  if (secret && secret !== 'true') {
+    try {
+      const rows = await blink.db.adminCredentials.list({});
+      admin = rows.some((r: any) => (r.adminPass || r.admin_pass) === secret);
+    } catch {}
+  }
+  return { userId, admin };
+}
 
 app.post('/db', async (c, next) => {
   const body = await c.req.json<any>();
-  if (body.table !== 'users' || body.operation !== 'list') return next();
-  const where = body.where || {};
-  const field = typeof where.username === 'string' ? 'username' : typeof where.email === 'string' ? 'email' : null;
-  if (!field) return next();
-  const value = field === 'email' ? where.email.trim().toLowerCase() : where.username;
-  const rows = await query(`SELECT id, email, username, display_name, is_banned, is_deleted FROM users WHERE ${field}=$1 LIMIT $2`, [value, Math.min(Math.max(Number(body.limit) || 5, 1), 5)]);
-  return c.json({ data: rows.map(mapRow) });
+  if (body.table !== 'users') return next();
+  try {
+    const { userId, admin } = await identity(c);
+    const where = body.where || {};
+
+    if (body.operation === 'list' && !admin) {
+      const allowedField = ['username', 'email', 'referralCode'].find((field) => typeof where[field] === 'string');
+      if (!allowedField) return next();
+      if (!userId && allowedField === 'referralCode') return c.json({ data: [] });
+      const field = snake(allowedField);
+      const value = allowedField === 'email' ? where.email.trim().toLowerCase() : where[allowedField];
+      const rows = await query(`SELECT * FROM users WHERE ${field}=$1 LIMIT $2`, [value, Math.min(Math.max(Number(body.limit) || 5, 1), 5)]);
+      return c.json({ data: rows.map(mapRow) });
+    }
+
+    if (!userId && !admin) return next();
+    if (admin) return next();
+
+    if (body.operation === 'get') {
+      if (body.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
+      const rows = await query('SELECT * FROM users WHERE id=$1 LIMIT 1', [userId]);
+      return c.json({ data: rows[0] ? mapRow(rows[0]) : null });
+    }
+
+    if (body.operation === 'create') {
+      const data = { ...(body.data || {}) };
+      if (data.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
+      const keys = Object.keys(data);
+      const columns = keys.map(snake);
+      const values = Object.values(data).map((value) => value && typeof value === 'object' ? JSON.stringify(value) : value);
+      const placeholders = values.map((_, i) => `$${i + 1}`).join(',');
+      const rows = await query(`INSERT INTO users (${columns.join(',')}) VALUES (${placeholders}) RETURNING *`, values);
+      return c.json({ data: mapRow(rows[0]) });
+    }
+
+    if (body.operation === 'update') {
+      if (body.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
+      const data = body.data || {};
+      const keys = Object.keys(data).filter((key) => !['id', 'balance', 'matchedBalance', 'isAdmin', 'role'].includes(key));
+      if (!keys.length) return c.json({ data: null });
+      const values = keys.map((key) => data[key] && typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key]);
+      const sets = keys.map((key, i) => `${snake(key)}=$${i + 1}`);
+      values.push(userId);
+      const rows = await query(`UPDATE users SET ${sets.join(',')}, updated_at=now() WHERE id=$${values.length} RETURNING *`, values);
+      return c.json({ data: rows[0] ? mapRow(rows[0]) : null });
+    }
+
+    return next();
+  } catch (error: any) {
+    return c.json({ error: error?.message || 'User database request failed' }, 500);
+  }
 });
 
 export default app;
