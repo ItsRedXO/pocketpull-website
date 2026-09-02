@@ -10,7 +10,7 @@ app.get('/auth/user-lookup', async (c) => {
     if ((!username && !email) || (username && email)) return c.json({ error: 'Provide username or email' }, 400);
     const field = username ? 'username' : 'email';
     const value = username || email;
-    const rows = await query(`SELECT id, email, username, display_name, is_banned, is_deleted FROM users WHERE ${field}=$1 LIMIT 5`, [value]);
+    const rows = await query(`SELECT id, username, is_banned, is_deleted FROM users WHERE ${field}=$1 LIMIT 5`, [value]);
     return c.json({ users: rows });
   } catch (error: any) {
     return c.json({ error: error?.message || 'User lookup failed' }, 500);
