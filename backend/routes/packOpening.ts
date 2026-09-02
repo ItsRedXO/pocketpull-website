@@ -61,7 +61,7 @@ app.post('/open-pack', async (c) => {
         }
       }
 
-      const spendable = num(user.balance) + num(user.matched_balance);
+      const spendable = num(user.balance);
       if (price > spendable) throw new PackOpenError(`Insufficient balance. Need ${price.toFixed(2)}, have ${spendable.toFixed(2)}`);
 
       const isMysteryPack = (pack.pack_type || 'standard') === 'mystery';
@@ -135,6 +135,7 @@ app.post('/open-pack', async (c) => {
         userId,
         type: 'pack_open',
         amount: -price,
+        matchedAmount: num(user.matched_balance),
         sourceId: `pack-open:${userId}:${packId}:${nonce}`,
         metadata: { packId, packName:pack.name, cardName, rarity, nonce, clientSeed },
       });
