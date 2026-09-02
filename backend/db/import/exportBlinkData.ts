@@ -18,37 +18,6 @@ const TABLE_TO_SDK: Record<string, string> = {
   wallet_transactions:'walletTransactions', leaderboard_stats:'leaderboardStats', support_chats:'supportChats', support_messages:'supportMessages'
 };
 const PAGE_SIZE = 1000;
-
-async function exportTable(blink:any, sdkName:string) {
-  const all:any[] = [];
-  for (let offset=0;;offset+=PAGE_SIZE) {
-    const rows = await blink.db[sdkName].list({limit:PAGE_SIZE, offset});
-    if (!rows?.length) break;
-    all.push(...rows);
-    console.log(`  ${sdkName}: ${all.length}`);
-    if (rows.length < PAGE_SIZE) break;
-  }
-  return all;
-}
-
-async function main() {
-  const blink:any = createClient({projectId, secretKey});
-  const output:any = {};
-  for (const table of IMPORT_ORDER) {
-    const sdkName = TABLE_TO_SDK[table];
-    if (!sdkName) continue;
-    try {
-      output[table] = await exportTable(blink, sdkName);
-      console.log(`${table}: exported ${output[table].length}`);
-    } catch (error:any) {
-      console.warn(`${table}: export failed (${error?.message || error})`);
-      output[table] = [];
-    }
-  }
-  await mkdir('backend/db/import/exports', {recursive:true});
-  const path = process.argv[2] || 'backend/db/import/exports/blink-export.json';
-  await writeFile(path, JSON.stringify(output, null, 2), 'utf8');
-  console.log(`Wrote ${path}`);
-}
-
-main().catch(error => { console.error(error); process.exit(1); });
+async function exportTable(blink:any,sdkName:string){const all:any[]=[];for(let offset=0;;offset+=PAGE_SIZE){const rows=await blink.db[sdkName].list({limit:PAGE_SIZE,offset});if(!rows?.length)break;all.push(...rows);console.log(`  ${sdkName}: ${all.length}`);if(rows.length<PAGE_SIZE)break;}return all;}
+async function main(){const blink:any=createClient({projectId:projectId as string,secretKey:secretKey as string}),output:any={};for(const table of IMPORT_ORDER){const sdkName=TABLE_TO_SDK[table];if(!sdkName)continue;try{output[table]=await exportTable(blink,sdkName);console.log(`${table}: exported ${output[table].length}`);}catch(error:any){console.warn(`${table}: export failed (${error?.message||error})`);output[table]=[];}}await mkdir('backend/db/import/exports',{recursive:true});const path=process.argv[2]||'backend/db/import/exports/blink-export.json';await writeFile(path,JSON.stringify(output,null,2),'utf8');console.log(`Wrote ${path}`);}
+main().catch(error=>{console.error(error);process.exit(1);});
