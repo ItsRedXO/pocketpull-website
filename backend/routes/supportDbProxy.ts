@@ -37,6 +37,7 @@ async function identity(c: any) {
 }
 
 app.post('/db', async (c, next) => {
+  if (c.req.header('X-DB-Table') !== 'supportChats' && c.req.header('X-DB-Table') !== 'supportMessages') return next();
   const body = await c.req.json<any>();
   if (body.table !== 'supportChats' && body.table !== 'supportMessages') return next();
   try {
