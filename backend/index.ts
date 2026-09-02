@@ -11,7 +11,7 @@ import exchangerRoutes from './routes/exchanger';
 import battleRoutes from './routes/battles/index';
 import cashoutRoutes from './routes/cashout';
 import cashoutAdminRoutes from './routes/cashoutAdmin';
-import inventoryRoutes from './routes/inventory');
+import inventoryRoutes from './routes/inventory';
 import upgraderSettingsRoutes from './routes/upgraderSettings';
 import sendTestEmailsRoutes from './routes/sendTestEmails';
 import logsRoutes from './routes/logs';
