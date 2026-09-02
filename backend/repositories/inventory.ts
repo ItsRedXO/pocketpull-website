@@ -1,0 +1,4 @@
+import { query, transaction } from '../lib/postgres';
+export async function getOwnedInventory(id:string,userId:string){return (await query('SELECT * FROM inventory WHERE id=$1 AND user_id=$2',[id,userId]))[0]||null;}
+export async function setInventoryFlag(id:string,userId:string,field:'locked'|'favorite',value:boolean){const rows=await query(`UPDATE inventory SET ${field}=$1 WHERE id=$2 AND user_id=$3 AND sold=0 RETURNING *`,[value?1:0,id,userId]);return rows[0]||null;}
+export async function sellInventory(id:string,userId:string){return transaction(async client=>{const r=await client.query('SELECT * FROM inventory WHERE id=$1 AND user_id=$2 FOR UPDATE',[id,userId]);if(!r.rowCount)return null;if(Number(r.rows[0].sold))return r.rows[0];if(Number(r.rows[0].locked))throw new Error('Card is locked');await client.query('UPDATE inventory SET sold=1 WHERE id=$1',[id]);return r.rows[0];});}

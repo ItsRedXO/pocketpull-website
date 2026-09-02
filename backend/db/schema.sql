@@ -1,0 +1,2 @@
+-- Canonical PostgreSQL schema entrypoint.
+-- Apply migrations in lexical order using: npm run db:migrate

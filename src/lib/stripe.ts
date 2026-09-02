@@ -1,11 +1,9 @@
 import { loadStripe } from '@stripe/stripe-js';
-import { blink } from './blink';
+import { BACKEND_BASE } from './backend';
 
 // Stripe publishable key — safe to expose in client
 const PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string
   || 'pk_live_51Tba52A8wAVcexxVHeljjbYV0F5skma3pncZQ7rzfQ7KDSPJYxoH1aye9aSkWHY7Igmw54IUhiJX1Bvuzqgz5Sqn00VopciKn1';
-
-const BACKEND_BASE = 'https://b2nnhe2n.backend.blink.new';
 
 export const stripePromise = loadStripe(PK || '');
 

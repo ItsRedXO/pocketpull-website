@@ -1,0 +1,5 @@
+import { query, transaction } from '../lib/postgres';
+export async function getBattle(id:string){return (await query('SELECT * FROM battles WHERE id=$1',[id]))[0]||null;}
+export async function listBattles(status?:string){return status?query('SELECT * FROM battles WHERE status=$1 ORDER BY created_at DESC',[status]):query('SELECT * FROM battles ORDER BY created_at DESC');}
+export async function lockBattle(id:string){return transaction(async client=>(await client.query('SELECT * FROM battles WHERE id=$1 FOR UPDATE',[id])).rows[0]||null);}
+export async function updateBattle(id:string,fields:Record<string,unknown>){const allowed:Record<string,string>={status:'status',mode:'mode',winnerUserId:'winner_user_id',isPublic:'is_public',updatedAt:'updated_at'};const entries=Object.entries(fields).filter(([k])=>allowed[k]);if(!entries.length)return getBattle(id);const vals=entries.map(([,v])=>v);const sets=entries.map(([k],i)=>`${allowed[k]}=$${i+1}`).join(',');vals.push(id);return (await query(`UPDATE battles SET ${sets},updated_at=now() WHERE id=$${vals.length} RETURNING *`,vals))[0]||null;}

@@ -1,267 +1,56 @@
-/**
- * Inventory Routes — secure card state mutations.
- *
- * POST /inventory/lock      - Lock/unlock a card (only owner can do this)
- * POST /inventory/favorite  - Toggle favorite on a card
- * POST /inventory/sell      - Sell a single card
- * POST /inventory/sell-all  - Sell all unlocked cards
- */
 import { Hono } from 'hono';
-import { requireAuth, getBlinkServer, uid } from '../lib/auth';
-import { writeLog } from './logs';
-import { processWalletTransaction } from '../lib/wallet';
+import { requireAuth } from '../lib/auth';
+import { setInventoryFlag } from '../repositories/inventory';
+import { query, transaction } from '../lib/postgres';
+import { processWalletTransactionInClient } from '../repositories/wallet';
 
 const app = new Hono();
+async function auth(c:any){try{return await requireAuth(c);}catch(e:any){if(e.message==='ACCOUNT_DEACTIVATED')return c.json({error:'Account deactivated'},403);return c.json({error:'Authentication required'},401);}}
 
-// POST /inventory/lock
-app.post('/inventory/lock', async (c) => {
-  let userId: string;
-  try {
-    userId = await requireAuth(c);
-  } catch (err: any) {
-    if (err.message === 'ACCOUNT_DEACTIVATED') {
-      return c.json({ error: 'Account deactivated' }, 403);
-    }
-    return c.json({ error: 'Authentication required' }, 401);
-  }
+app.post('/inventory/lock',async c=>{const userId=await auth(c);if(typeof userId!=='string')return userId;const {inventoryId,isLocked}=await c.req.json().catch(()=>({}));if(!inventoryId||typeof isLocked!=='boolean')return c.json({error:'inventoryId and isLocked (boolean) required'},400);const row=await setInventoryFlag(inventoryId,userId,'locked',isLocked);if(!row)return c.json({error:'Card not found or not owned'},404);return c.json({success:true,inventoryId,isLocked});});
+app.post('/inventory/favorite',async c=>{const userId=await auth(c);if(typeof userId!=='string')return userId;const {inventoryId,isFavorite}=await c.req.json().catch(()=>({}));if(!inventoryId||typeof isFavorite!=='boolean')return c.json({error:'inventoryId and isFavorite (boolean) required'},400);const row=await setInventoryFlag(inventoryId,userId,'favorite',isFavorite);if(!row)return c.json({error:'Card not found or not owned'},404);return c.json({success:true,inventoryId,isFavorite});});
 
-  const blink = getBlinkServer(c.env as any);
-
-  try {
-    const body = await c.req.json();
-    const { inventoryId, isLocked } = body;
-
-    if (!inventoryId) return c.json({ error: 'inventoryId required' }, 400);
-    if (typeof isLocked !== 'boolean') return c.json({ error: 'isLocked (boolean) required' }, 400);
-
-    // Verify ownership
-    const card = await blink.db.inventory.get(inventoryId) as any;
-    if (!card) return c.json({ error: 'Card not found' }, 404);
-    if (card.userId !== userId) return c.json({ error: 'Not your card' }, 403);
-
-    await blink.db.inventory.update(inventoryId, { isLocked: isLocked ? 1 : 0 });
-
-    return c.json({ success: true, inventoryId, isLocked });
-
-  } catch (err: any) {
-    console.error('[inventory/lock] error:', err.message);
-    return c.json({ error: err.message || 'Internal server error' }, 500);
-  }
+app.post('/inventory/sell',async c=>{
+  const userId=await auth(c);if(typeof userId!=='string')return userId;
+  const {inventoryId}=await c.req.json().catch(()=>({}));if(!inventoryId)return c.json({error:'inventoryId required'},400);
+  try{
+    const result=await transaction(async client=>{
+      const rows=await client.query('SELECT * FROM inventory WHERE id=$1 AND user_id=$2 FOR UPDATE',[inventoryId,userId]);
+      if(!rows.rowCount)return {kind:'not_found' as const};
+      const card=rows.rows[0];
+      if(Number(card.sold))return {kind:'sold' as const};
+      if(Number(card.locked || card.is_locked || 0))throw new Error('Card is locked');
+      const value=Number(card.value||0);
+      await client.query('UPDATE inventory SET sold=1 WHERE id=$1 AND user_id=$2 AND sold=0',[inventoryId,userId]);
+      const wallet=await processWalletTransactionInClient(client,{userId,type:'sell',amount:value,sourceId:inventoryId});
+      if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
+      await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6)',[`txn_${Date.now().toString(36)}`,userId,'sell',value,`Sold ${card.card_name || card.cardName || 'Card'}`,inventoryId]);
+      return {kind:'ok' as const,value,balance:wallet.balanceAfter};
+    });
+    if(result.kind==='not_found')return c.json({error:'Card not found'},404);
+    if(result.kind==='sold')return c.json({error:'Card already sold'},409);
+    return c.json({success:true,inventoryId,value:result.value,balance:result.balance});
+  }catch(e:any){return c.json({error:e.message||'Failed to sell card'},400);}
 });
 
-// POST /inventory/favorite
-app.post('/inventory/favorite', async (c) => {
-  let userId: string;
-  try {
-    userId = await requireAuth(c);
-  } catch (err: any) {
-    if (err.message === 'ACCOUNT_DEACTIVATED') {
-      return c.json({ error: 'Account deactivated' }, 403);
-    }
-    return c.json({ error: 'Authentication required' }, 401);
-  }
-
-  const blink = getBlinkServer(c.env as any);
-
-  try {
-    const body = await c.req.json();
-    const { inventoryId, isFavorite } = body;
-
-    if (!inventoryId) return c.json({ error: 'inventoryId required' }, 400);
-    if (typeof isFavorite !== 'boolean') return c.json({ error: 'isFavorite (boolean) required' }, 400);
-
-    // Verify ownership
-    const card = await blink.db.inventory.get(inventoryId) as any;
-    if (!card) return c.json({ error: 'Card not found' }, 404);
-    if (card.userId !== userId) return c.json({ error: 'Not your card' }, 403);
-
-    await blink.db.inventory.update(inventoryId, { isFavorite: isFavorite ? 1 : 0 });
-
-    return c.json({ success: true, inventoryId, isFavorite });
-
-  } catch (err: any) {
-    console.error('[inventory/favorite] error:', err.message);
-    return c.json({ error: err.message || 'Internal server error' }, 500);
-  }
-});
-
-// POST /inventory/sell
-app.post('/inventory/sell', async (c) => {
-  let userId: string;
-  try {
-    userId = await requireAuth(c);
-  } catch (err: any) {
-    if (err.message === 'ACCOUNT_DEACTIVATED') {
-      return c.json({ error: 'Account deactivated' }, 403);
-    }
-    return c.json({ error: 'Authentication required' }, 401);
-  }
-
-  const blink = getBlinkServer(c.env as any);
-
-  try {
-    const body = await c.req.json();
-    const { inventoryId } = body;
-    if (!inventoryId) return c.json({ error: 'inventoryId required' }, 400);
-
-    // Verify ownership and locked status
-    const card = await blink.db.inventory.get(inventoryId) as any;
-    if (!card) return c.json({ error: 'Card not found' }, 404);
-    if (card.userId !== userId) return c.json({ error: 'Not your card' }, 403);
-    if (Number(card.isLocked) > 0) return c.json({ error: 'Card is locked and cannot be sold' }, 400);
-
-    const cardValue = Number(card.value);
-
-    // Fetch user for validation only
-    const user = await blink.db.users.get(userId) as any;
-    if (!user) return c.json({ error: 'User not found' }, 404);
-    if (Number(user.isDeleted || user.is_deleted || 0) > 0) return c.json({ error: 'Account deactivated' }, 403);
-    if (Number(user.isBanned || user.is_banned || 0) > 0) return c.json({ error: 'Account banned' }, 403);
-
-    // Delete card first, then credit balance (wallet txn is idempotent)
-    await blink.db.inventory.delete(inventoryId);
-
-    const walletResult = await processWalletTransaction(blink, {
-      userId,
-      type: 'sell',
-      amount: cardValue,
-      sourceId: inventoryId,
+app.post('/inventory/sell-all',async c=>{
+  const userId=await auth(c);if(typeof userId!=='string')return userId;
+  try{
+    const result=await transaction(async client=>{
+      const cards=await client.query('SELECT * FROM inventory WHERE user_id=$1 AND sold=0 AND COALESCE(is_locked,locked,0)=0 FOR UPDATE',[userId]);
+      if(!cards.rowCount)return null;
+      const total=cards.rows.reduce((s:number,r:any)=>s+Number(r.value||0),0);
+      const ids=cards.rows.map((r:any)=>r.id);
+      const sourceId=`sellall_${ids.join('_').slice(0,80)}`;
+      await client.query('UPDATE inventory SET sold=1 WHERE user_id=$1 AND id=ANY($2::text[]) AND sold=0',[userId,ids]);
+      const wallet=await processWalletTransactionInClient(client,{userId,type:'sell_all',amount:total,sourceId});
+      if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
+      await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6)',[`txn_${Date.now().toString(36)}`,userId,'sell_all',total,`Sold all ${cards.rowCount} unlocked cards`,sourceId]);
+      return {balance:wallet.balanceAfter,ids,total,count:cards.rowCount};
     });
-
-    if (!walletResult.success) {
-      return c.json({ error: walletResult.error || 'Failed to credit balance' }, 500);
-    }
-
-    const newBalance = walletResult.balanceAfter;
-
-    await blink.db.transactions.create({
-      id: `txn_${uid()}`,
-      userId,
-      type: 'sell',
-      amount: cardValue,
-      description: `Sold ${card.cardName} from inventory |img:${card.cardImageUrl || ''}|`,
-    });
-
-    // Write activity log (non-critical)
-    try {
-      const username = user.username || user.displayName || 'Trainer';
-      await writeLog(blink, {
-        type: 'sell',
-        userId,
-        username,
-        action: 'Sold Card',
-        details: {
-          cardName: card.cardName,
-          rarity: card.rarity,
-          value: cardValue,
-          cardImageUrl: card.cardImageUrl || '',
-          packName: card.packName || '',
-        },
-        valueIn: cardValue,
-        valueOut: 0,
-        result: 'sold',
-      });
-    } catch { /* non-critical */ }
-
-    return c.json({ success: true, newBalance, soldCardId: inventoryId, cardValue });
-
-  } catch (err: any) {
-    console.error('[inventory/sell] error:', err.message);
-    return c.json({ error: err.message || 'Internal server error' }, 500);
-  }
-});
-
-// POST /inventory/sell-all
-app.post('/inventory/sell-all', async (c) => {
-  let userId: string;
-  try {
-    userId = await requireAuth(c);
-  } catch (err: any) {
-    if (err.message === 'ACCOUNT_DEACTIVATED') {
-      return c.json({ error: 'Account deactivated' }, 403);
-    }
-    return c.json({ error: 'Authentication required' }, 401);
-  }
-
-  const blink = getBlinkServer(c.env as any);
-
-  try {
-    // Fetch user
-    const user = await blink.db.users.get(userId) as any;
-    if (!user) return c.json({ error: 'User not found' }, 404);
-    if (Number(user.isDeleted || user.is_deleted || 0) > 0) return c.json({ error: 'Account deactivated' }, 403);
-    if (Number(user.isBanned || user.is_banned || 0) > 0) return c.json({ error: 'Account banned' }, 403);
-
-    // Fetch all unlocked inventory cards
-    const allCards = await blink.db.inventory.list({ where: { userId } }) as any[];
-    const sellable = allCards.filter((c: any) => !Number(c.isLocked));
-
-    if (sellable.length === 0) {
-      return c.json({ error: 'No unlocked cards to sell' }, 400);
-    }
-
-    const totalValue = sellable.reduce((s: number, c: any) => s + Number(c.value), 0);
-    const soldIds = sellable.map((c: any) => c.id);
-
-    // Remove all unlocked cards in a single batch operation
-    await blink.db.inventory.deleteMany({ where: { id: { in: soldIds } } });
-
-    // Credit balance via wallet (idempotent)
-    const sourceIdStr = soldIds.join(',').slice(0, 100);
-    const walletResult = await processWalletTransaction(blink, {
-      userId,
-      type: 'sell_all',
-      amount: totalValue,
-      sourceId: sourceIdStr,
-    });
-
-    if (!walletResult.success) {
-      return c.json({ error: walletResult.error || 'Failed to credit balance' }, 500);
-    }
-
-    const newBalance = walletResult.balanceAfter;
-
-    // Log transaction
-    const firstCard = sellable[0];
-    await blink.db.transactions.create({
-      id: `txn_${uid()}`,
-      userId,
-      type: 'sell',
-      amount: totalValue,
-      description: `Sold all ${sellable.length} unlocked card(s) from inventory |img:${firstCard?.cardImageUrl || ''}|`,
-    });
-
-    // Write activity log (non-critical)
-    try {
-      const username = user.username || user.displayName || 'Trainer';
-      await writeLog(blink, {
-        type: 'sell',
-        userId,
-        username,
-        action: `Sold All Cards (${sellable.length})`,
-        details: {
-          totalCards: sellable.length,
-          totalValue,
-          cards: sellable.slice(0, 20).map((c: any) => ({
-            name: c.cardName,
-            value: Number(c.value),
-            rarity: c.rarity,
-            cardImageUrl: c.cardImageUrl || '',
-            packName: c.packName || '',
-          })),
-        },
-        valueIn: totalValue,
-        valueOut: 0,
-        result: 'sold_all',
-      });
-    } catch { /* non-critical */ }
-
-    return c.json({ success: true, newBalance, soldCardIds: soldIds, totalValue, count: sellable.length });
-
-  } catch (err: any) {
-    console.error('[inventory/sell-all] error:', err.message);
-    return c.json({ error: err.message || 'Internal server error' }, 500);
-  }
+    if(!result)return c.json({error:'No unlocked cards to sell'},400);
+    return c.json({success:true,newBalance:result.balance,soldCardIds:result.ids,totalValue:result.total,count:result.count});
+  }catch(e:any){return c.json({error:e.message||'Failed to sell cards'},400);}
 });
 
 export default app;

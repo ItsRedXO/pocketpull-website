@@ -1,0 +1,4 @@
+import { query } from '../lib/postgres';
+export async function getTransaction(id:string){return (await query('SELECT * FROM transactions WHERE id=$1',[id]))[0]||null;}
+export async function createTransaction(input:{id:string;userId:string;type:string;amount:number;matchedAmount?:number;description?:string;sourceId?:string;data?:Record<string,unknown>}){return (await query('INSERT INTO transactions(id,user_id,type,amount,matched_amount,description,source_id,data) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(id) DO NOTHING RETURNING *',[input.id,input.userId,input.type,input.amount,input.matchedAmount||0,input.description||null,input.sourceId||null,JSON.stringify(input.data||{})]))[0]||null;}
+export async function listTransactions(userId:string,limit=100,offset=0){return query('SELECT * FROM transactions WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',[userId,limit,offset]);}
