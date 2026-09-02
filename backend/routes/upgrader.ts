@@ -1,74 +1,294 @@
 /**
  * Upgrader Routes — win/loss determination is server-side only.
+ * Critical economy mutations are committed in one PostgreSQL transaction.
  */
 import { Hono } from 'hono';
 import { requireAuth, getBlinkServer, uid, getRewardUserId } from '../lib/auth';
 import { writeLog } from './logs';
-import { processWalletTransaction } from '../lib/wallet';
+import { transaction, query } from '../lib/postgres';
+import { processWalletTransactionInClient } from '../repositories/wallet';
 import { sha256, computeRoll } from '../lib/provablyFair';
 
 const app = new Hono();
 const MAX_CHANCE_CHART: Record<number, number> = {1.2:70,1.5:55,2.0:35,3.0:35,4.0:35,5.0:15,6.0:15,7.0:15,8.0:8,9.0:8,10.0:8};
 
+class UpgraderError extends Error {
+  constructor(message: string, public status = 400) { super(message); }
+}
+
+const money = (value: number) => Math.round(value * 100) / 100;
+
 app.post('/upgrader/spin', async (c) => {
   let userId: string;
   try { userId = await requireAuth(c); }
-  catch (err: any) { if (err.message === 'ACCOUNT_DEACTIVATED') return c.json({ error: 'Account deactivated' }, 403); return c.json({ error: 'Authentication required' }, 401); }
+  catch (err: any) {
+    if (err.message === 'ACCOUNT_DEACTIVATED') return c.json({ error: 'Account deactivated' }, 403);
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
   const blink = getBlinkServer(c.env as any);
   try {
-    const body = await c.req.json();
-    const { inventoryIds, targetCardIds, useBalance, addedBalance, multiplier } = body;
-    if (!Array.isArray(inventoryIds) || inventoryIds.length === 0) return c.json({ error: 'inventoryIds required' }, 400);
-    if (!Array.isArray(targetCardIds) || targetCardIds.length === 0) return c.json({ error: 'targetCardIds required' }, 400);
+    const body = await c.req.json<any>();
+    const inventoryIds = Array.isArray(body.inventoryIds) ? body.inventoryIds.map(String) : [];
+    const targetCardIds = Array.isArray(body.targetCardIds) ? body.targetCardIds.map(String) : [];
+    const useBalance = body.useBalance === true;
+    const addedBalance = Number(body.addedBalance || 0);
+    const multiplier = Number(body.multiplier);
+
+    if (!inventoryIds.length) return c.json({ error: 'inventoryIds required' }, 400);
+    if (!targetCardIds.length) return c.json({ error: 'targetCardIds required' }, 400);
+    if (inventoryIds.length > 100 || targetCardIds.length > 100) return c.json({ error: 'Too many cards selected' }, 400);
+    if (new Set(inventoryIds).size !== inventoryIds.length) return c.json({ error: 'Duplicate inventory cards are not allowed' }, 400);
+    if (new Set(targetCardIds).size !== targetCardIds.length) return c.json({ error: 'Duplicate target cards are not allowed' }, 400);
+    if (!Number.isFinite(multiplier) || multiplier <= 0) return c.json({ error: 'Invalid multiplier' }, 400);
+
     const serverSeed = (c.env as any).BLINK_SERVER_SEED;
     if (!serverSeed) return c.json({ error: 'Provably fair system not initialized. Please contact support.' }, 500);
-    const seedRows = await blink.db.serverSeeds.list({ orderBy: { createdAt: 'desc' }, limit: 10 }) as any[];
-    const matchingSeed = seedRows.find((r:any) => r.status === 'active' || r.status === 'pending');
-    if (!matchingSeed) return c.json({ error: 'Provably fair system not initialized. Please contact support.' }, 500);
     const actualSeedHash = await sha256(serverSeed);
-    if (!seedRows.some((r:any) => (r.status === 'active' || r.status === 'pending') && r.seedHash === actualSeedHash)) return c.json({ error: 'Provably fair integrity error. Please contact support.' }, 500);
-    const user = await blink.db.users.get(userId) as any;
-    if (!user) return c.json({ error: 'User not found' }, 404);
-    if (Number(user.isDeleted || user.is_deleted || 0) > 0) return c.json({ error: 'Account deactivated' }, 403);
-    if (Number(user.isBanned || user.is_banned || 0) > 0) return c.json({ error: 'Account banned' }, 403);
-    const currentBalance = Number(user.balance || 0), currentMatched = Number(user.matchedBalance || user.matched_balance || 0), realBalance = Math.max(0, currentBalance - currentMatched);
-    const allUserCards = await blink.db.inventory.list({ where: { userId } }) as any[];
-    const userCardMap = Object.fromEntries(allUserCards.map((card:any) => [card.id, card]));
-    for (const invId of inventoryIds) { const card=userCardMap[invId]; if (!card) return c.json({ error:`Card ${invId} not found in your inventory` },400); if (Number(card.isLocked)>0) return c.json({ error:`Card ${invId} is locked and cannot be used` },400); }
-    const selectedCards = inventoryIds.map((id:string)=>userCardMap[id]);
-    const selectedCardTotal = selectedCards.reduce((s:number, card:any)=>s+Number(card.value),0);
-    const effectiveAddedBalance = useBalance ? Math.max(0, Number(addedBalance)||0) : 0;
-    if (effectiveAddedBalance > realBalance) return c.json({ error:'Insufficient real balance for the added amount. Matched bonus funds cannot be used in the Upgrader.' },400);
-    const totalUpgradeValue=selectedCardTotal+effectiveAddedBalance;
-    if(totalUpgradeValue<0.5)return c.json({error:'Minimum upgrade value is $0.50'},400);
-    const fetchedTargets=await blink.db.packCards.list({where:{id:{in:targetCardIds}}}) as any[];
-    const targetMap=Object.fromEntries(fetchedTargets.map((card:any)=>[card.id,card]));
-    const targetCards:any[]=[];
-    for(const targetCardId of targetCardIds){const card=targetMap[targetCardId];if(!card)return c.json({error:`Target card ${targetCardId} not found`},400);targetCards.push(card);}
-    const totalTargetVal=targetCards.reduce((s:number,card:any)=>s+Number(card.estimatedValue),0);
-    if(totalTargetVal<=0)return c.json({error:'Target cards have no value'},400);
-    let maxChanceLimit=MAX_CHANCE_CHART[multiplier]||75;
-    try{const setting=await blink.db.upgraderMultiplierSettings.get(multiplier);if(setting)maxChanceLimit=Math.min(maxChanceLimit,Number((setting as any).maxChance));}catch{}
-    const baselineTargetValue=totalUpgradeValue*multiplier;
-    if(totalTargetVal<(baselineTargetValue-0.01))return c.json({error:`Target value ($${totalTargetVal.toFixed(2)}) must be at least $${baselineTargetValue.toFixed(2)} for ${multiplier}x multiplier.`},400);
-    const calculatedFinalChance=maxChanceLimit*(baselineTargetValue/totalTargetVal),winChance=Math.min(maxChanceLimit,Math.max(0.1,calculatedFinalChance));
-    const oddsSnapshot=JSON.stringify({multiplier,maxChanceLimit,baselineTargetValue:Math.round(baselineTargetValue*100)/100,totalTargetVal:Math.round(totalTargetVal*100)/100,totalUpgradeValue:Math.round(totalUpgradeValue*100)/100,effectiveAddedBalance:Math.round(effectiveAddedBalance*100)/100,selectedCardTotal:Math.round(selectedCardTotal*100)/100,winChance:Math.round(winChance*100)/100});
-    const oddsVersionHash=await sha256(oddsSnapshot);
-    let nonce=1;
-    try{await blink.db.sql(`INSERT INTO user_nonces (user_id, upgrade_nonce) VALUES (?, 1) ON CONFLICT(user_id) DO UPDATE SET upgrade_nonce = upgrade_nonce + 1`,[userId]);const nonceRows=await blink.db.table('userNonces').list({where:{userId},limit:1}) as any[];if(!nonceRows.length)return c.json({error:'Provably fair system error — nonce read failed. Please try again.'},500);const dbNonce=nonceRows[0].upgradeNonce??nonceRows[0].upgrade_nonce;if(dbNonce===undefined||dbNonce===null)return c.json({error:'Provably fair system error — nonce read failed. Please try again.'},500);nonce=Number(dbNonce);}catch(nonceErr:any){console.error('[upgrader/spin] Nonce persistence failed:',nonceErr?.message);return c.json({error:'Provably fair system error — nonce persistence failed. Please try again.'},500);}
-    const clientSeed=`cs_${uid()}`,rollValue=await computeRoll(serverSeed,clientSeed,nonce),isWin=rollValue<=winChance;
-    await blink.db.inventory.deleteMany({where:{id:{in:inventoryIds}}});
-    let newBalance=currentBalance;
-    if(effectiveAddedBalance>0){const walletResult=await processWalletTransaction(blink,{userId,type:'upgrade',amount:-effectiveAddedBalance});if(!walletResult.success)return c.json({error:walletResult.error||'Failed to deduct balance'},500);newBalance=walletResult.balanceAfter;}
-    const wonCards:any[]=[],isBot=user.isBot===true||Number(user.is_bot||0)>0,recipientId=getRewardUserId(userId,isBot);
-    if(isWin){for(const tc of targetCards){const newInvId=`inv_${uid()}`;await blink.db.inventory.create({id:newInvId,userId:recipientId,cardId:tc.id,cardName:tc.cardName,rarity:tc.rarity,value:Number(tc.estimatedValue),emoji:'⭐',isFavorite:0,cardImageUrl:tc.cardImageUrl||null});wonCards.push({id:newInvId,cardId:tc.id,name:tc.cardName,rarity:tc.rarity,value:Number(tc.estimatedValue),emoji:'⭐',cardImageUrl:tc.cardImageUrl||null});}}
-    else {try{const consolationPool=await blink.db.packCards.list({limit:500}) as any[];const pool=consolationPool.filter((card:any)=>{const v=Number(card.estimatedValue??card.estimated_value);return v>=0.02&&v<=0.07;});if(pool.length){const consolationRoll=await computeRoll(serverSeed,clientSeed+':consolation',nonce),consolationIndex=Math.floor((consolationRoll/100)*pool.length)%pool.length,rc=pool[consolationIndex];if(targetCardIds.includes(rc.id)||targetCardIds.includes(rc.cardId))throw new Error('Consolation prize conflict. Please try again.');const newInvId=`inv_${uid()}`;await blink.db.inventory.create({id:newInvId,userId:recipientId,cardId:rc.id,cardName:rc.cardName,rarity:rc.rarity,value:Number(rc.estimatedValue??rc.estimated_value),emoji:'🃏',isFavorite:0,cardImageUrl:rc.cardImageUrl||null});wonCards.push({id:newInvId,cardId:rc.id,name:rc.cardName,rarity:rc.rarity,value:Number(rc.estimatedValue??rc.estimated_value),emoji:'🃏',cardImageUrl:rc.cardImageUrl||null});}}catch(err:any){console.error('[Upgrader] Consolation award error:',err.message);wonCards.length=0;}}
-    if(!isWin&&wonCards.some(c=>targetCardIds.includes(c.cardId)))return c.json({error:'Security violation detected in payout logic.'},500);
-    try{await blink.db.table('upgraderSpins').create({id:`us_${uid()}`,userId,multiplier,totalInputValue:Math.round(totalUpgradeValue*100)/100,balanceUsed:Math.round(effectiveAddedBalance*100)/100,baselineTargetValue:Math.round(baselineTargetValue*100)/100,totalTargetValue:Math.round(totalTargetVal*100)/100,winChance:Math.round(winChance*100)/100,isWin:isWin?1:0,clientSeed,nonce,rollValue:Math.round(rollValue*10000)/10000,serverSeedHash:actualSeedHash,oddsVersionHash,wonCardsJson:JSON.stringify(wonCards),removedCardIdsJson:JSON.stringify(inventoryIds),provablyFair:1});}catch{}
-    try{await blink.db.transactions.create({id:`txn_${uid()}`,userId,type:'upgrade',amount:isWin?totalTargetVal-totalUpgradeValue:-totalUpgradeValue,description:isWin?`Upgrade WIN: ${targetCards.map((c:any)=>c.cardName).join(', ')}`:'Upgrade FAIL (Consolation awarded)'});}catch{}
-    try{const lsRows=await blink.db.leaderboardStats.list({where:{id:userId}}) as any[];if(lsRows[0])await blink.db.leaderboardStats.update(lsRows[0].id,{upgradesAttempted:Number(lsRows[0].upgradesAttempted||0)+1,updatedAt:new Date().toISOString()});else await blink.db.leaderboardStats.create({id:userId,username:user.username||user.displayName||'Trainer',biggestPull:0,packsOpened:0,winStreak:0,upgradesAttempted:1,updatedAt:new Date().toISOString()});}catch{}
-    try{await writeLog(blink,{type:'upgrade',userId,username:user.username||user.displayName||'Trainer',action:isWin?'Upgrade WIN':'Upgrade LOSS',details:{cardsUsed:selectedCards.map((card:any)=>({name:card.cardName,value:Number(card.value),rarity:card.rarity})),targetCards:targetCards.map((card:any)=>({name:card.cardName,value:Number(card.estimatedValue),rarity:card.rarity})),prizeReceived:wonCards.map((card:any)=>({name:card.name,value:card.value,rarity:card.rarity})),winChance:Math.round(winChance*100)/100,balanceUsed:effectiveAddedBalance},valueIn:totalUpgradeValue,valueOut:isWin?totalTargetVal:(wonCards[0]?.value||0),result:isWin?'win':'loss'});}catch{}
-    return c.json({success:true,isWin,winChance:Math.round(winChance*100)/100,wonCards,targetCards:targetCards.map(tc=>({cardId:tc.id,name:tc.cardName,rarity:tc.rarity,value:Number(tc.estimatedValue),cardImageUrl:tc.cardImageUrl||null})),newBalance,removedCardIds:inventoryIds});
-  } catch(err:any){console.error('[upgrader/spin] error:',err.message);return c.json({error:err.message||'Internal server error'},500);}
+    const seedRows = await query<any>(`SELECT seed_hash,status FROM server_seeds ORDER BY created_at DESC LIMIT 10`);
+    if (!seedRows.some((row:any) => (row.status === 'active' || row.status === 'pending') && row.seed_hash === actualSeedHash)) {
+      return c.json({ error: 'Provably fair integrity error. Please contact support.' }, 500);
+    }
+
+    const clientSeed = `cs_${uid()}`;
+    const result = await transaction(async (client) => {
+      const userResult = await client.query(
+        `SELECT id,username,display_name,balance,matched_balance,is_deleted,is_banned,is_bot
+         FROM users WHERE id=$1 FOR UPDATE`,
+        [userId],
+      );
+      if (!userResult.rowCount) throw new UpgraderError('User not found', 404);
+      const user = userResult.rows[0] as any;
+      if (Number(user.is_deleted || 0) > 0) throw new UpgraderError('Account deactivated', 403);
+      if (Number(user.is_banned || 0) > 0) throw new UpgraderError('Account banned', 403);
+
+      const inventoryResult = await client.query(
+        `SELECT id,card_id,card_name,rarity,value,card_image_url,is_locked,locked,sold
+         FROM inventory
+         WHERE user_id=$1 AND id=ANY($2::text[])
+         FOR UPDATE`,
+        [userId, inventoryIds],
+      );
+      const inventoryMap = new Map(inventoryResult.rows.map((row:any) => [String(row.id), row]));
+      const selectedCards = inventoryIds.map((id:string) => {
+        const card:any = inventoryMap.get(id);
+        if (!card) throw new UpgraderError(`Card ${id} not found in your inventory`);
+        if (Number(card.sold || 0) > 0) throw new UpgraderError(`Card ${id} is no longer available`);
+        if (Number(card.is_locked || card.locked || 0) > 0) throw new UpgraderError(`Card ${id} is locked and cannot be used`);
+        return card;
+      });
+
+      const selectedCardTotal = selectedCards.reduce((sum:number, card:any) => sum + Number(card.value || 0), 0);
+      const effectiveAddedBalance = useBalance ? Math.max(0, Number.isFinite(addedBalance) ? addedBalance : 0) : 0;
+      const realBalance = Number(user.balance || 0);
+      if (effectiveAddedBalance > realBalance) {
+        throw new UpgraderError('Insufficient real balance for the added amount. Matched bonus funds cannot be used in the Upgrader.');
+      }
+      const totalUpgradeValue = selectedCardTotal + effectiveAddedBalance;
+      if (totalUpgradeValue < 0.5) throw new UpgraderError('Minimum upgrade value is $0.50');
+
+      const targetResult = await client.query(
+        `SELECT id,card_name,name,rarity,estimated_value,value,card_image_url,image_url
+         FROM pack_cards WHERE id=ANY($1::text[])`,
+        [targetCardIds],
+      );
+      const targetMap = new Map(targetResult.rows.map((row:any) => [String(row.id), row]));
+      const targetCards = targetCardIds.map((id:string) => {
+        const card:any = targetMap.get(id);
+        if (!card) throw new UpgraderError(`Target card ${id} not found`);
+        return card;
+      });
+      const totalTargetVal = targetCards.reduce((sum:number, card:any) => sum + Number(card.estimated_value ?? card.value ?? 0), 0);
+      if (totalTargetVal <= 0) throw new UpgraderError('Target cards have no value');
+
+      let maxChanceLimit = MAX_CHANCE_CHART[multiplier] || 75;
+      const settingResult = await client.query(`SELECT max_chance FROM upgrader_multiplier_settings WHERE id=$1 LIMIT 1`, [multiplier]);
+      if (settingResult.rowCount) maxChanceLimit = Math.min(maxChanceLimit, Number(settingResult.rows[0].max_chance));
+
+      const baselineTargetValue = totalUpgradeValue * multiplier;
+      if (totalTargetVal < baselineTargetValue - 0.01) {
+        throw new UpgraderError(`Target value ($${totalTargetVal.toFixed(2)}) must be at least $${baselineTargetValue.toFixed(2)} for ${multiplier}x multiplier.`);
+      }
+      const calculatedFinalChance = maxChanceLimit * (baselineTargetValue / totalTargetVal);
+      const winChance = Math.min(maxChanceLimit, Math.max(0.1, calculatedFinalChance));
+      const oddsSnapshot = JSON.stringify({
+        multiplier,
+        maxChanceLimit,
+        baselineTargetValue: money(baselineTargetValue),
+        totalTargetVal: money(totalTargetVal),
+        totalUpgradeValue: money(totalUpgradeValue),
+        effectiveAddedBalance: money(effectiveAddedBalance),
+        selectedCardTotal: money(selectedCardTotal),
+        winChance: money(winChance),
+      });
+      const oddsVersionHash = await sha256(oddsSnapshot);
+
+      const nonceResult = await client.query(
+        `INSERT INTO user_nonces(user_id,upgrade_nonce,updated_at)
+         VALUES($1,1,now())
+         ON CONFLICT(user_id) DO UPDATE
+         SET upgrade_nonce=user_nonces.upgrade_nonce+1,updated_at=now()
+         RETURNING upgrade_nonce`,
+        [userId],
+      );
+      const nonce = Number(nonceResult.rows[0].upgrade_nonce);
+      if (!Number.isFinite(nonce) || nonce < 1) throw new Error('Provably fair nonce persistence failed');
+
+      const rollValue = await computeRoll(serverSeed, clientSeed, nonce);
+      const isWin = rollValue <= winChance;
+      const isBot = Number(user.is_bot || 0) > 0;
+      const recipientId = getRewardUserId(userId, isBot);
+      const wonCards:any[] = [];
+
+      let consolationCard:any = null;
+      if (!isWin) {
+        const consolationResult = await client.query(
+          `SELECT id,card_name,name,rarity,estimated_value,value,card_image_url,image_url
+           FROM pack_cards
+           WHERE COALESCE(estimated_value,value,0) BETWEEN 0.02 AND 0.07
+           ORDER BY id
+           LIMIT 500`,
+        );
+        if (consolationResult.rowCount) {
+          const consolationRoll = await computeRoll(serverSeed, `${clientSeed}:consolation`, nonce);
+          const index = Math.floor((consolationRoll / 100) * consolationResult.rows.length) % consolationResult.rows.length;
+          consolationCard = consolationResult.rows[index];
+          if (targetCardIds.includes(String(consolationCard.id))) throw new Error('Consolation prize conflict. Please try again.');
+        }
+      }
+
+      if (effectiveAddedBalance > 0) {
+        const walletResult = await processWalletTransactionInClient(client, {
+          userId,
+          type: 'upgrade',
+          amount: -effectiveAddedBalance,
+          sourceId: `upgrader:${userId}:${nonce}`,
+          metadata: { nonce, clientSeed },
+          allowMatchedDebit: false,
+        });
+        if (!walletResult.success) throw new UpgraderError(walletResult.error || 'Failed to deduct balance');
+      }
+
+      const removed = await client.query(
+        `DELETE FROM inventory
+         WHERE user_id=$1 AND id=ANY($2::text[]) AND sold=0
+         RETURNING id`,
+        [userId, inventoryIds],
+      );
+      if (removed.rowCount !== inventoryIds.length) throw new Error('Inventory changed during upgrade. Please try again.');
+
+      const awardCard = async (card:any, emoji:string) => {
+        const newInvId = `inv_${uid()}`;
+        const name = card.card_name || card.name || 'Unknown Card';
+        const value = Number(card.estimated_value ?? card.value ?? 0);
+        const imageUrl = card.card_image_url || card.image_url || null;
+        await client.query(
+          `INSERT INTO inventory(id,user_id,card_id,card_name,rarity,value,emoji,card_image_url,is_favorite,favorite,is_locked,locked,sold,created_at)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,0,0,0,0,now())`,
+          [newInvId, recipientId, card.id, name, card.rarity || null, value, emoji, imageUrl],
+        );
+        wonCards.push({ id:newInvId, cardId:String(card.id), name, rarity:card.rarity || null, value, emoji, cardImageUrl:imageUrl });
+      };
+
+      if (isWin) {
+        for (const card of targetCards) await awardCard(card, '⭐');
+      } else if (consolationCard) {
+        await awardCard(consolationCard, '🃏');
+      }
+      if (!isWin && wonCards.some((card:any) => targetCardIds.includes(card.cardId))) throw new Error('Security violation detected in payout logic.');
+
+      await client.query(
+        `INSERT INTO upgrader_spins(
+          id,user_id,multiplier,total_input_value,balance_used,baseline_target_value,total_target_value,
+          win_chance,is_win,client_seed,nonce,roll_value,server_seed_hash,odds_version_hash,
+          won_cards_json,removed_card_ids_json,provably_fair,created_at
+        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,1,now())`,
+        [
+          `us_${uid()}`, userId, multiplier, money(totalUpgradeValue), money(effectiveAddedBalance), money(baselineTargetValue),
+          money(totalTargetVal), money(winChance), isWin ? 1 : 0, clientSeed, nonce, Math.round(rollValue * 10000) / 10000,
+          actualSeedHash, oddsVersionHash, JSON.stringify(wonCards), JSON.stringify(inventoryIds),
+        ],
+      );
+
+      await client.query(
+        `INSERT INTO transactions(id,user_id,type,amount,description,source_id,created_at)
+         VALUES($1,$2,'upgrade',$3,$4,$5,now())`,
+        [
+          `txn_${uid()}`,
+          userId,
+          isWin ? totalTargetVal - totalUpgradeValue : -totalUpgradeValue,
+          isWin ? `Upgrade WIN: ${targetCards.map((card:any) => card.card_name || card.name).join(', ')}` : 'Upgrade FAIL (Consolation awarded)',
+          `upgrader-spin:${userId}:${nonce}`,
+        ],
+      );
+
+      const finalBalanceResult = await client.query(`SELECT balance FROM users WHERE id=$1`, [userId]);
+      return {
+        user,
+        selectedCards,
+        targetCards,
+        wonCards,
+        isWin,
+        winChance,
+        totalUpgradeValue,
+        totalTargetVal,
+        effectiveAddedBalance,
+        nonce,
+        rollValue,
+        newBalance: Number(finalBalanceResult.rows[0]?.balance || 0),
+      };
+    });
+
+    try {
+      await query(
+        `INSERT INTO leaderboard_stats(id,username,biggest_pull,packs_opened,win_streak,upgrades_attempted,updated_at)
+         VALUES($1,$2,0,0,0,1,now())
+         ON CONFLICT(id) DO UPDATE SET upgrades_attempted=leaderboard_stats.upgrades_attempted+1,updated_at=now()`,
+        [userId, result.user.username || result.user.display_name || 'Trainer'],
+      );
+    } catch (err:any) { console.error('[upgrader/spin] leaderboard update failed:', err?.message); }
+
+    try {
+      await writeLog(blink, {
+        type: 'upgrade',
+        userId,
+        username: result.user.username || result.user.display_name || 'Trainer',
+        action: result.isWin ? 'Upgrade WIN' : 'Upgrade LOSS',
+        details: {
+          cardsUsed: result.selectedCards.map((card:any) => ({ name:card.card_name, value:Number(card.value), rarity:card.rarity })),
+          targetCards: result.targetCards.map((card:any) => ({ name:card.card_name || card.name, value:Number(card.estimated_value ?? card.value), rarity:card.rarity })),
+          prizeReceived: result.wonCards.map((card:any) => ({ name:card.name, value:card.value, rarity:card.rarity })),
+          winChance: money(result.winChance),
+          balanceUsed: result.effectiveAddedBalance,
+          nonce: result.nonce,
+          rollValue: result.rollValue,
+        },
+        valueIn: result.totalUpgradeValue,
+        valueOut: result.isWin ? result.totalTargetVal : (result.wonCards[0]?.value || 0),
+        result: result.isWin ? 'win' : 'loss',
+      });
+    } catch (err:any) { console.error('[upgrader/spin] activity log failed:', err?.message); }
+
+    return c.json({
+      success: true,
+      isWin: result.isWin,
+      winChance: money(result.winChance),
+      wonCards: result.wonCards,
+      targetCards: result.targetCards.map((card:any) => ({
+        cardId: String(card.id),
+        name: card.card_name || card.name,
+        rarity: card.rarity,
+        value: Number(card.estimated_value ?? card.value),
+        cardImageUrl: card.card_image_url || card.image_url || null,
+      })),
+      newBalance: result.newBalance,
+      removedCardIds: inventoryIds,
+    });
+  } catch (err:any) {
+    console.error('[upgrader/spin] error:', err.message);
+    if (err instanceof UpgraderError) return c.json({ error: err.message }, err.status as any);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
 });
+
 export default app;
