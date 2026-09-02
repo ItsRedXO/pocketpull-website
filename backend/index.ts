@@ -19,7 +19,7 @@ import provablyFairRoutes from './routes/provablyFair';
 import dbProxyRoutes from './routes/dbProxy';
 const app=new Hono(); app.use('*',cors());
 app.get('/health',(c)=>c.json({status:'ok',time:new Date().toISOString(),version:'v4-postgresql'}));
-app.route('/db',dbProxyRoutes);
+app.route('/',dbProxyRoutes);
 app.route('/',stripeRoutes); app.route('/',coinbaseRoutes); app.route('/',packOpeningRoutes); app.route('/',upgraderRoutes); app.route('/',exchangerRoutes); app.route('/battles',battleRoutes);
 function hashDateToTarget(s:string){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return 40000+(Math.abs(h)%40001);}
 function getDailyPacksOpened(){const now=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());const elapsed=now.getTime()-start.getTime();let t=Math.min(elapsed/86400000,1);t=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;return Math.floor(hashDateToTarget(`${start.getFullYear()}-${start.getMonth()+1}-${start.getDate()}`)*t);}
