@@ -29,6 +29,7 @@ async function identity(c: any) {
 }
 
 app.post('/db', async (c, next) => {
+  if (c.req.header('X-DB-Table') !== 'users') return next();
   const body = await c.req.json<any>();
   if (body.table !== 'users') return next();
   try {
