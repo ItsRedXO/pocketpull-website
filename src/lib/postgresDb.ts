@@ -1,4 +1,4 @@
-const BACKEND_BASE = 'https://b2nnhe2n.backend.blink.new';
+const BACKEND_BASE = String(import.meta.env.VITE_BACKEND_URL || 'https://b2nnhe2n.backend.blink.new').replace(/\/$/, '');
 
 type TokenProvider = () => Promise<string | null>;
 
