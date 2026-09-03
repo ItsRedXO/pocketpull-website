@@ -25,6 +25,7 @@ const WRITE_BLOCKED_FOR_USERS = new Set([
   'users', 'packsCatalog', 'packCards', 'serverSeeds', 'packOddsVersions', 'battles', 'battlePlayers', 'battleParticipants',
   'battleResults', 'battlePullAudits', 'upgraderSettings', 'upgraderMultiplierSettings', 'upgraderSpins', 'upgraderHistory',
   'exchangerActivity', 'cashouts', 'cashoutRequests', 'activityLogs', 'outboundEmails', 'walletTransactions', 'leaderboardStats',
+  'adminCredentials',
 ]);
 
 const camelToSnake = (value: string) => value.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
@@ -67,6 +68,7 @@ function requireScope(logical: string, operation: string, userId: string | null,
   if (!TABLES[logical]) throw new Error('Unknown database table');
   if (!admin && !userId) throw new Error('UNAUTHORIZED');
   if (admin) return;
+  if (logical === 'adminCredentials') throw new Error('FORBIDDEN');
   if (operation === 'upsert' && !USER_SCOPED.has(logical)) throw new Error('FORBIDDEN');
   if (operation !== 'list' && operation !== 'get' && operation !== 'create' && operation !== 'count' && operation !== 'upsert') {
     if (WRITE_BLOCKED_FOR_USERS.has(logical)) throw new Error('FORBIDDEN');
@@ -83,6 +85,7 @@ function requireScope(logical: string, operation: string, userId: string | null,
     if (operation === 'get' && options.id) return;
     if ((operation === 'create' || operation === 'upsert') && options.data?.userId !== userId) throw new Error('FORBIDDEN');
   }
+  if (logical === 'users' && ['list', 'count'].includes(operation) && options.where?.id !== userId) throw new Error('FORBIDDEN');
   if (READ_ONLY_FOR_USERS.has(logical) && operation === 'list' && logical === 'users' && options.where?.id !== userId) throw new Error('FORBIDDEN');
   if (logical === 'supportChats' && operation === 'list' && options.where?.userId !== userId) throw new Error('FORBIDDEN');
   if (logical === 'supportChats' && operation === 'count' && options.where?.userId !== userId) throw new Error('FORBIDDEN');
