@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { normalizeExport, IMPORT_ORDER, type BlinkExportRow } from './exportFormat';
 import { transaction } from '../../lib/postgres';
+import { groupRowsByColumns, buildBatchInsert, type BatchRow } from './batchInsert.js';
 
 const TABLE_COLUMNS: Record<string, string[]> = { users: ['id','username','displayName','email','balance','matchedBalance','isDeleted','isBanned','firstDepositBonusPaid','referralRewardPaid','referredById','referralCode','createdAt','updatedAt','data','isBot','isAdmin','isModerator','lastLoginAt','stripeCustomerId','coinbaseCustomerId','role','avatarUrl','emailVerified','verifiedAt','verificationMethod','referralCodeUsed'], packs_catalog: ['id','name','price','isActive','quantityLimit','currentQuantity','expiresAt','data','cooldownHours','packType','imageUrl'], pack_cards: ['id','packId','name','cardName','rarity','value','estimatedValue','odds','pullChance','imageUrl','cardImageUrl','sortOrder','quantity','data'], inventory: ['id','userId','cardId','packId','battleId','value','locked','favorite','sold','createdAt','data','cardName','rarity','emoji','cardImageUrl','packName','isLocked','isFavorite'], transactions: ['id','userId','type','amount','matchedAmount','description','sourceId','createdAt','data','provider','providerId'], packs_opened: ['id','userId','packId','inventoryId','packName','cost','cardName','rarity','clientSeed','nonce','rollValue','serverSeedHash','oddsVersionHash','provablyFair','createdAt','data'], server_seeds: ['id','seed','seedHash','active','status','createdAt','revealedAt','periodStart','periodEnd','seedHashPublic'], pack_odds_versions: ['id','packId','version','hash','snapshot','contentHash','oddsJson','cardCount','createdAt'], user_nonces: ['userId','nonce','packNonce','upgradeNonce','updatedAt'], pack_cooldowns: ['userId','packId','lastOpenedAt'], admin_credentials: ['id','adminPass','data','createdAt'], upgrader_multiplier_settings: ['id','maxChance','data','updatedAt'], upgrader_spins: ['id','userId','multiplier','totalInputValue','balanceUsed','baselineTargetValue','totalTargetValue','winChance','isWin','clientSeed','nonce','rollValue','serverSeedHash','oddsVersionHash','wonCardsJson','removedCardIdsJson','provablyFair','createdAt','data'], battles: ['id','status','mode','hostUserId','hostUsername','hostAvatar','isPublic','playerCount','teamMode','packsJson','totalCost','privateCode','startedAt','endedAt','winnerUserId','winnerUsername','winnerValue','battleSeed','currentStep','createdAt','updatedAt','data'], battle_players: ['id','battleId','userId','username','avatar','isAi','aiName','teamSide','cardsJson','totalValue','isWinner','joinedAt','data'], battle_participants: ['id','battleId','userId','slot','isBot','data'], battle_results: ['id','battleId','participantId','value','round','data'], battle_pull_audits: ['id','battleId','participantId','clientSeed','nonce','rollValue','serverSeedHash','oddsVersionHash','data'], support_chats: ['id','userId','username','status','subject','lastMessage','lastMessageAt','createdAt','updatedAt','data'], support_messages: ['id','chatId','userId','senderType','message','createdAt','data'], upgrader_settings: ['id','data','updatedAt'], upgrader_history: ['id','userId','data','createdAt'], exchanger_activity: ['id','userId','data','createdAt'], cashout_requests: ['id','userId','username','confirmationNumber','status','totalValue','totalCards','cardsJson','shippingName','shippingAddress','shippingCity','shippingState','shippingZip','shippingCountry','notes','idImageUrl','fulfilledCardIds','trackingNumber','processedAt','createdAt','updatedAt','data'], cashouts: ['id','userId','amount','status','data','createdAt','updatedAt'], activity_logs: ['id','userId','type','username','action','details','metadata','valueIn','valueOut','result','createdAt'], outbound_emails: ['id','userId','recipient','subject','status','fromAddress','replyTo','data','metadata','createdAt'], wallet_transactions: ['id','userId','type','amount','balanceBefore','balanceAfter','matchedBefore','matchedAfter','sourceId','metadata','createdAt'], leaderboard_stats: ['id','username','biggestPull','packsOpened','winStreak','upgradesAttempted','updatedAt'] };
 const SNAKE: Record<string, string> = {};
@@ -84,38 +85,72 @@ async function ensureParentRows(client: any, data: ReturnType<typeof normalizeEx
   for (const [id, battleId] of participants) await client.query(`INSERT INTO battle_participants (id, battle_id, user_id, is_bot, data) VALUES ($1,$2,NULL,0,'{}') ON CONFLICT (id) DO NOTHING`, [id, battleId]);
 }
 
+async function runBatch(client: any, table: string, columns: string[], rows: unknown[][], pk: string): Promise<{ inserted: number; skipped: number }> {
+  if (!rows.length) return { inserted: 0, skipped: 0 };
+  await client.query('SAVEPOINT import_batch');
+  try {
+    const { sql, values } = buildBatchInsert({ table, columns, rows, conflictTarget: pk });
+    await client.query(sql, values);
+    await client.query('RELEASE SAVEPOINT import_batch');
+    return { inserted: rows.length, skipped: 0 };
+  } catch (err: any) {
+    await client.query('ROLLBACK TO SAVEPOINT import_batch');
+    await client.query('RELEASE SAVEPOINT import_batch');
+    if (rows.length === 1) {
+      if (err?.code === '23505') return { inserted: 0, skipped: 1 };
+      throw err;
+    }
+    const mid = Math.floor(rows.length / 2);
+    const left = await runBatch(client, table, columns, rows.slice(0, mid), pk);
+    const right = await runBatch(client, table, columns, rows.slice(mid), pk);
+    return { inserted: left.inserted + right.inserted, skipped: left.skipped + right.skipped };
+  }
+}
+
+async function importTableBatched(client: any, table: string, rawRows: BlinkExportRow[]) {
+  const columns = TABLE_COLUMNS[table];
+  if (!columns) return { inserted: 0, skipped: 0 };
+  const prepared: BatchRow[] = [];
+  let skipped = 0;
+  for (let index = 0; index < rawRows.length; index++) {
+    const rawRow = rawRows[index];
+    if (table === 'server_seeds' && (rawRow.seed == null || rawRow.seedHash == null)) { skipped++; continue; }
+    const row = withSafeValues(table, withUnknownFields(table, rawRow), index);
+    const presentColumns = columns.filter(c => valueFor(row, c) !== undefined);
+    const sqlColumns = presentColumns.map(c => SNAKE[c] ?? c);
+    const values = presentColumns.map(c => valueFor(row, c));
+    if (!sqlColumns.length) { skipped++; continue; }
+    prepared.push({ columns: sqlColumns, values });
+  }
+
+  let inserted = 0;
+  const pk = PK[table] || 'id';
+  for (const group of groupRowsByColumns(prepared)) {
+    const maxBatchRows = Math.max(1, Math.min(500, Math.floor(60000 / Math.max(1, group.columns.length))));
+    for (let offset = 0; offset < group.rows.length; offset += maxBatchRows) {
+      const result = await runBatch(client, table, group.columns, group.rows.slice(offset, offset + maxBatchRows), pk);
+      inserted += result.inserted;
+      skipped += result.skipped;
+    }
+  }
+  return { inserted, skipped };
+}
+
 export async function importBlinkExport(inputPath: string, dryRun = false): Promise<{ inserted: number; skipped: number }> {
   const data = normalizeExport(JSON.parse(await readFile(inputPath, 'utf8')));
   let inserted = 0, skipped = 0;
   if (dryRun) return { inserted: IMPORT_ORDER.reduce((n, t) => n + (data[t]?.length ?? 0), 0), skipped: 0 };
   await transaction(async client => {
+    console.log('Preparing legacy parent rows...');
     await ensureParentRows(client, data);
+    console.log('Parent rows ready. Starting batched import...');
     for (const table of IMPORT_ORDER) {
-      const rows = data[table] ?? [], columns = TABLE_COLUMNS[table];
-      if (!columns) continue;
-      for (let index = 0; index < rows.length; index++) {
-        const rawRow = rows[index];
-        if (table === 'server_seeds' && (rawRow.seed == null || rawRow.seedHash == null)) { skipped++; continue; }
-        const row = withSafeValues(table, withUnknownFields(table, rawRow), index);
-        const presentColumns = columns.filter(c => valueFor(row, c) !== undefined);
-        const sqlColumns = presentColumns.map(c => SNAKE[c] ?? c);
-        const values = presentColumns.map(c => valueFor(row, c));
-        if (!sqlColumns.length) { skipped++; continue; }
-        const ph = values.map((_, i) => `$${i + 1}`).join(','), pk = PK[table] || 'id';
-        const updates = sqlColumns.filter(c => !pk.split(',').includes(c)).map(c => `${c}=EXCLUDED.${c}`).join(',');
-        const conflict = updates ? `DO UPDATE SET ${updates}` : 'DO NOTHING';
-        await client.query('SAVEPOINT import_row');
-        try {
-          await client.query(`INSERT INTO ${table} (${sqlColumns.join(',')}) VALUES (${ph}) ON CONFLICT (${pk}) ${conflict}`, values);
-          await client.query('RELEASE SAVEPOINT import_row');
-          inserted++;
-        } catch (err: any) {
-          await client.query('ROLLBACK TO SAVEPOINT import_row');
-          await client.query('RELEASE SAVEPOINT import_row');
-          if (err?.code === '23505') { skipped++; continue; }
-          throw err;
-        }
-      }
+      const rows = data[table] ?? [];
+      if (!TABLE_COLUMNS[table] || !rows.length) continue;
+      const result = await importTableBatched(client, table, rows);
+      inserted += result.inserted;
+      skipped += result.skipped;
+      console.log(`${table}: processed ${rows.length}, imported ${result.inserted}, skipped ${result.skipped}`);
     }
   });
   return { inserted, skipped };
