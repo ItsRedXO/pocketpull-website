@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save } from 'lucide-react';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { TcgDexSearchModal } from './tcgdex/TcgDexSearchModal';
 import type { ImportedCard } from './tcgdex/types';
 import { CardDraft, PackDraft, RARITIES, RARITY_COLOR, PackType } from './pack-form/types';
@@ -10,7 +11,7 @@ import { PackDetailsFields } from './pack-form/PackDetailsFields';
 import { CardListSection } from './pack-form/CardListSection';
 
 interface Props {
-  pack: PackCatalog | null;     // null = new pack
+  pack: PackCatalog | null;
   existingCards: PackCard[];
   onSave: () => void;
   onClose: () => void;
@@ -79,7 +80,6 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
     setShowTcgDex(false);
   };
 
-  // Sync glow → border
   useEffect(() => {
     setPackDraft(p => ({ ...p, borderColor: p.glowColor }));
   }, [packDraft.glowColor]);
@@ -92,7 +92,6 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
   const updateCard = (i: number, patch: Partial<CardDraft>) =>
     setCards(cs => cs.map((c, idx) => idx === i ? { ...c, ...patch } : c));
 
-  // Image upload for pack
   const handlePackImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -110,7 +109,6 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
     }
   };
 
-  // Image upload for card
   const handleCardImageUpload = async (i: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -133,91 +131,54 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
     if (isMystery && cards.some(c => (parseInt(c.quantity) || 0) < 1)) { setError('Mystery Pack cards must each have at least 1 available copy.'); return; }
 
     const qLimit = Math.min(50000, Math.max(0, parseInt(packDraft.quantityLimit) || 0));
-
     setSaving(true);
     try {
-      let packId: string;
-
-      if (isNew) {
-        packId = `pack_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        await blink.db.packsCatalog.create({
-          id: packId,
-          packType: packDraft.packType,
-          name: packDraft.name.trim(),
-          price: parseFloat(packDraft.price),
-          description: packDraft.description.trim(),
-          imageUrl: packDraft.imageUrl,
-          glowColor: packDraft.glowColor,
-          borderColor: packDraft.borderColor,
-          isActive: packDraft.isActive ? 1 : 0,
-          sortOrder: parseInt(packDraft.sortOrder) || 0,
-          quantityLimit: qLimit,
-          currentQuantity: packDraft.packType === 'mystery'
-            ? cards.reduce((sum, card) => sum + Math.max(0, parseInt(card.quantity) || 0), 0)
-            : qLimit,
-          cooldownHours: parseInt(packDraft.cooldownHours) || 0,
-          expiresAt: packDraft.expiresAt || null,
-          nameColor: packDraft.nameColor,
-          descriptionColor: packDraft.descriptionColor,
-          priceColor: packDraft.priceColor,
-          buttonTextColor: packDraft.buttonTextColor,
-          openAnotherButtonTextColor: packDraft.openAnotherButtonTextColor,
-        });
-      } else {
-        packId = pack!.id;
-        const patch: any = {
-          packType: packDraft.packType,
-          name: packDraft.name.trim(),
-          price: parseFloat(packDraft.price),
-          description: packDraft.description.trim(),
-          imageUrl: packDraft.imageUrl,
-          glowColor: packDraft.glowColor,
-          borderColor: packDraft.borderColor,
-          isActive: packDraft.isActive ? 1 : 0,
-          sortOrder: parseInt(packDraft.sortOrder) || 0,
-          quantityLimit: qLimit,
-          cooldownHours: parseInt(packDraft.cooldownHours) || 0,
-          expiresAt: packDraft.expiresAt || null,
-          nameColor: packDraft.nameColor,
-          descriptionColor: packDraft.descriptionColor,
-          priceColor: packDraft.priceColor,
-          buttonTextColor: packDraft.buttonTextColor,
-          openAnotherButtonTextColor: packDraft.openAnotherButtonTextColor,
-        };
-
-        if (packDraft.packType === 'mystery') {
-          patch.currentQuantity = cards.reduce((sum, card) => sum + Math.max(0, parseInt(card.quantity) || 0), 0);
-        } else if (Number(pack!.quantityLimit) === 0 && qLimit > 0) {
-          patch.currentQuantity = qLimit;
-        }
-
-        await blink.db.packsCatalog.update(packId, patch);
-
-        for (const ec of existingCards) {
-          await blink.db.packCards.delete(ec.id);
-        }
+      const token = await blink.auth.getValidToken();
+      const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+      const response = await fetch(`${BACKEND_BASE}/admin/packs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(adminSecret ? { 'X-Admin-Secret': adminSecret } : {}),
+        },
+        body: JSON.stringify({
+          pack: {
+            id: pack?.id,
+            packType: packDraft.packType,
+            name: packDraft.name.trim(),
+            price: parseFloat(packDraft.price),
+            description: packDraft.description.trim(),
+            imageUrl: packDraft.imageUrl,
+            glowColor: packDraft.glowColor,
+            borderColor: packDraft.borderColor,
+            isActive: packDraft.isActive,
+            sortOrder: parseInt(packDraft.sortOrder) || 0,
+            quantityLimit: qLimit,
+            cooldownHours: parseInt(packDraft.cooldownHours) || 0,
+            expiresAt: packDraft.expiresAt || null,
+            nameColor: packDraft.nameColor,
+            descriptionColor: packDraft.descriptionColor,
+            priceColor: packDraft.priceColor,
+            buttonTextColor: packDraft.buttonTextColor,
+            openAnotherButtonTextColor: packDraft.openAnotherButtonTextColor,
+          },
+          cards: cards.map(c => ({
+            cardName: c.cardName.trim(),
+            rarity: c.rarity,
+            pullChance: parseFloat(c.pullChance) || 0,
+            estimatedValue: parseFloat(c.estimatedValue) || 0,
+            cardImageUrl: c.cardImageUrl || null,
+            sortOrder: c.sortOrder,
+            quantity: Math.max(0, parseInt(c.quantity) || 0),
+            originalQuantity: Math.max(0, Number(c.originalQuantity ?? (parseInt(c.quantity) || 0))),
+          })),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || `Pack save failed (${response.status})`);
       }
-
-      for (let i = 0; i < cards.length; i++) {
-        const c = cards[i];
-        await blink.db.packCards.create({
-          id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${i}`,
-          packId,
-          cardName: c.cardName.trim(),
-          rarity: isMystery
-            ? (c.rarity === 'secret' || c.rarity === 'god' ? 'secret' : c.rarity === 'rare' || c.rarity === 'ultra' ? 'rare' : 'common')
-            : c.rarity,
-          pullChance: isMystery
-            ? ((Math.max(0, parseInt(c.quantity) || 0) / Math.max(1, cards.reduce((sum, card) => sum + Math.max(0, parseInt(card.quantity) || 0), 0))) * 100)
-            : (parseFloat(c.pullChance) || 0),
-          estimatedValue: parseFloat(c.estimatedValue) || 0,
-          cardImageUrl: c.cardImageUrl || null,
-          sortOrder: i,
-          quantity: packDraft.packType === 'mystery' ? Math.max(0, parseInt(c.quantity) || 0) : 0,
-          originalQuantity: packDraft.packType === 'mystery' ? Math.max(0, Number(c.originalQuantity ?? (parseInt(c.quantity) || 0))) : 0,
-        });
-      }
-
       onSave();
     } catch (err: any) {
       console.error(err);
@@ -268,28 +229,28 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
             <p className="text-[10px] text-white/25">Mystery Packs are saved separately for the future Vault section.</p>
           </div>
 
-          <PackDetailsFields 
-            packDraft={packDraft} 
-            setPackDraft={setPackDraft} 
-            imagePreviewError={imagePreviewError} 
-            setImagePreviewError={setImagePreviewError} 
-            uploadingImage={uploadingImage} 
-            handlePackImageUpload={handlePackImageUpload} 
-            glow={glow} 
+          <PackDetailsFields
+            packDraft={packDraft}
+            setPackDraft={setPackDraft}
+            imagePreviewError={imagePreviewError}
+            setImagePreviewError={setImagePreviewError}
+            uploadingImage={uploadingImage}
+            handlePackImageUpload={handlePackImageUpload}
+            glow={glow}
           />
 
-          <CardListSection 
-            cards={cards} 
-            setCards={setCards} 
-            totalOdds={totalOdds} 
-            updateCard={updateCard} 
-            removeCard={removeCard} 
-            handleCardImageUpload={handleCardImageUpload} 
+          <CardListSection
+            cards={cards}
+            setCards={setCards}
+            totalOdds={totalOdds}
+            updateCard={updateCard}
+            removeCard={removeCard}
+            handleCardImageUpload={handleCardImageUpload}
             addCard={addCard}
             isMystery={packDraft.packType === 'mystery'}
-            setShowTcgDex={setShowTcgDex} 
-            RARITY_COLOR={RARITY_COLOR} 
-            RARITIES={RARITIES} 
+            setShowTcgDex={setShowTcgDex}
+            RARITY_COLOR={RARITY_COLOR}
+            RARITIES={RARITIES}
           />
 
           {error && (
