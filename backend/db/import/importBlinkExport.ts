@@ -104,10 +104,14 @@ export async function importBlinkExport(inputPath: string, dryRun = false): Prom
         const ph = values.map((_, i) => `$${i + 1}`).join(','), pk = PK[table] || 'id';
         const updates = sqlColumns.filter(c => !pk.split(',').includes(c)).map(c => `${c}=EXCLUDED.${c}`).join(',');
         const conflict = updates ? `DO UPDATE SET ${updates}` : 'DO NOTHING';
+        await client.query('SAVEPOINT import_row');
         try {
           await client.query(`INSERT INTO ${table} (${sqlColumns.join(',')}) VALUES (${ph}) ON CONFLICT (${pk}) ${conflict}`, values);
+          await client.query('RELEASE SAVEPOINT import_row');
           inserted++;
         } catch (err: any) {
+          await client.query('ROLLBACK TO SAVEPOINT import_row');
+          await client.query('RELEASE SAVEPOINT import_row');
           if (err?.code === '23505') { skipped++; continue; }
           throw err;
         }
