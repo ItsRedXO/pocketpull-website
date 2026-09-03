@@ -19,6 +19,7 @@ interface UserStats {
 }
 
 export const BALANCE_QUERY_KEY = ['user-balance'];
+export const BALANCE_REFRESH_INTERVAL_MS = 3000;
 
 export interface BalanceData {
   balance: number;
@@ -44,7 +45,10 @@ export function useBalance(userId?: string) {
     refetchOnMount: 'always',
     retry: 2,
     retryDelay: attempt => Math.min(750 * 2 ** attempt, 3000),
-    // No refetchInterval — wallet realtime + invalidation after actions is sufficient
+    // Realtime updates remain the fast path. This silent foreground fallback
+    // catches admin credit changes and missed realtime events within ~3 seconds.
+    refetchInterval: BALANCE_REFRESH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 
   useEffect(() => {
