@@ -5,6 +5,7 @@ import { query, transaction } from '../lib/postgres';
 import { writeLog } from './logs';
 import { processWalletTransactionInClient } from '../repositories/wallet';
 import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../lib/provablyFair';
+import { getOrCreateServerSeed } from '../lib/provablyFairServerSeed';
 
 const app = new Hono();
 const RARITY_EMOJIS: Record<string, string> = { common:'🃏', uncommon:'🌿', rare:'💧', ultra:'🌙', secret:'⭐', god:'🌈', chase:'🔥', premium:'✨', base:'🃏' };
@@ -25,13 +26,7 @@ app.post('/open-pack', async (c) => {
     const { packId } = await c.req.json<any>().catch(() => ({}));
     if (!packId) return c.json({ error: 'packId required' }, 400);
 
-    const serverSeed = (c.env as any).BLINK_SERVER_SEED;
-    if (!serverSeed) return c.json({ error: 'Provably fair system not initialized. Please contact support.' }, 500);
-    const seedHash = await sha256(serverSeed);
-    const seedRows = await query<any>("SELECT seed_hash,status,active FROM server_seeds WHERE (status IN ('active','pending') OR active=1) ORDER BY created_at DESC LIMIT 10");
-    if (!seedRows.some((seed:any) => seed.seed_hash === seedHash)) {
-      return c.json({ error: 'Provably fair integrity error. Please contact support.' }, 500);
-    }
+    const { seed: serverSeed, seedHash } = await getOrCreateServerSeed((c.env as any).BLINK_SERVER_SEED);
 
     const clientSeed = `cs_${uid()}`;
     const result = await transaction(async (client) => {
