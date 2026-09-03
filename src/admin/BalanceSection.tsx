@@ -13,11 +13,13 @@ interface BalanceSectionProps {
 
 async function adminBalanceChange(userId: string, mode: 'add' | 'set', amount: number) {
   const token = await blink.auth.getValidToken();
+  const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
   const response = await fetch(`${BACKEND_BASE}/admin/users/${encodeURIComponent(userId)}/balance`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(adminSecret ? { 'X-Admin-Secret': adminSecret } : {}),
     },
     body: JSON.stringify({ mode, amount }),
   });
