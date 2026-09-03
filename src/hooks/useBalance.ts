@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { BALANCE_REFRESH_INTERVAL_MS } from './balanceRefresh';
 
 // Keep in sync with useAuth.ts — avoid circular import
 const USER_STATS_QUERY_KEY = ['user-stats'];
@@ -44,7 +45,10 @@ export function useBalance(userId?: string) {
     refetchOnMount: 'always',
     retry: 2,
     retryDelay: attempt => Math.min(750 * 2 ** attempt, 3000),
-    // No refetchInterval — wallet realtime + invalidation after actions is sufficient
+    // Realtime updates remain the fast path. This silent foreground fallback
+    // catches admin credit changes and missed realtime events within ~3 seconds.
+    refetchInterval: BALANCE_REFRESH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 
   useEffect(() => {

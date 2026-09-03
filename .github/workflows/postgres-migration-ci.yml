@@ -50,6 +50,8 @@ jobs:
         run: npx tsx --test backend/pgCutoverRegression.test.ts
       - name: Test Railway frontend serving
         run: npx tsx --test backend/frontendServing.test.ts
+      - name: Test frontend wallet refresh interval
+        run: npx tsx --test src/hooks/useBalanceRefresh.test.ts
       - name: Build frontend for PostgreSQL backend
         env:
           VITE_BACKEND_URL: https://postgres-backend.invalid

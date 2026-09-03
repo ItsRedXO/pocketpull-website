@@ -1,0 +1,1 @@
+export const BALANCE_REFRESH_INTERVAL_MS = 3000;
