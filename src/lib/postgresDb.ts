@@ -4,7 +4,8 @@ type TokenProvider = () => Promise<string | null>;
 
 function getAdminSecret(): string | null {
   try {
-    return globalThis.localStorage?.getItem('pocketpull_admin_pass') ?? null;
+    if (typeof window === 'undefined') return null;
+    return window.localStorage?.getItem('pocketpull_admin_pass') ?? null;
   } catch {
     return null;
   }
