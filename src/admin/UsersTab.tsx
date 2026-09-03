@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { CardPreviewModal } from './CardPreviewModal';
 import { UserRow, InventoryRow, FilterTab } from './types';
 import { UserList } from './UserList';
 import { UserDetail } from './UserDetail';
-
-const BACKEND_BASE = 'https://b2nnhe2n.backend.blink.new';
 
 async function logAdminAction(action: string, targetUser: string, details: Record<string, any> = {}) {
   try {
@@ -25,7 +24,7 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [previewCard, setPreviewCard] = useState<InventoryRow | null>(null);
 
-  // Load ALL users (active + banned + deleted) so we can show all tabs
+  // Load ALL users (active + banned + deleted) so we can show all tabs.
   const { data: allUsers = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['admin-users-all'],
     queryFn: async () => {
@@ -33,26 +32,30 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
         orderBy: { createdAt: 'desc' },
         limit: 500,
       });
-      return rows.map((r: any) => ({
-        id: r.id,
-        email: r.email || '',
-        username: r.username || r.displayName || '',
-        displayName: r.displayName || r.username || '',
-        balance: Number(r.balance) || 0,
-        matchedBalance: Number(r.matchedBalance || r.matched_balance || 0) || 0,
-        createdAt: r.createdAt || '',
-        isBanned: Number(r.isBanned || r.is_banned) > 0,
-        emailVerified: Number(r.emailVerified || r.email_verified) > 0,
-        verifiedAt: r.verifiedAt || r.verified_at || null,
-        verificationMethod: r.verificationMethod || r.verification_method || null,
-        isDeleted: Number(r.isDeleted || r.is_deleted) > 0,
-        referredById: (r.referredById || r.referred_by_id || null) as string | null,
-        referralCodeUsed: (r.referralCodeUsed || r.referral_code_used || null) as string | null,
-        referrerUsername: null, // resolved below
-        referralRewardPaid: Number(r.referralRewardPaid || r.referral_reward_paid || 0) > 0,
-        role: (r.role as string) || '',
-        avatarUrl: (r.avatarUrl || r.avatar_url || null) as string | null,
-      }));
+      return rows.map((r: any) => {
+        const isBot = Number(r.isBot || r.is_bot) > 0;
+        const username = r.username || r.displayName || r.display_name || (isBot ? 'AI Bot' : '');
+        return {
+          id: r.id,
+          email: r.email || '',
+          username,
+          displayName: r.displayName || r.display_name || r.username || (isBot ? 'AI Bot' : ''),
+          balance: Number(r.balance) || 0,
+          matchedBalance: Number(r.matchedBalance || r.matched_balance || 0) || 0,
+          createdAt: r.createdAt || '',
+          isBanned: Number(r.isBanned || r.is_banned) > 0,
+          emailVerified: Number(r.emailVerified || r.email_verified) > 0,
+          verifiedAt: r.verifiedAt || r.verified_at || null,
+          verificationMethod: r.verificationMethod || r.verification_method || null,
+          isDeleted: Number(r.isDeleted || r.is_deleted) > 0,
+          referredById: (r.referredById || r.referred_by_id || null) as string | null,
+          referralCodeUsed: (r.referralCodeUsed || r.referral_code_used || null) as string | null,
+          referrerUsername: null,
+          referralRewardPaid: Number(r.referralRewardPaid || r.referral_reward_paid || 0) > 0,
+          role: (r.role as string) || '',
+          avatarUrl: (r.avatarUrl || r.avatar_url || null) as string | null,
+        };
+      });
     },
     staleTime: 0,
     refetchInterval: 5000,
