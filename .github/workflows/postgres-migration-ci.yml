@@ -2,7 +2,7 @@ name: PostgreSQL Migration CI
 
 on:
   push:
-    branches: [postgres-migration, railway-fullstack-cutover, fix/railway-login-assets]
+    branches: [postgres-migration, railway-fullstack-cutover, fix/railway-login-assets, fix/upgrader-battle-pg-cutover]
   pull_request:
     branches: [main]
 
@@ -42,6 +42,8 @@ jobs:
         run: npx tsc --noEmit --ignoreConfig --skipLibCheck --module ESNext --moduleResolution bundler --target ES2022 backend/index.ts backend/server.ts backend/lib/*.ts backend/repositories/*.ts backend/routes/*.ts backend/routes/battles/*.ts backend/db/*.ts backend/db/import/*.ts
       - name: Test provably-fair server seed bootstrap
         run: npx tsx --test backend/provablyFairServerSeed.test.ts
+      - name: Test upgrader and battle PostgreSQL cutover
+        run: npx tsx --test backend/pgCutoverRegression.test.ts
       - name: Test Railway frontend serving
         run: npx tsx --test backend/frontendServing.test.ts
       - name: Build frontend for PostgreSQL backend
