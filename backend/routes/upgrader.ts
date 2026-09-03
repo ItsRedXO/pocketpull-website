@@ -8,6 +8,7 @@ import { writeLog } from './logs';
 import { transaction, query } from '../lib/postgres';
 import { processWalletTransactionInClient } from '../repositories/wallet';
 import { sha256, computeRoll } from '../lib/provablyFair';
+import { getOrCreateServerSeed } from '../lib/provablyFairServerSeed';
 
 const app = new Hono();
 const MAX_CHANCE_CHART: Record<number, number> = {1.2:70,1.5:55,2.0:35,3.0:35,4.0:35,5.0:15,6.0:15,7.0:15,8.0:8,9.0:8,10.0:8};
@@ -42,13 +43,7 @@ app.post('/upgrader/spin', async (c) => {
     if (new Set(targetCardIds).size !== targetCardIds.length) return c.json({ error: 'Duplicate target cards are not allowed' }, 400);
     if (!Number.isFinite(multiplier) || multiplier <= 0) return c.json({ error: 'Invalid multiplier' }, 400);
 
-    const serverSeed = (c.env as any).BLINK_SERVER_SEED;
-    if (!serverSeed) return c.json({ error: 'Provably fair system not initialized. Please contact support.' }, 500);
-    const actualSeedHash = await sha256(serverSeed);
-    const seedRows = await query<any>(`SELECT seed_hash,status FROM server_seeds ORDER BY created_at DESC LIMIT 10`);
-    if (!seedRows.some((row:any) => (row.status === 'active' || row.status === 'pending') && row.seed_hash === actualSeedHash)) {
-      return c.json({ error: 'Provably fair integrity error. Please contact support.' }, 500);
-    }
+    const { seed: serverSeed, seedHash: actualSeedHash } = await getOrCreateServerSeed((c.env as any).BLINK_SERVER_SEED);
 
     const clientSeed = `cs_${uid()}`;
     const result = await transaction(async (client) => {
