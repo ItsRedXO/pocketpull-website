@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { getBlinkServer, requireAuth } from './lib/auth';
 import { query } from './lib/postgres';
 import { listUsersByReferrer, countUsersByReferrer, hasDeposit } from './repositories/users';
@@ -106,5 +107,9 @@ app.get('/referrals', async c => {
     return c.json({ error: err.message }, 500);
   }
 });
+
+// API routes are registered above; only unmatched GET requests reach the frontend.
+app.use('*', serveStatic({ root: './dist' }));
+app.get('*', serveStatic({ path: './dist/index.html' }));
 
 export default app;
