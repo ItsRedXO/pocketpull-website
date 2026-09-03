@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { getBlinkServer } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { postgresBlinkDb } from '../lib/postgresBlinkDb';
+import { buildSupportMessageScope } from '../supportMessageScope';
 
 const app = new Hono();
 
@@ -112,9 +113,20 @@ async function supportQuery(logical: string, operation: string, options: any, us
   }
   if (operation === 'list' || operation === 'count') {
     const where = { ...(options.where || {}) };
-    if (!admin && logical === 'supportChats') where.userId = userId;
     const params: any[] = [];
     const clauses: string[] = [];
+
+    if (!admin && logical === 'supportChats') {
+      const scope = { clause: 'user_id=$1', params: [userId as string] };
+      clauses.push(scope.clause);
+      params.push(...scope.params);
+    }
+    if (!admin && logical === 'supportMessages') {
+      const scope = buildSupportMessageScope(userId as string);
+      clauses.push(scope.clause);
+      params.push(...scope.params);
+    }
+
     for (const [key, value] of Object.entries(where)) {
       const column = camelToSnake(key);
       if (value && typeof value === 'object' && Array.isArray((value as any).in)) {
