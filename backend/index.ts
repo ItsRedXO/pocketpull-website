@@ -108,10 +108,11 @@ app.get('/referrals', async c => {
   }
 });
 
-// Railway-safe replacement for Git LFS-backed branding assets. The PNG files in
-// the repository are LFS pointers, so serve the source-controlled SVG instead.
-app.get('/pocketpull-logo.png', serveStatic({ path: './dist/pocketpull-logo.svg' }));
-app.get('/favicon.png', serveStatic({ path: './dist/pocketpull-logo.svg' }));
+// The repository's real branding asset is stored as favicon.ico (PNG data despite
+// the legacy .ico filename). Serve that binary for all app logo requests so the
+// browser never has to decode an external image from an SVG wrapper.
+app.get('/pocketpull-logo.png', serveStatic({ path: './dist/favicon.ico' }));
+app.get('/favicon.png', serveStatic({ path: './dist/favicon.ico' }));
 
 // API routes are registered above; only unmatched GET requests reach the frontend.
 app.use('*', serveStatic({ root: './dist' }));
