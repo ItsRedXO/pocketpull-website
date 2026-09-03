@@ -1,4 +1,3 @@
-import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { setInventoryFlag } from '../repositories/inventory';
 import { query, transaction } from '../lib/postgres';
@@ -29,7 +28,7 @@ app.post('/inventory/sell',async c=>{
     });
     if(result.kind==='not_found')return c.json({error:'Card not found'},404);
     if(result.kind==='sold')return c.json({error:'Card already sold'},409);
-    return c.json({success:true,inventoryId,value:result.value,balance:result.balance});
+    return c.json({success:true,inventoryId,value:result.value,balance:result.balance,newBalance:result.balance});
   }catch(e:any){return c.json({error:e.message||'Failed to sell card'},400);}
 });
 
