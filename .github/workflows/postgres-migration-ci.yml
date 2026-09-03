@@ -38,6 +38,8 @@ jobs:
         run: npm run db:validate
       - name: Verify cashout return safety
         run: npx tsx backend/db/testCashoutReturnSafety.ts
+      - name: Test admin authorization and cashout policy
+        run: npx tsx --test backend/adminAuthorization.test.ts backend/cashoutAdminPolicy.test.ts
       - name: Test admin PostgreSQL adapter contract
         run: npx tsx --test backend/adminPostgresAdapter.test.ts
       - name: Typecheck backend
