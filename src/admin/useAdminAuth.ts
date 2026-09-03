@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 
 const ADMIN_SESSION_KEY = 'pp_admin_session';
 
@@ -14,44 +15,28 @@ export function useAdminAuth() {
     setIsLoading(false);
   }, []);
 
-  // ── Login ────────────────────────────────────────────────────────────────────
-  // Two paths:
-  //   1. admin_credentials table  → dedicated Admin / papiiredd@gmail.com account
-  //   2. users table role='admin' → any promoted user (e.g. ItsRedXO) via real Blink auth
   const login = async (usernameOrEmail: string, password: string): Promise<boolean> => {
     setError(null);
     const trimmed = usernameOrEmail.trim();
 
     try {
-      // ── PATH 1: check admin_credentials table (dedicated admin) ──────────────
-      const adminRows = await blink.db.adminCredentials.list({});
-      if (adminRows && adminRows.length > 0) {
-        const adminRow = adminRows.find((r: any) => {
-          const rowUsername = (r.username ?? '').toLowerCase();
-          const rowEmail = (r.email ?? '').toLowerCase();
-          return trimmed.toLowerCase() === rowUsername || trimmed.toLowerCase() === rowEmail;
-        }) as any;
-
-        if (adminRow) {
-          const storedPass: string = adminRow.adminPass ?? adminRow.admin_pass ?? '';
-          if (storedPass === password) {
-            setIsAdmin(true);
-            sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
-            // Save password to localStorage for API calls
-            localStorage.setItem('pocketpull_admin_pass', password);
-            return true;
-          }
-          // Username/email matched but password wrong — don't fall through
-          setError('Invalid username or password.');
-          return false;
-        }
+      // Dedicated admin credentials are now validated directly against PostgreSQL.
+      // This avoids requiring a Blink user session just to enter the admin portal.
+      const adminResponse = await fetch(`${BACKEND_BASE}/admin/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: trimmed, password }),
+      });
+      if (adminResponse.ok) {
+        setIsAdmin(true);
+        sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+        localStorage.setItem('pocketpull_admin_pass', password);
+        return true;
       }
 
-      // ── PATH 2: real Blink auth + role check (for promoted users like ItsRedXO)
+      // Path 2: real Blink auth + PostgreSQL role check for promoted users.
       let emailToUse = trimmed;
-
       if (!trimmed.includes('@')) {
-        // Resolve username → email
         const userRows = await blink.db.users.list({ where: { username: trimmed }, limit: 1 });
         if (!userRows || userRows.length === 0) {
           setError('Invalid username or password.');
@@ -64,10 +49,7 @@ export function useAdminAuth() {
         }
       }
 
-      // Authenticate with Blink (real bcrypt comparison)
       await blink.auth.signInWithEmail(emailToUse, password);
-
-      // Fetch the user row to check role
       const userRows = await blink.db.users.list({ where: { email: emailToUse }, limit: 1 });
       if (!userRows || userRows.length === 0) {
         await blink.auth.signOut();
