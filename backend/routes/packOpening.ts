@@ -4,7 +4,7 @@ import { requireAuth, uid, getRewardUserId } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
 import { writeLog } from './logs';
 import { processWalletTransactionInClient } from '../repositories/wallet';
-import { computeRoll, buildOddsSnapshot, selectCardIndex } from '../lib/provablyFair';
+import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../lib/provablyFair';
 import { getOrCreateServerSeed } from '../lib/provablyFairServerSeed';
 
 const app = new Hono();
