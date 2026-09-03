@@ -24,7 +24,9 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [previewCard, setPreviewCard] = useState<InventoryRow | null>(null);
 
-  // Load ALL users (active + banned + deleted) so we can show all tabs.
+  // Load the real application accounts. The migrated users table also contains
+  // AI battle users and placeholder rows that are not site accounts and should
+  // never inflate the admin user count.
   const { data: allUsers = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['admin-users-all'],
     queryFn: async () => {
@@ -32,14 +34,17 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
         orderBy: { createdAt: 'desc' },
         limit: 500,
       });
-      return rows.map((r: any) => {
-        const isBot = Number(r.isBot || r.is_bot) > 0;
-        const username = r.username || r.displayName || r.display_name || (isBot ? 'AI Bot' : '');
-        return {
+      return rows
+        .filter((r: any) => {
+          const isBot = Number(r.isBot || r.is_bot) > 0;
+          const hasAccountIdentity = Boolean(r.username || r.displayName || r.display_name || r.email);
+          return !isBot && hasAccountIdentity;
+        })
+        .map((r: any) => ({
           id: r.id,
           email: r.email || '',
-          username,
-          displayName: r.displayName || r.display_name || r.username || (isBot ? 'AI Bot' : ''),
+          username: r.username || r.displayName || r.display_name || '',
+          displayName: r.displayName || r.display_name || r.username || '',
           balance: Number(r.balance) || 0,
           matchedBalance: Number(r.matchedBalance || r.matched_balance || 0) || 0,
           createdAt: r.createdAt || '',
@@ -54,8 +59,7 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
           referralRewardPaid: Number(r.referralRewardPaid || r.referral_reward_paid || 0) > 0,
           role: (r.role as string) || '',
           avatarUrl: (r.avatarUrl || r.avatar_url || null) as string | null,
-        };
-      });
+        }));
     },
     staleTime: 0,
     refetchInterval: 5000,
