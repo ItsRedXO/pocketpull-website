@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 const RAILWAY_BACKEND = 'https://pocketpull-website-production.up.railway.app';
+const LEGACY_BLINK_BACKEND = 'https://b2nnhe2n.backend.blink.new';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -15,9 +16,16 @@ export default defineConfig(({ mode }) => {
         name: 'pocketpull-backend-cutover',
         enforce: 'pre',
         transform(code, id) {
-          if (!id.includes('/src/') || backendBase === RAILWAY_BACKEND) return null;
-          if (!code.includes(RAILWAY_BACKEND)) return null;
-          return { code: code.split(RAILWAY_BACKEND).join(backendBase), map: null };
+          if (!id.includes('/src/')) return null;
+          let transformed = code;
+          if (transformed.includes(RAILWAY_BACKEND)) {
+            transformed = transformed.split(RAILWAY_BACKEND).join(backendBase);
+          }
+          if (backendBase === RAILWAY_BACKEND && transformed.includes(LEGACY_BLINK_BACKEND)) {
+            transformed = transformed.split(LEGACY_BLINK_BACKEND).join(RAILWAY_BACKEND);
+          }
+          if (transformed === code) return null;
+          return { code: transformed, map: null };
         },
       },
       react(),
@@ -26,8 +34,6 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(import.meta.dirname, './src'),
       },
-      // @blinkdotnew/ui + framer-motion + R3F peers must share one React instance or hooks
-      // crash inside motion with: Cannot read properties of null (reading 'useRef')
       dedupe: ['react', 'react-dom'],
     },
     optimizeDeps: {
