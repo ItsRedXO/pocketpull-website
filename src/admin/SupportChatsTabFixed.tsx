@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, CheckCircle, ChevronLeft, Clock, Loader2, MessageCircle, RefreshCw, Search, Send, Zap } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { isLatestRequest } from './supportChatRequest';
 
 interface SupportChat { id: string; userId: string; username: string; status: 'pending' | 'active' | 'completed' | 'archived' | string; subject?: string; lastMessage?: string; lastMessageAt?: string; createdAt: string; }
 interface SupportMessage { id: string; chatId: string; userId: string; senderType: 'user' | 'admin' | string; message: string; createdAt: string; }
@@ -24,6 +25,7 @@ export function SupportChatsTabFixed({ showToast }: { showToast: (m: string, ok?
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const messageRequestRef = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadChats = useCallback(async () => {
@@ -32,25 +34,43 @@ export function SupportChatsTabFixed({ showToast }: { showToast: (m: string, ok?
       const rows = await blink.db.supportChats.list({ orderBy: { lastMessageAt: 'desc' }, limit: 500 });
       const next = Array.isArray(rows) ? rows as SupportChat[] : [];
       setChats(next);
-      if (selected) {
-        const fresh = next.find(c => c.id === selected.id);
-        if (fresh) setSelected(fresh);
-      }
+      setSelected(current => {
+        if (!current) return current;
+        return next.find(c => c.id === current.id) || current;
+      });
     } catch (e: any) { showToast(e?.message || 'Failed to load support chats', false); }
     finally { setLoading(false); }
-  }, [selected, showToast]);
+  }, [showToast]);
 
   const loadMessages = useCallback(async (chatId: string) => {
+    const requestId = ++messageRequestRef.current;
     setLoadingMessages(true);
     try {
       const rows = await blink.db.supportMessages.list({ where: { chatId }, orderBy: { createdAt: 'asc' }, limit: 500 });
+      if (!isLatestRequest(requestId, messageRequestRef.current)) return;
       setMessages(Array.isArray(rows) ? rows as SupportMessage[] : []);
-    } catch (e: any) { showToast(e?.message || 'Failed to load chat messages', false); }
-    finally { setLoadingMessages(false); }
+    } catch (e: any) {
+      if (isLatestRequest(requestId, messageRequestRef.current)) showToast(e?.message || 'Failed to load chat messages', false);
+    } finally {
+      if (isLatestRequest(requestId, messageRequestRef.current)) setLoadingMessages(false);
+    }
   }, [showToast]);
 
-  useEffect(() => { void loadChats(); const id = window.setInterval(() => void loadChats(), 5000); return () => window.clearInterval(id); }, [loadChats]);
-  useEffect(() => { if (selected) void loadMessages(selected.id); else setMessages([]); }, [selected, loadMessages]);
+  useEffect(() => {
+    void loadChats();
+    const id = window.setInterval(() => void loadChats(), 5000);
+    return () => window.clearInterval(id);
+  }, [loadChats]);
+
+  useEffect(() => {
+    if (selected) void loadMessages(selected.id);
+    else {
+      messageRequestRef.current += 1;
+      setMessages([]);
+      setLoadingMessages(false);
+    }
+  }, [selected, loadMessages]);
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const filtered = useMemo(() => chats.filter(chat => {
@@ -59,10 +79,9 @@ export function SupportChatsTabFixed({ showToast }: { showToast: (m: string, ok?
   }), [chats, search, filter]);
   const counts = useMemo(() => ({ pending: chats.filter(c => c.status === 'pending').length, active: chats.filter(c => c.status === 'active').length, completed: chats.filter(c => c.status === 'completed').length, archived: chats.filter(c => c.status === 'archived').length }), [chats]);
 
-  const openChat = async (chat: SupportChat) => {
+  const openChat = (chat: SupportChat) => {
     setSelected(chat);
-    await loadMessages(chat.id);
-    if (chat.status === 'pending') await changeStatus(chat, 'active');
+    if (chat.status === 'pending') void changeStatus(chat, 'active');
   };
 
   const changeStatus = async (chat: SupportChat, status: string) => {
@@ -79,11 +98,12 @@ export function SupportChatsTabFixed({ showToast }: { showToast: (m: string, ok?
     setSending(true);
     const text = reply.trim();
     try {
-      const message = await blink.db.supportMessages.create<SupportMessage>({ id: `support_msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, chatId: selected.id, userId: selected.userId, senderType: 'admin', message: text, createdAt: new Date().toISOString() });
-      await blink.db.supportChats.update(selected.id, { status: 'active', lastMessage: text, lastMessageAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      const now = new Date().toISOString();
+      const message = await blink.db.supportMessages.create<SupportMessage>({ id: `support_msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, chatId: selected.id, userId: selected.userId, senderType: 'admin', message: text, createdAt: now });
+      await blink.db.supportChats.update(selected.id, { status: 'active', lastMessage: text, lastMessageAt: now, updatedAt: now });
       setMessages(prev => [...prev, message]);
-      setSelected(c => c ? { ...c, status: 'active', lastMessage: text, lastMessageAt: new Date().toISOString() } : c);
-      setChats(prev => prev.map(c => c.id === selected.id ? { ...c, status: 'active', lastMessage: text, lastMessageAt: new Date().toISOString() } : c));
+      setSelected(c => c ? { ...c, status: 'active', lastMessage: text, lastMessageAt: now } : c);
+      setChats(prev => prev.map(c => c.id === selected.id ? { ...c, status: 'active', lastMessage: text, lastMessageAt: now } : c));
       setReply('');
       showToast('Reply sent.');
     } catch (e: any) { setReply(text); showToast(e?.message || 'Failed to send reply', false); }
@@ -96,7 +116,7 @@ export function SupportChatsTabFixed({ showToast }: { showToast: (m: string, ok?
         <div className="flex gap-2"><label className="relative flex-1"><Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search chats" className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-7 pr-2 text-[11px] text-white outline-none" /></label><button onClick={() => void loadChats()} disabled={loading} className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/40"><RefreshCw size={12} className={loading ? 'animate-spin' : ''} /></button></div>
         <div className="flex flex-wrap gap-1">{[['all','All',chats.length],['pending','Pending',counts.pending],['active','Active',counts.active],['completed','Done',counts.completed],['archived','Archived',counts.archived]].map(([id,label,count]) => <button key={String(id)} onClick={() => setFilter(String(id))} className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: filter === id ? 'rgba(155,92,255,.18)' : 'transparent', color: filter === id ? '#c4a0ff' : '#ffffff40' }}>{label} ({count})</button>)}</div>
       </div>
-      <div className="flex-1 overflow-y-auto">{loading && !chats.length ? <div className="p-10 text-center"><Loader2 size={16} className="mx-auto animate-spin text-white/30" /></div> : filtered.length === 0 ? <div className="p-10 text-center text-xs text-white/20">No support chats.</div> : filtered.map(chat => { const meta = STATUS_META[chat.status] || STATUS_META.pending; return <button key={chat.id} onClick={() => void openChat(chat)} className="w-full border-b border-white/5 px-4 py-3 text-left hover:bg-white/[0.03]" style={{ borderLeft: selected?.id === chat.id ? '2px solid #9b5cff' : '2px solid transparent', background: selected?.id === chat.id ? 'rgba(155,92,255,.08)' : undefined }}><div className="flex justify-between gap-2"><span className="truncate text-xs font-bold text-white">{chat.username || 'User'}</span><span className="text-[9px] text-white/25">{time(chat.lastMessageAt || chat.createdAt)}</span></div><p className="truncate text-[10px] text-white/35 mt-1">{chat.lastMessage || chat.subject || 'No messages yet'}</p><span className="mt-1 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ color: meta.color, background: `${meta.color}20` }}>{meta.icon}{chat.status}</span></button>; })}</div>
+      <div className="flex-1 overflow-y-auto">{loading && !chats.length ? <div className="p-10 text-center"><Loader2 size={16} className="mx-auto animate-spin text-white/30" /></div> : filtered.length === 0 ? <div className="p-10 text-center text-xs text-white/20">No support chats.</div> : filtered.map(chat => { const meta = STATUS_META[chat.status] || STATUS_META.pending; return <button key={chat.id} onClick={() => openChat(chat)} className="w-full border-b border-white/5 px-4 py-3 text-left hover:bg-white/[0.03]" style={{ borderLeft: selected?.id === chat.id ? '2px solid #9b5cff' : '2px solid transparent', background: selected?.id === chat.id ? 'rgba(155,92,255,.08)' : undefined }}><div className="flex justify-between gap-2"><span className="truncate text-xs font-bold text-white">{chat.username || 'User'}</span><span className="text-[9px] text-white/25">{time(chat.lastMessageAt || chat.createdAt)}</span></div><p className="truncate text-[10px] text-white/35 mt-1">{chat.lastMessage || chat.subject || 'No messages yet'}</p><span className="mt-1 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase" style={{ color: meta.color, background: `${meta.color}20` }}>{meta.icon}{chat.status}</span></button>; })}</div>
     </div>
     <div className={`${selected ? 'flex' : 'hidden lg:flex'} flex-1 min-w-0 flex-col`}>
       {!selected ? <div className="flex h-full items-center justify-center text-center"><div><MessageCircle size={36} className="mx-auto mb-3 text-white/10" /><p className="text-sm text-white/20">Select a support chat</p></div></div> : <>
