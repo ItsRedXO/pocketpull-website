@@ -1,0 +1,1 @@
+Main-site audit scope: authenticated support message reads are protected by chat ownership in the PostgreSQL DB proxy. Admin panel excluded.
