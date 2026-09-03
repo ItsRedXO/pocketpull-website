@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { BALANCE_REFRESH_INTERVAL_MS } from './balanceRefresh';
 
 // Keep in sync with useAuth.ts — avoid circular import
 const USER_STATS_QUERY_KEY = ['user-stats'];
@@ -19,7 +20,6 @@ interface UserStats {
 }
 
 export const BALANCE_QUERY_KEY = ['user-balance'];
-export const BALANCE_REFRESH_INTERVAL_MS = 3000;
 
 export interface BalanceData {
   balance: number;
