@@ -1,5 +1,6 @@
 import { createClient } from '@blinkdotnew/sdk';
 import { createPostgresDb } from './postgresDb';
+import { BACKEND_BASE } from './backend';
 
 const blinkClient = createClient({
   projectId: import.meta.env.VITE_BLINK_PROJECT_ID || 'pocketpull-premium-site-b2nnhe2n',
@@ -8,11 +9,46 @@ const blinkClient = createClient({
 });
 
 // Authentication and realtime remain on Blink; browser database traffic is routed
-// through the PostgreSQL-backed Hono API so the client no longer talks to Blink DB.
+// through the PostgreSQL-backed Hono API. Login/signup need a small unauthenticated
+// lookup before Blink can issue a session, so route those specific user lookups to
+// the dedicated public endpoint instead of the authenticated DB proxy.
 export const blink: any = new Proxy(blinkClient, {
   get(target, property, receiver) {
-    if (property === 'db') return createPostgresDb(() => target.auth.getValidToken());
-    return Reflect.get(target, property, receiver);
+    if (property !== 'db') return Reflect.get(target, property, receiver);
+
+    const tokenProvider = () => target.auth.getValidToken();
+    const postgresDb = createPostgresDb(tokenProvider);
+    const usersClient = postgresDb.users;
+
+    return new Proxy(postgresDb, {
+      get(dbTarget, dbProperty, dbReceiver) {
+        if (dbProperty !== 'users') return Reflect.get(dbTarget, dbProperty, dbReceiver);
+
+        return {
+          ...usersClient,
+          list: async (options: any = {}) => {
+            let token: string | null = null;
+            try { token = await tokenProvider(); } catch {}
+            if (token) return usersClient.list(options);
+
+            const where = options.where || {};
+            const lookupKey = where.username ? 'username' : where.email ? 'email' : where.displayName ? 'displayName' : null;
+            if (!lookupKey) return usersClient.list(options);
+
+            const value = String(where[lookupKey]);
+            const params = new URLSearchParams({ [lookupKey]: value });
+            const response = await fetch(`${BACKEND_BASE}/auth/user-lookup?${params.toString()}`);
+            const payload = await response.json() as any;
+            if (!response.ok) {
+              const error: any = new Error(payload?.error || `User lookup failed (${response.status})`);
+              error.status = response.status;
+              throw error;
+            }
+            return Array.isArray(payload?.users) ? payload.users : [];
+          },
+        };
+      },
+    });
   },
 });
 
