@@ -2,7 +2,7 @@ name: PostgreSQL Migration CI
 
 on:
   push:
-    branches: [postgres-migration, railway-fullstack-cutover, fix/railway-login-assets, fix/upgrader-battle-pg-cutover]
+    branches: [postgres-migration, railway-fullstack-cutover, fix/railway-login-assets, fix/upgrader-battle-pg-cutover, fix/admin-postgres-cutover]
   pull_request:
     branches: [main]
 
@@ -38,6 +38,8 @@ jobs:
         run: npm run db:validate
       - name: Verify cashout return safety
         run: npx tsx backend/db/testCashoutReturnSafety.ts
+      - name: Test admin PostgreSQL adapter contract
+        run: npx tsx --test backend/adminPostgresAdapter.test.ts
       - name: Typecheck backend
         run: npx tsc --noEmit --ignoreConfig --skipLibCheck --module ESNext --moduleResolution bundler --target ES2022 backend/index.ts backend/server.ts backend/lib/*.ts backend/repositories/*.ts backend/routes/*.ts backend/routes/battles/*.ts backend/db/*.ts backend/db/import/*.ts
       - name: Test provably-fair server seed bootstrap
