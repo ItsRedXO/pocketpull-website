@@ -2,12 +2,12 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-const LEGACY_BACKEND = 'https://b2nnhe2n.backend.blink.new';
+const RAILWAY_BACKEND = 'https://pocketpull-website-production.up.railway.app';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const configuredBackend = String(env.VITE_BACKEND_URL || '').trim().replace(/\/$/, '');
-  const backendBase = configuredBackend || LEGACY_BACKEND;
+  const backendBase = configuredBackend || RAILWAY_BACKEND;
 
   return {
     plugins: [
@@ -15,8 +15,9 @@ export default defineConfig(({ mode }) => {
         name: 'pocketpull-backend-cutover',
         enforce: 'pre',
         transform(code, id) {
-          if (!id.includes('/src/') || backendBase === LEGACY_BACKEND || !code.includes(LEGACY_BACKEND)) return null;
-          return { code: code.split(LEGACY_BACKEND).join(backendBase), map: null };
+          if (!id.includes('/src/') || backendBase === RAILWAY_BACKEND) return null;
+          if (!code.includes(RAILWAY_BACKEND)) return null;
+          return { code: code.split(RAILWAY_BACKEND).join(backendBase), map: null };
         },
       },
       react(),
