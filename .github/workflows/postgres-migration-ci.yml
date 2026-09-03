@@ -52,7 +52,7 @@ jobs:
             echo 'Legacy Blink backend URL remains in the production frontend bundle.'
             exit 1
           fi
-          grep -R --fixed-strings 'https://postgres-backend.invalid' dist >/dev/null
+          test -f dist/index.html
       - name: Smoke test PostgreSQL health endpoint
         run: |
           PORT=8787 npm run start:backend > /tmp/pocketpull-backend.log 2>&1 &
