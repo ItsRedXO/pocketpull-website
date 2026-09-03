@@ -22,6 +22,7 @@ import supportDbProxyRoutes from './routes/supportDbProxy';
 import userLookupRoutes from './routes/userLookup';
 import userDbProxyRoutes from './routes/userDbProxy';
 import dbProxyRoutes from './routes/dbProxy';
+import adminAuthRoutes from './routes/adminAuth';
 
 const app = new Hono();
 app.use('*', cors());
@@ -41,6 +42,7 @@ app.route('/', supportDbProxyRoutes);
 app.route('/', userLookupRoutes);
 app.route('/', userDbProxyRoutes);
 app.route('/', dbProxyRoutes);
+app.route('/', adminAuthRoutes);
 app.route('/', stripeRoutes);
 app.route('/', coinbaseRoutes);
 app.route('/', packOpeningRoutes);

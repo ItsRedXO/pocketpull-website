@@ -1,4 +1,4 @@
-const configuredBackend = String(import.meta.env.VITE_BACKEND_URL || '').trim();
+const configuredBackend = String((import.meta as any).env?.VITE_BACKEND_URL || '').trim();
 
 // PostgreSQL migration: Railway is now the production backend. Keep VITE_BACKEND_URL
 // as an override for preview/dev environments, but default production traffic here.

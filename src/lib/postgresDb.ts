@@ -2,12 +2,23 @@ import { BACKEND_BASE } from './backend';
 
 type TokenProvider = () => Promise<string | null>;
 
+function getAdminSecret(): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage?.getItem('pocketpull_admin_pass') ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(tokenProvider: TokenProvider, body: Record<string, unknown>): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-DB-Table': String(body.table || '') };
   try {
     const token = await tokenProvider();
     if (token) headers.Authorization = `Bearer ${token}`;
   } catch {}
+  const adminSecret = getAdminSecret();
+  if (adminSecret) headers['X-Admin-Secret'] = adminSecret;
   const res = await fetch(`${BACKEND_BASE}/db`, { method: 'POST', headers, body: JSON.stringify(body) });
   const payload = await res.json() as any;
   if (!res.ok) {
@@ -21,8 +32,10 @@ async function request<T>(tokenProvider: TokenProvider, body: Record<string, unk
 function tableClient(tokenProvider: TokenProvider, table: string) {
   const list = <T = any>(options: any = {}) => request<T[]>(tokenProvider, { table, operation: 'list', ...options });
   const get = <T = any>(id: string) => request<T>(tokenProvider, { table, operation: 'get', id });
+  const count = <T = number>(options: any = {}) => request<T>(tokenProvider, { table, operation: 'count', ...options });
   return {
     get,
+    count,
     findFirst: async <T = any>(options: any = {}) => (await list<T>(options))[0] ?? null,
     findMany: list,
     list,
