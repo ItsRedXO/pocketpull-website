@@ -81,6 +81,25 @@ function Meta({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-lg border border-white/5 bg-white/[0.03] p-3"><p className="mb-1 text-[10px] uppercase tracking-wider text-white/35">{label}</p><p className="break-words text-white/75">{value}</p></div>;
 }
 
+function mapEmailRow(r: any): OutboundEmail {
+  const data = r?.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : {};
+  const metadata = r?.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata) ? r.metadata : {};
+  return {
+    id: String(r?.id || ''),
+    recipient: String(r?.recipient || data.recipient || ''),
+    sender: String(r?.sender || r?.fromAddress || data.sender || data.fromAddress || 'platform-default'),
+    subject: String(r?.subject || data.subject || ''),
+    emailType: String(r?.emailType || data.emailType || metadata.emailType || ''),
+    sentAt: String(r?.sentAt || data.sentAt || r?.createdAt || ''),
+    status: String(r?.status || data.status || 'unknown'),
+    providerMessageId: r?.providerMessageId ?? data.providerMessageId ?? metadata.providerMessageId ?? null,
+    cashoutId: r?.cashoutId ?? data.cashoutId ?? metadata.cashoutId ?? null,
+    errorMessage: r?.errorMessage ?? data.errorMessage ?? metadata.errorMessage ?? null,
+    textContent: r?.textContent ?? data.textContent ?? null,
+    htmlContent: r?.htmlContent ?? data.htmlContent ?? null,
+  };
+}
+
 export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => void }> = ({ showToast }) => {
   const [emails, setEmails] = useState<OutboundEmail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,8 +111,8 @@ export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => vo
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await blink.db.table<OutboundEmail>('outboundEmails').list({ orderBy: { sentAt: 'desc' }, limit: 500 });
-      setEmails(Array.isArray(rows) ? rows : []);
+      const rows = await blink.db.table<OutboundEmail>('outboundEmails').list({ orderBy: { createdAt: 'desc' }, limit: 500 });
+      setEmails(Array.isArray(rows) ? (rows as any[]).map(mapEmailRow) : []);
     } catch (error: any) {
       showToast?.(error?.message || 'Failed to load outbound emails', false);
     } finally { setLoading(false); }

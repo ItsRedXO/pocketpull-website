@@ -8,37 +8,48 @@ export function StatsTab() {
   const { data: stats, isLoading, isRefetching } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      // Fetch counts using standard SDK methods
-      const [totalUsers, totalPulls, totalPacks, packs, allUsers, depositTransactions, packOpens] = await Promise.all([
+      // Keep each metric independent so one schema/data mismatch cannot blank the whole dashboard.
+      const [totalUsersResult, totalPullsResult, totalPacksResult, packsResult, allUsersResult, depositTransactionsResult, packOpensResult] = await Promise.allSettled([
         blink.db.users.count({ where: { isDeleted: 0 } }),
         blink.db.packsOpened.count(),
         blink.db.packsCatalog.count(),
         blink.db.packsCatalog.list({ limit: 100 }),
-        blink.db.users.list({ where: { isDeleted: 0 }, limit: 5000 }), // Increased limit for summing
+        blink.db.users.list({ where: { isDeleted: 0 }, limit: 5000 }),
         blink.db.transactions.list({ where: { type: 'deposit' }, limit: 5000 }),
         blink.db.packsOpened.list({ limit: 5000 }),
       ]);
 
-      // Calculate total revenue from actual Stripe deposits
-      const totalRevenue = (depositTransactions as any[]).reduce(
+      const valueOr = <T,>(result: PromiseSettledResult<T>, fallback: T): T =>
+        result.status === 'fulfilled' ? result.value : fallback;
+
+      const totalUsers = Number(valueOr(totalUsersResult, 0)) || 0;
+      const totalPulls = Number(valueOr(totalPullsResult, 0)) || 0;
+      const totalPacks = Number(valueOr(totalPacksResult, 0)) || 0;
+      const packs = valueOr(packsResult, []) as any[];
+      const allUsers = valueOr(allUsersResult, []) as any[];
+      const depositTransactions = valueOr(depositTransactionsResult, []) as any[];
+      const packOpens = valueOr(packOpensResult, []) as any[];
+
+      // Calculate total revenue from actual Stripe deposits.
+      const totalRevenue = depositTransactions.reduce(
         (acc, t) => acc + (Number(t.amount) || 0),
         0
       );
 
-      // Calculate total user balances
-      const totalBalance = (allUsers as any[]).reduce(
+      // Calculate total user balances.
+      const totalBalance = allUsers.reduce(
         (acc, u) => acc + (Number(u.balance) || 0),
         0
       );
 
-      // Map pack-specific opens
+      // Map pack-specific opens.
       const packOpensMap: Record<string, number> = {};
-      (packOpens as any[]).forEach((po) => {
+      packOpens.forEach((po) => {
         packOpensMap[po.packId] = (packOpensMap[po.packId] || 0) + 1;
       });
 
-      const activePacks = (packs as any[]).filter(p => Number(p.isActive) > 0).length;
-      const packBreakdown = (packs as any[]).map(p => ({
+      const activePacks = packs.filter(p => Number(p.isActive) > 0).length;
+      const packBreakdown = packs.map(p => ({
         id: p.id,
         name: p.name,
         price: Number(p.price) || 0,
