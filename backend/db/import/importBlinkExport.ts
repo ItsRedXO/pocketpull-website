@@ -9,7 +9,7 @@ const SNAKE: Record<string, string> = {};
 for (const key of Object.keys(TABLE_COLUMNS).flatMap(t => TABLE_COLUMNS[t])) SNAKE[key] = key.replace(/[A-Z]/g, m => `_${m.toLowerCase()}`);
 const JSON_FIELDS = new Set(['data','snapshot','oddsJson','details','metadata','cardsJson','wonCardsJson','removedCardIdsJson','packsJson','fulfilledCardIds']);
 const INTEGER_BOOLEAN_FIELDS = new Set(['isDeleted','isBanned','firstDepositBonusPaid','referralRewardPaid','isBot','isAdmin','isModerator','emailVerified','isActive','locked','favorite','sold','isLocked','isFavorite','active','provablyFair','isWin','isPublic','isAi','isWinner']);
-const PK: Record<string, string> = { user_nonces: 'user_id', pack_cooldowns: 'user_id,pack_id' };
+const PK: Record<string, string> = { user_nonces: 'user_id', pack_cooldowns: 'user_id,pack_id', wallet_transactions: '' };
 
 function syntheticId(table: string, row: BlinkExportRow, index: number) {
   return `legacy_${table}_${createHash('sha256').update(JSON.stringify(row)).digest('hex').slice(0, 20)}_${index}`;
@@ -52,6 +52,7 @@ async function ensureParentRows(client: any, data: ReturnType<typeof normalizeEx
   const packs = new Map<string, any>();
   const battles = new Set<string>();
   const participants = new Map<string, string>();
+  const exportedParticipants = new Set<string>((data.battle_participants ?? []).map(row => String(row.id)).filter(Boolean));
   const addUser = (id: unknown, sample: BlinkExportRow = {}) => { if (typeof id === 'string' && id && !users.has(id)) users.set(id, sample); };
   const addPack = (id: unknown, sample: BlinkExportRow = {}) => { if (typeof id === 'string' && id && !packs.has(id)) packs.set(id, sample); };
   for (const row of data.users ?? []) addUser(row.id, row);
@@ -82,14 +83,17 @@ async function ensureParentRows(client: any, data: ReturnType<typeof normalizeEx
   for (const [id, row] of users) await client.query(`INSERT INTO users (id, username, display_name, is_bot, data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO NOTHING`, [id, row.username ?? row.aiName ?? null, row.displayName ?? row.username ?? null, row.isAi || row.isBot ? 1 : 0, '{}']);
   for (const [id, row] of packs) await client.query(`INSERT INTO packs_catalog (id, name, price, data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO NOTHING`, [id, row.name ?? row.packName ?? 'Legacy Pack', row.price ?? row.cost ?? 0, '{}']);
   for (const id of battles) await client.query(`INSERT INTO battles (id, status, data) VALUES ($1,'legacy','{}') ON CONFLICT (id) DO NOTHING`, [id]);
-  for (const [id, battleId] of participants) await client.query(`INSERT INTO battle_participants (id, battle_id, user_id, is_bot, data) VALUES ($1,$2,NULL,0,'{}') ON CONFLICT (id) DO NOTHING`, [id, battleId]);
+  for (const [id, battleId] of participants) {
+    if (exportedParticipants.has(id)) continue;
+    await client.query(`INSERT INTO battle_participants (id, battle_id, user_id, is_bot, data) VALUES ($1,$2,NULL,0,'{}') ON CONFLICT (id) DO NOTHING`, [id, battleId]);
+  }
 }
 
-async function runBatch(client: any, table: string, columns: string[], rows: unknown[][], pk: string): Promise<{ inserted: number; skipped: number }> {
+async function runBatch(client: any, table: string, columns: string[], rows: unknown[][], conflictTarget: string): Promise<{ inserted: number; skipped: number }> {
   if (!rows.length) return { inserted: 0, skipped: 0 };
   await client.query('SAVEPOINT import_batch');
   try {
-    const { sql, values } = buildBatchInsert({ table, columns, rows, conflictTarget: pk });
+    const { sql, values } = buildBatchInsert({ table, columns, rows, conflictTarget });
     await client.query(sql, values);
     await client.query('RELEASE SAVEPOINT import_batch');
     return { inserted: rows.length, skipped: 0 };
@@ -101,8 +105,8 @@ async function runBatch(client: any, table: string, columns: string[], rows: unk
       throw err;
     }
     const mid = Math.floor(rows.length / 2);
-    const left = await runBatch(client, table, columns, rows.slice(0, mid), pk);
-    const right = await runBatch(client, table, columns, rows.slice(mid), pk);
+    const left = await runBatch(client, table, columns, rows.slice(0, mid), conflictTarget);
+    const right = await runBatch(client, table, columns, rows.slice(mid), conflictTarget);
     return { inserted: left.inserted + right.inserted, skipped: left.skipped + right.skipped };
   }
 }
@@ -124,9 +128,9 @@ async function importTableBatched(client: any, table: string, rawRows: BlinkExpo
   }
 
   let inserted = 0;
-  const pk = PK[table] || 'id';
+  const pk = PK[table] ?? 'id';
   for (const group of groupRowsByColumns(prepared)) {
-    const maxBatchRows = Math.max(1, Math.min(500, Math.floor(60000 / Math.max(1, group.columns.length))));
+    const maxBatchRows = Math.max(1, Math.min(250, Math.floor(30000 / Math.max(1, group.columns.length))));
     for (let offset = 0; offset < group.rows.length; offset += maxBatchRows) {
       const result = await runBatch(client, table, group.columns, group.rows.slice(offset, offset + maxBatchRows), pk);
       inserted += result.inserted;
@@ -147,6 +151,7 @@ export async function importBlinkExport(inputPath: string, dryRun = false): Prom
     for (const table of IMPORT_ORDER) {
       const rows = data[table] ?? [];
       if (!TABLE_COLUMNS[table] || !rows.length) continue;
+      console.log(`Starting ${table}: ${rows.length} rows...`);
       const result = await importTableBatched(client, table, rows);
       inserted += result.inserted;
       skipped += result.skipped;
