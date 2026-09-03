@@ -6,12 +6,11 @@ export type ServerSeed = {
   seedHash: string;
 };
 
-type DbClient = {
-  query: (sql: string, params?: unknown[]) => Promise<{ rowCount?: number | null; rows: any[] }>;
-};
-
+type DbResult = { rowCount?: number | null; rows: any[] };
+type DbClient = { query: (sql: string, params?: unknown[]) => Promise<DbResult> };
+type DbQuery = (sql: string, params?: unknown[]) => Promise<any[] | DbResult>;
 type DbAdapter = {
-  query: (sql: string, params?: unknown[]) => Promise<any[]>;
+  query: DbQuery;
   transaction: <T>(fn: (client: DbClient) => Promise<T>) => Promise<T>;
 };
 
@@ -25,7 +24,7 @@ function generateServerSeed(): string {
 }
 
 async function findUsableSeed(db: Pick<DbAdapter, 'query'>): Promise<any | null> {
-  const rows = await db.query(
+  const result = await db.query(
     `SELECT seed,seed_hash,status,active
      FROM server_seeds
      WHERE seed IS NOT NULL
@@ -34,6 +33,7 @@ async function findUsableSeed(db: Pick<DbAdapter, 'query'>): Promise<any | null>
      ORDER BY created_at DESC
      LIMIT 10`,
   );
+  const rows = Array.isArray(result) ? result : result.rows;
   return rows[0] || null;
 }
 
