@@ -2,7 +2,7 @@ name: PostgreSQL Migration CI
 
 on:
   push:
-    branches: [postgres-migration, railway-fullstack-cutover, fix/railway-login-assets, fix/upgrader-battle-pg-cutover, fix/admin-postgres-cutover]
+    branches: [main, postgres-migration, railway-fullstack-cutover, fix/railway-login-assets, fix/upgrader-battle-pg-cutover, fix/admin-postgres-cutover]
   pull_request:
     branches: [main]
 
@@ -47,7 +47,7 @@ jobs:
       - name: Test provably-fair server seed bootstrap
         run: npx tsx --test backend/provablyFairServerSeed.test.ts
       - name: Test upgrader and battle PostgreSQL cutover
-        run: npx tsx --test backend/pgCutoverRegression.test.ts backend/battleExecutionSchemaRegression.test.ts backend/battleUtils.test.ts backend/walletIdempotency.test.ts
+        run: npx tsx --test backend/pgCutoverRegression.test.ts backend/battleExecutionSchemaRegression.test.ts backend/battleUtils.test.ts backend/walletIdempotency.test.ts backend/battleRecovery.test.ts
       - name: Test battle client state guards
         run: npx tsx --test src/pages/battles/room/useBattleExecution.test.ts
       - name: Test Railway frontend serving
