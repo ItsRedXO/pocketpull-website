@@ -2,7 +2,7 @@ name: PostgreSQL Migration CI
 
 on:
   push:
-    branches: [postgres-migration]
+    branches: [postgres-migration, railway-fullstack-cutover]
   pull_request:
     branches: [main]
 
