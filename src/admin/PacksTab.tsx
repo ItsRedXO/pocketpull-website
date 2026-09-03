@@ -17,6 +17,21 @@ async function logAdminAction(action: string, targetUser: string, details: Recor
   } catch { /* non-critical */ }
 }
 
+async function adminPackDelete(packId: string) {
+  const token = await blink.auth.getValidToken();
+  const secret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  const response = await fetch(`${BACKEND_BASE}/admin/packs/${encodeURIComponent(packId)}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(secret ? { 'X-Admin-Secret': secret } : {}),
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success) throw new Error(payload?.error || `Delete failed (${response.status})`);
+  return payload as { deleted: boolean; archived: boolean; name: string | null };
+}
+
 const RARITY_COLOR: Record<string, string> = {
   common: '#8892a4', uncommon: '#10b981', rare: '#00c8ff',
   ultra: '#9b5cff', secret: '#ffd700', god: '#ff00ff',
@@ -31,14 +46,15 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const { data: packs = [], isLoading, refetch } = useQuery<PackCatalog[]>({
     queryKey: ['admin-packs'],
     queryFn: async () => {
-      // PostgreSQL packs_catalog has neither sort_order nor created_at; name is a valid stable ordering.
       const rows = await blink.db.packsCatalog.list({ orderBy: { name: 'asc' } });
-      return rows.map((r: any) => ({
-        ...r,
-        packType: r.packType === 'mystery' ? 'mystery' : 'standard',
-        price: Number(r.price),
-        sortOrder: Number(r.sortOrder ?? 0), isActive: Number(r.isActive ?? 1),
-      })) as PackCatalog[];
+      return rows
+        .filter((r: any) => !r.adminDeleted)
+        .map((r: any) => ({
+          ...r,
+          packType: r.packType === 'mystery' ? 'mystery' : 'standard',
+          price: Number(r.price),
+          sortOrder: Number(r.sortOrder ?? 0), isActive: Number(r.isActive ?? 1),
+        })) as PackCatalog[];
     },
     staleTime: 0,
     refetchInterval: 3000,
@@ -68,21 +84,20 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
       const nextActive = Number(pack.isActive) > 0 ? 'hidden' : 'shown';
       showToast(`${pack.name} ${nextActive} on site.`);
       logAdminAction(`Admin ${nextActive === 'hidden' ? 'Hid' : 'Showed'} Pack`, 'system', { packName: pack.name, packId: pack.id });
-    } catch { showToast('Toggle failed.', false); }
+    } catch (err: any) { showToast(`Toggle failed: ${err?.message || 'Unknown error'}`, false); }
   };
 
   const deletePack = async (pack: PackCatalog) => {
     setDeletingId(pack.id);
     try {
-      for (const c of cardsForPack(pack.id)) await blink.db.packCards.delete(c.id);
-      await blink.db.packsCatalog.delete(pack.id);
+      const result = await adminPackDelete(pack.id);
       qc.invalidateQueries({ queryKey: ['admin-packs'] });
       qc.invalidateQueries({ queryKey: ['admin-all-cards'] });
       qc.invalidateQueries({ queryKey: ['packs-catalog'] });
-      showToast(`${pack.name} deleted.`);
-      logAdminAction('Admin Deleted Pack', 'system', { packName: pack.name, packId: pack.id });
-    } catch { showToast('Delete failed.', false); }
-    setDeletingId(null);
+      showToast(result.archived ? `${pack.name} archived (history preserved).` : `${pack.name} deleted.`);
+      logAdminAction('Admin Deleted Pack', 'system', { packName: pack.name, packId: pack.id, archived: result.archived });
+    } catch (err: any) { showToast(`Delete failed: ${err?.message || 'Unknown error'}`, false); }
+    finally { setDeletingId(null); }
   };
 
   const handleSaved = () => {
@@ -133,8 +148,8 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
             {(['standard', 'mystery'] as const).map(category => {
-              const count = category === 'standard' ? normalPacks.length : mysteryPacks.length
-              const isExpanded = expandedCategory === category
+              const count = category === 'standard' ? normalPacks.length : mysteryPacks.length;
+              const isExpanded = expandedCategory === category;
               return (
                 <button key={category} type="button" onClick={() => setExpandedCategory(isExpanded ? null : category)} className="flex items-center justify-between rounded-2xl px-4 py-4 text-left transition-all hover:bg-white/[0.06]" style={{ background: isExpanded ? 'rgba(155,92,255,0.12)' : 'rgba(255,255,255,0.025)', border: `1.5px solid ${isExpanded ? '#9b5cff66' : 'rgba(255,255,255,0.08)'}` }}>
                   <span>
@@ -143,7 +158,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
                   </span>
                   <ChevronDown size={18} className={`text-white/35 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </button>
-              )
+              );
             })}
           </div>
           {expandedCategory && (
