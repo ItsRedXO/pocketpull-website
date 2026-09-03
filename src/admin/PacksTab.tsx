@@ -31,8 +31,8 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const { data: packs = [], isLoading, refetch } = useQuery<PackCatalog[]>({
     queryKey: ['admin-packs'],
     queryFn: async () => {
-      // PostgreSQL packs_catalog has no sort_order column; createdAt is the valid stable ordering.
-      const rows = await blink.db.packsCatalog.list({ orderBy: { createdAt: 'asc' } });
+      // PostgreSQL packs_catalog has neither sort_order nor created_at; name is a valid stable ordering.
+      const rows = await blink.db.packsCatalog.list({ orderBy: { name: 'asc' } });
       return rows.map((r: any) => ({
         ...r,
         packType: r.packType === 'mystery' ? 'mystery' : 'standard',
