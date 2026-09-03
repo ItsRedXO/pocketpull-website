@@ -6,12 +6,11 @@ import { createPostgresDb } from '../src/lib/postgresDb';
 test('PostgreSQL browser adapter sends the dedicated admin secret', async () => {
   const calls: RequestInit[] = [];
   const originalFetch = globalThis.fetch;
-  const originalLocalStorage = (globalThis as any).localStorage;
-  (globalThis as any).localStorage = {
-    getItem(key: string) {
-      return key === 'pocketpull_admin_pass' ? 'admin-secret-for-test' : null;
-    },
-  };
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: (key: string) => key === 'pocketpull_admin_pass' ? 'admin-secret-for-test' : null },
+  });
   globalThis.fetch = async (_input, init) => {
     calls.push(init || {});
     return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -24,7 +23,8 @@ test('PostgreSQL browser adapter sends the dedicated admin secret', async () => 
     assert.equal(headers.get('X-Admin-Secret'), 'admin-secret-for-test');
   } finally {
     globalThis.fetch = originalFetch;
-    (globalThis as any).localStorage = originalLocalStorage;
+    if (originalDescriptor) Object.defineProperty(globalThis, 'localStorage', originalDescriptor);
+    else delete (globalThis as any).localStorage;
   }
 });
 
