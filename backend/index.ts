@@ -10,11 +10,14 @@ import packOpeningRoutes from './routes/packOpening';
 import upgraderRoutes from './routes/upgrader';
 import exchangerRoutes from './routes/exchanger';
 import battleRoutes from './routes/battles/index';
-import cashoutRoutes from './routes/cashout';
-import cashoutAdminRoutes from './routes/cashoutAdmin';
+import cashoutRoutes from './routes/cashoutV2';
+import legacyCashoutRoutes from './routes/cashout';
+import cashoutAdminRoutes from './routes/cashoutAdminV2';
+import legacyCashoutAdminRoutes from './routes/cashoutAdmin';
 import inventoryRoutes from './routes/inventory';
 import upgraderSettingsRoutes from './routes/upgraderSettings';
 import sendTestEmailsRoutes from './routes/sendTestEmails';
+import adminLogsRoutes from './routes/adminLogs';
 import logsRoutes from './routes/logs';
 import provablyFairRoutes from './routes/provablyFair';
 import publicDbProxyRoutes from './routes/publicDbProxy';
@@ -82,8 +85,16 @@ app.get('/battles/stats', async c => {
   }
 });
 
+// New PostgreSQL-backed handlers must be registered before legacy implementations
+// that share the same paths.
 app.route('/', cashoutRoutes);
 app.route('/', cashoutAdminRoutes);
+app.route('/', adminLogsRoutes);
+
+// Legacy routes remain available for non-overlapping endpoints/helpers while the
+// hardened handlers above own the public paths they replace.
+app.route('/', legacyCashoutRoutes);
+app.route('/', legacyCashoutAdminRoutes);
 app.route('/', inventoryRoutes);
 app.route('/', upgraderSettingsRoutes);
 app.route('/', sendTestEmailsRoutes);
