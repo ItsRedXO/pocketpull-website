@@ -23,6 +23,7 @@ import userLookupRoutes from './routes/userLookup';
 import userDbProxyRoutes from './routes/userDbProxy';
 import dbProxyRoutes from './routes/dbProxy';
 import adminAuthRoutes from './routes/adminAuth';
+import adminUsersRoutes from './routes/adminUsers';
 
 const app = new Hono();
 app.use('*', cors());
@@ -43,6 +44,7 @@ app.route('/', userLookupRoutes);
 app.route('/', userDbProxyRoutes);
 app.route('/', dbProxyRoutes);
 app.route('/', adminAuthRoutes);
+app.route('/', adminUsersRoutes);
 app.route('/', stripeRoutes);
 app.route('/', coinbaseRoutes);
 app.route('/', packOpeningRoutes);
@@ -110,13 +112,9 @@ app.get('/referrals', async c => {
   }
 });
 
-// The repository's real branding asset is stored as favicon.ico (PNG data despite
-// the legacy .ico filename). Serve that binary for all app logo requests so the
-// browser never has to decode an external image from an SVG wrapper.
 app.get('/pocketpull-logo.png', serveStatic({ path: './dist/favicon.ico' }));
 app.get('/favicon.png', serveStatic({ path: './dist/favicon.ico' }));
 
-// API routes are registered above; only unmatched GET requests reach the frontend.
 app.use('*', serveStatic({ root: './dist' }));
 app.get('*', serveStatic({ path: './dist/index.html' }));
 

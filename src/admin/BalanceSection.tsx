@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { UserRow } from './types';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -8,6 +9,21 @@ interface BalanceSectionProps {
   showToast: (m: string, ok?: boolean) => void;
   onUpdate: (user: UserRow) => void;
   logAdminAction: (action: string, targetUser: string, details?: any) => void;
+}
+
+async function adminBalanceChange(userId: string, mode: 'add' | 'set', amount: number) {
+  const token = await blink.auth.getValidToken();
+  const response = await fetch(`${BACKEND_BASE}/admin/users/${encodeURIComponent(userId)}/balance`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ mode, amount }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success) throw new Error(payload?.error || `Balance update failed (${response.status})`);
+  return payload as { balance: number; previousBalance: number; delta: number };
 }
 
 export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: BalanceSectionProps) {
@@ -24,21 +40,21 @@ export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: Ba
     }
     setSavingBalance(true);
     try {
-      const nb = Math.max(0, user.balance + delta);
-      await blink.db.users.update(user.id, { balance: nb });
-      onUpdate({ ...user, balance: nb });
+      const result = await adminBalanceChange(user.id, 'add', delta);
+      onUpdate({ ...user, balance: result.balance });
       qc.invalidateQueries({ queryKey: ['admin-users-all'] });
       setBalanceDelta('');
-      showToast(`Balance updated to ${nb.toFixed(2)}`);
+      showToast(`Balance updated to ${Number(result.balance).toFixed(2)}`);
       logAdminAction('Admin Adjusted Balance', user.username, {
-        delta,
-        newBalance: nb,
-        previousBalance: user.balance,
+        delta: result.delta,
+        newBalance: result.balance,
+        previousBalance: result.previousBalance,
       });
-    } catch {
-      showToast('Balance update failed.', false);
+    } catch (err: any) {
+      showToast(`Balance update failed: ${err?.message || 'Unknown error'}`, false);
+    } finally {
+      setSavingBalance(false);
     }
-    setSavingBalance(false);
   };
 
   const handleSetBalance = async () => {
@@ -50,19 +66,20 @@ export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: Ba
     }
     setSavingBalance(true);
     try {
-      await blink.db.users.update(user.id, { balance: nb });
-      onUpdate({ ...user, balance: nb });
+      const result = await adminBalanceChange(user.id, 'set', nb);
+      onUpdate({ ...user, balance: result.balance });
       qc.invalidateQueries({ queryKey: ['admin-users-all'] });
       setBalanceDelta('');
-      showToast(`Balance set to ${nb.toFixed(2)}`);
+      showToast(`Balance set to ${Number(result.balance).toFixed(2)}`);
       logAdminAction('Admin Set Balance', user.username, {
-        newBalance: nb,
-        previousBalance: user.balance,
+        newBalance: result.balance,
+        previousBalance: result.previousBalance,
       });
-    } catch {
-      showToast('Balance update failed.', false);
+    } catch (err: any) {
+      showToast(`Balance update failed: ${err?.message || 'Unknown error'}`, false);
+    } finally {
+      setSavingBalance(false);
     }
-    setSavingBalance(false);
   };
 
   return (
