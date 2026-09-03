@@ -8,13 +8,7 @@ export interface WalletTransaction {
   amount: number;
   sourceId?: string;
   metadata?: Record<string, unknown>;
-  /**
-   * Mirrors the original PocketPull wallet behavior:
-   * - on credits, adds this amount to matched_balance as well as amount to total balance
-   * - on debits, any positive value signals that matched funds may be consumed first
-   */
   matchedAmount?: number;
-  /** Set false for flows such as Upgrader where matched funds are not eligible. */
   allowMatchedDebit?: boolean;
 }
 export interface WalletResult { success:boolean; error?:string; balanceBefore:number; balanceAfter:number; matchedBefore:number; matchedAfter:number; }
@@ -23,7 +17,7 @@ export async function processWalletTransactionInClient(client: PoolClient, txn: 
   const ledgerId=`wt_${txn.type}_${txn.userId}_${txn.sourceId||uid()}`;
   const user=await client.query('SELECT balance,matched_balance FROM users WHERE id=$1 FOR UPDATE',[txn.userId]);
   if(!user.rowCount)return{success:false,error:'User not found',balanceBefore:0,balanceAfter:0,matchedBefore:0,matchedAfter:0};
-  const existing=await client.query('SELECT balance_before,balance_after,matched_before,matched_after FROM wallet_transactions WHERE id=$1 OR (user_id=$2 AND source_id=$3) LIMIT 1',[ledgerId,txn.userId,txn.sourceId||null]);
+  const existing=await client.query('SELECT balance_before,balance_after,matched_before,matched_after FROM wallet_transactions WHERE id=$1 OR (user_id=$2 AND source_id=$3 AND type=$4) LIMIT 1',[ledgerId,txn.userId,txn.sourceId||null,txn.type]);
   if(existing.rowCount){const r=existing.rows[0];return{success:true,balanceBefore:Number(r.balance_before),balanceAfter:Number(r.balance_after),matchedBefore:Number(r.matched_before),matchedAfter:Number(r.matched_after)};}
 
   const balanceBefore=Number(user.rows[0].balance||0),matchedBefore=Number(user.rows[0].matched_balance||0);
@@ -36,7 +30,7 @@ export async function processWalletTransactionInClient(client: PoolClient, txn: 
     const canSpendMatched=txn.allowMatchedDebit!==false && Number(txn.matchedAmount||0)>0;
     const realAvailable=Math.max(0,balanceBefore-matchedBefore);
     const available=canSpendMatched?balanceBefore:realAvailable;
-    if(available<debit)return{success:false,error:'Insufficient balance',balanceBefore,balanceAfter:balanceBefore,matchedBefore,matchedAfter:matchedBefore};
+    if(available<debit)return{success:false,error:'Insufficient balance',balanceBefore,balanceAfter:balanceBefore,matchedBefore,matchedAfter};
     balanceAfter=balanceBefore-debit;
     if(canSpendMatched){const matchedDebit=Math.min(matchedBefore,debit);matchedAfter=matchedBefore-matchedDebit;}
   }
@@ -46,7 +40,7 @@ export async function processWalletTransactionInClient(client: PoolClient, txn: 
     await client.query(`INSERT INTO wallet_transactions(id,user_id,type,amount,balance_before,balance_after,matched_before,matched_after,source_id,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[ledgerId,txn.userId,txn.type,txn.amount,balanceBefore,balanceAfter,matchedBefore,matchedAfter,txn.sourceId||null,JSON.stringify(txn.metadata||{})]);
   }catch(error:any){
     if(error?.code==='23505' && txn.sourceId){
-      const prior=await client.query('SELECT balance_before,balance_after,matched_before,matched_after FROM wallet_transactions WHERE user_id=$1 AND source_id=$2 LIMIT 1',[txn.userId,txn.sourceId]);
+      const prior=await client.query('SELECT balance_before,balance_after,matched_before,matched_after FROM wallet_transactions WHERE user_id=$1 AND source_id=$2 AND type=$3 LIMIT 1',[txn.userId,txn.sourceId,txn.type]);
       if(prior.rowCount){const r=prior.rows[0];return{success:true,balanceBefore:Number(r.balance_before),balanceAfter:Number(r.balance_after),matchedBefore:Number(r.matched_before),matchedAfter:Number(r.matched_after)};}
     }
     throw error;
