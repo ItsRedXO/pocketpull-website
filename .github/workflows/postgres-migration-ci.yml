@@ -40,6 +40,8 @@ jobs:
         run: npx tsx backend/db/testCashoutReturnSafety.ts
       - name: Typecheck backend
         run: npx tsc --noEmit --ignoreConfig --skipLibCheck --module ESNext --moduleResolution bundler --target ES2022 backend/index.ts backend/server.ts backend/lib/*.ts backend/repositories/*.ts backend/routes/*.ts backend/routes/battles/*.ts backend/db/*.ts backend/db/import/*.ts
+      - name: Test Railway frontend serving
+        run: npx tsx --test backend/frontendServing.test.ts
       - name: Build frontend for PostgreSQL backend
         env:
           VITE_BACKEND_URL: https://postgres-backend.invalid
