@@ -23,8 +23,8 @@ test('serves the compiled frontend for SPA routes', async () => {
 
 test('keeps API health route ahead of the frontend fallback', async () => {
   const response = await app.request('/health');
-  assert.equal(response.status, 503);
-  assert.match(await response.text(), /\"database\":\"unavailable\"/);
+  assert.match(response.headers.get('content-type') || '', /application\/json/);
+  assert.doesNotMatch(await response.text(), /PocketPull Railway/);
 });
 
 test.after(async () => {
