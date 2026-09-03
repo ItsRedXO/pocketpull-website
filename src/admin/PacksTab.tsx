@@ -5,8 +5,8 @@ import { Package, Plus, Edit2, Trash2, RefreshCw, Eye, EyeOff, ChevronDown } fro
 import { blink } from '../lib/blink';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { PackForm } from './PackForm';
+import { BACKEND_BASE } from '../lib/backend';
 
-const BACKEND_BASE = 'https://b2nnhe2n.backend.blink.new';
 async function logAdminAction(action: string, targetUser: string, details: Record<string, any> = {}) {
   try {
     await fetch(`${BACKEND_BASE}/admin/logs/action`, {
@@ -31,7 +31,8 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const { data: packs = [], isLoading, refetch } = useQuery<PackCatalog[]>({
     queryKey: ['admin-packs'],
     queryFn: async () => {
-      const rows = await blink.db.packsCatalog.list({ orderBy: { sortOrder: 'asc' } });
+      // PostgreSQL packs_catalog has no sort_order column; createdAt is the valid stable ordering.
+      const rows = await blink.db.packsCatalog.list({ orderBy: { createdAt: 'asc' } });
       return rows.map((r: any) => ({
         ...r,
         packType: r.packType === 'mystery' ? 'mystery' : 'standard',
