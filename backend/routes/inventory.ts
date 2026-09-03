@@ -1,3 +1,4 @@
+import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { setInventoryFlag } from '../repositories/inventory';
 import { query, transaction } from '../lib/postgres';
