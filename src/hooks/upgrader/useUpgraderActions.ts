@@ -30,16 +30,15 @@ export const useUpgraderActions = (
   } = state;
 
   const { user, isAuthenticated, stats, updateBalance } = data;
-  const { totalUpgradeValue, effectiveAddedBalance, multiplier, MAX_CHANCE } = calculations;
+  const { totalUpgradeValue, effectiveAddedBalance, multiplier } = calculations;
 
   const toggleCard = (card: InventoryRow) => {
     if (upgrading) return;
     setSelectedCards(prev => {
       const already = prev.some(c => c.id === card.id);
       let next;
-      if (already) {
-        next = prev.filter(c => c.id !== card.id);
-      } else {
+      if (already) next = prev.filter(c => c.id !== card.id);
+      else {
         if (prev.length >= 12) return prev;
         next = [...prev, card];
       }
@@ -61,12 +60,9 @@ export const useUpgraderActions = (
     if (selectedTargets.length > 0 && totalUpgradeValue > 0) {
       const totalTargetVal = selectedTargets.reduce((s, t) => s + t.value, 0);
       const baselineTarget = totalUpgradeValue * multiplier.value;
-      
       if (totalTargetVal < baselineTarget - 0.01) {
         setError(`Target value (${totalTargetVal.toFixed(2)}) must be at least ${baselineTarget.toFixed(2)} for ${multiplier.label} multiplier.`);
-      } else if (error && error.includes('must be at least')) {
-        setError('');
-      }
+      } else if (error && error.includes('must be at least')) setError('');
     }
   }, [totalUpgradeValue, selectedTargets, multiplier, error, setError]);
 
@@ -92,19 +88,12 @@ export const useUpgraderActions = (
   const handleUpgrade = async () => {
     if (!canUpgrade || !user?.id || !stats) return;
     setError('');
-
     if (stats.isBanned) {
       setError('Your account is currently banned. Please contact support.');
       return;
     }
-
-    // ── 1. Show "Preparing…" immediately; wait for backend BEFORE spinning ──
     setUpgrading(true);
     setWonCards([]);
-    // NOTE: setSpinning(true) is deferred until the backend responds.
-    // This ensures the wheel + audio start together, not several seconds apart.
-
-    // ── 2. Backend call — blocks until result is ready ──────────────────────
     try {
       const result = await upgraderSpin({
         inventoryIds: selectedCards.map(c => c.id),
@@ -113,15 +102,9 @@ export const useUpgraderActions = (
         addedBalance: effectiveAddedBalance,
         multiplier: multiplier.value,
       });
-
       backendResultRef.current = result;
-      // Set the authoritative result FIRST — when spinning starts below,
-      // CircularMeter picks up forcedOutcome and jumps straight to landing.
       setBackendIsWin(result.isWin);
-
-      // ── 3. Start the wheel + audio together ───────────────────────────
       setSpinning(true);
-
     } catch (err: any) {
       console.error('upgraderSpin error:', err);
       setError(err.message || 'Upgrade failed. Please try again.');
@@ -132,16 +115,12 @@ export const useUpgraderActions = (
   const handleSpinComplete = useCallback(async (isWin: boolean) => {
     setSpinning(false);
     setOutcome(isWin ? 'win' : 'lose');
-
     const result = backendResultRef.current;
     if (!result) { setUpgrading(false); return; }
 
-    // Guard against stale balance: if a realtime event or another action
-    // updated the cache to a newer value during animation, don't overwrite.
     const cachedStats = qc.getQueryData<UserStats>(['user-stats', user?.id]);
     const cachedBal = cachedStats?.balance;
     if (cachedBal !== undefined && Math.abs(cachedBal - result.newBalance) > 0.5) {
-      // Cache has diverged significantly — backend realtime already updated it
       console.log('[Upgrader] Skipping stale balance update. Cached:', cachedBal, 'Spin result:', result.newBalance);
     } else {
       await updateBalance(result.newBalance);
@@ -163,13 +142,6 @@ export const useUpgraderActions = (
         cardImageUrl: c.cardImageUrl || null,
       }));
       setWonCards(mapped);
-
-      // Add won/consolation cards to local inventory state immediately
-      // so the "My Cards" list updates without requiring a page refresh.
-      // CRITICAL: use c.id (backend inventory PK, e.g. "inv_k3x9a7m2")
-      // not c.cardId (pack_cards FK, e.g. "pk_charizard_vmax_secret").
-      // The backend validates inventory ownership by inventory row id,
-      // so the local InventoryRow.id must match the DB inventory.id.
       setInventory(prev => [
         ...result.wonCards.map((c: any) => ({
           id: c.id,
@@ -186,12 +158,12 @@ export const useUpgraderActions = (
       ]);
     }
 
+    // The actual collection page uses ['inventory', userId]. Invalidate it so
+    // navigating to My Collection cannot retain a stale pre-upgrade snapshot.
+    await qc.invalidateQueries({ queryKey: ['inventory', user?.id] });
     qc.invalidateQueries({ queryKey: LEADERBOARD_QUERY_KEY });
     backendResultRef.current = null;
     setBackendIsWin(null);
-
-    // Removed cards already filtered from local state above; won cards
-    // added above. No realtime publish dependency — everything is local.
     setUpgrading(false);
   }, [user?.id, updateBalance, qc, setSpinning, setOutcome, setUpgrading, setWonCards, setInventory, setSelectedCards, setBackendIsWin, backendResultRef]);
 
@@ -201,13 +173,5 @@ export const useUpgraderActions = (
     setBackendIsWin(null);
   };
 
-  return {
-    toggleCard,
-    toggleTarget,
-    canUpgrade,
-    validationMessage,
-    handleUpgrade,
-    handleSpinComplete,
-    handleReset
-  };
+  return { toggleCard, toggleTarget, canUpgrade, validationMessage, handleUpgrade, handleSpinComplete, handleReset };
 };
