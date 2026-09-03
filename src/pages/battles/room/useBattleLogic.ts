@@ -119,6 +119,38 @@ export const useBattleLogic = ({
     startBattleCountdown();
   }, [(players?.length || 0), battle?.playerCount, battle?.status, battle, startBattleCountdown, user?.id, watchOnly]);
 
+  // Recovery: if a host reconnects to a battle that is already live but has
+  // no persisted card results, retry the server execution. This makes the
+  // backend authoritative even when the original countdown/execution request
+  // was interrupted by a tab refresh, navigation, or transient network error.
+  // `hasRun` prevents duplicate execution while the request is in flight, and
+  // the players reference changes on polling so a failed attempt is retried.
+  useEffect(() => {
+    if (!battle || battle.status !== 'live' || watchOnly) return;
+    if (user?.id !== battle.hostUserId) return;
+    if (hasRun.current) return;
+
+    const hasPersistedCards = (players || []).some((player: any) => {
+      try {
+        return JSON.parse(player.cardsJson || player.cards_json || '[]').length > 0;
+      } catch {
+        return false;
+      }
+    });
+    if (hasPersistedCards) return;
+
+    hasRun.current = true;
+    console.log(`[useBattleLogic] Recovering live battle ${battle.id} with no persisted results`);
+    if (battleRef.current) {
+      launchBattle(battleRef.current).catch((err: any) => {
+        console.error('[useBattleLogic] live battle recovery failed:', err);
+        hasRun.current = false;
+      });
+    } else {
+      hasRun.current = false;
+    }
+  }, [battle?.id, battle?.status, players, user?.id, watchOnly, launchBattle, battleRef]);
+
   return {
     aiCountdown,
     aiTimerFinished,
