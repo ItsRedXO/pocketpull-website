@@ -14,7 +14,7 @@ test('Packs admin tab does not order packs by a missing sortOrder column', () =>
 test('Email admin tab orders by createdAt and reads legacy fields from row data', () => {
   const source = read('src/admin/EmailsTab.tsx');
   assert.match(source, /orderBy:\s*\{\s*createdAt:\s*'desc'\s*\}/);
-  assert.match(source, /sentAt:\s*String\(r\.sentAt \?\? data\.sentAt \?\? r\.createdAt/);
+  assert.match(source, /sentAt:\s*String\(r\?\.sentAt \|\| data\.sentAt \|\| r\?\.createdAt/);
 });
 
 test('Stats admin tab keeps successful metrics when one metric query fails', () => {
