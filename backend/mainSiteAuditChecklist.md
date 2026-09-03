@@ -1,0 +1,1 @@
+Audit checked user-facing auth, wallet, pack opening, inventory, upgrader, battles, exchanger, cashout, support, provably-fair, and PostgreSQL proxy boundaries. Admin panel excluded.
