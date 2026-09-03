@@ -24,7 +24,7 @@ import logsRoutes from './routes/logs';
 import provablyFairRoutes from './routes/provablyFair';
 import publicDbProxyRoutes from './routes/publicDbProxy';
 import supportDbProxyRoutes from './routes/supportDbProxy';
-import userLookupRoutes from './routes/userLookup');
+import userLookupRoutes from './routes/userLookup';
 import userDbProxyRoutes from './routes/userDbProxy';
 import dbProxyRoutes from './routes/dbProxy';
 import adminAuthRoutes from './routes/adminAuth';
