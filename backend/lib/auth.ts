@@ -45,7 +45,8 @@ export async function requireAuth(c: Context): Promise<string> {
   return userId;
 }
 
-/** Compatibility export for routes not yet fully migrated from the Blink naming convention. */
+// Legacy route compatibility: migrated routes may still import this name.
+// It intentionally does not create or access a Blink client.
 export function getBlinkServer(_env?: Record<string, unknown>): null {
   return null;
 }
