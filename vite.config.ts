@@ -8,7 +8,12 @@ const LEGACY_BLINK_BACKEND = 'https://b2nnhe2n.backend.blink.new';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const configuredBackend = String(env.VITE_BACKEND_URL || '').trim().replace(/\/$/, '');
-  const backendBase = configuredBackend || RAILWAY_BACKEND;
+
+  // Production must never route economy/API calls back to Blink. Railway serves both
+  // the frontend and the PostgreSQL-backed Hono API, so hard-pin production here.
+  const backendBase = mode === 'production'
+    ? RAILWAY_BACKEND
+    : (configuredBackend || RAILWAY_BACKEND);
 
   return {
     plugins: [
@@ -18,12 +23,16 @@ export default defineConfig(({ mode }) => {
         transform(code, id) {
           if (!id.includes('/src/')) return null;
           let transformed = code;
+
+          // Normalize every source reference to the selected backend. This includes
+          // the old hardcoded Blink economy URL in src/lib/api.ts.
           if (transformed.includes(RAILWAY_BACKEND)) {
             transformed = transformed.split(RAILWAY_BACKEND).join(backendBase);
           }
-          if (backendBase === RAILWAY_BACKEND && transformed.includes(LEGACY_BLINK_BACKEND)) {
-            transformed = transformed.split(LEGACY_BLINK_BACKEND).join(RAILWAY_BACKEND);
+          if (transformed.includes(LEGACY_BLINK_BACKEND)) {
+            transformed = transformed.split(LEGACY_BLINK_BACKEND).join(backendBase);
           }
+
           if (transformed === code) return null;
           return { code: transformed, map: null };
         },
