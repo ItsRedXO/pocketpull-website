@@ -1,0 +1,51 @@
+name: Publish to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: Branch to publish
+        required: true
+        default: staging
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pocketpull-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish PocketPull to Railway production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout tested source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_branch }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify production build
+        run: npm run build
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli
+
+      - name: Deploy to Railway production
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+        run: railway up --service "$RAILWAY_SERVICE_ID" --ci
