@@ -1,4 +1,5 @@
 import { createPostgresDb } from './postgresDb';
+import { BACKEND_BASE } from './backend';
 
 type AuthUser = { id: string; email?: string; displayName?: string; emailVerified?: boolean; [key: string]: unknown };
 type AuthState = { user: AuthUser | null; isLoading: boolean };
@@ -26,6 +27,16 @@ async function refreshUser() {
   if (!response.ok) { accessToken = null; localStorage.removeItem(ACCESS_TOKEN_KEY); localStorage.removeItem(REFRESH_TOKEN_KEY); currentUser = null; publish(false); return; }
   currentUser = mapUser(await response.json()); publish(false);
 }
+async function resolveLoginEmail(identifier: string): Promise<string> {
+  if (identifier.includes('@')) return identifier;
+  const response = await fetch(`${BACKEND_BASE}/auth/user-lookup?username=${encodeURIComponent(identifier)}`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray(payload.users) || payload.users.length === 0) throw new Error('INVALID_CREDENTIALS');
+  const row = payload.users[0];
+  if (Number(row.is_banned || 0) > 0) throw new Error('BANNED_ACCOUNT');
+  if (Number(row.is_deleted || 0) > 0 || !row.email) throw new Error('INVALID_CREDENTIALS');
+  return String(row.email);
+}
 async function authRequest(path: string, body?: unknown) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error('Supabase authentication is not configured');
   const response = await fetch(`${SUPABASE_URL}/auth/v1${path}`, { method: 'POST', headers: headers(), body: body === undefined ? undefined : JSON.stringify(body) });
@@ -37,7 +48,7 @@ async function authRequest(path: string, body?: unknown) {
 const auth = {
   getValidToken: async () => accessToken,
   onAuthStateChanged: (listener: Listener) => { listeners.add(listener); listener({ user: currentUser, isLoading: true }); void refreshUser(); return () => listeners.delete(listener); },
-  signInWithEmail: (email: string, password: string) => authRequest('/token?grant_type=password', { email, password }),
+  signInWithEmail: async (emailOrUsername: string, password: string) => authRequest('/token?grant_type=password', { email: await resolveLoginEmail(emailOrUsername), password }),
   signUp: ({ email, password, displayName }: { email: string; password: string; displayName: string }) => authRequest('/signup', { email, password, data: { displayName, username: displayName } }),
   signOut: async () => { if (SUPABASE_URL && accessToken) await fetch(`${SUPABASE_URL}/auth/v1/logout`, { method: 'POST', headers: headers(accessToken) }).catch(() => undefined); accessToken = null; currentUser = null; localStorage.removeItem(ACCESS_TOKEN_KEY); localStorage.removeItem(REFRESH_TOKEN_KEY); publish(false); },
   login: async () => undefined,
