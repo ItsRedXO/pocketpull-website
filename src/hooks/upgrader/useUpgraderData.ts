@@ -3,6 +3,7 @@ import { useAuth, useUserStats } from '../useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { TargetCard } from '../../pages/upgrader/constants';
 import { UpgraderState } from './useUpgraderState';
+import { blink } from '../../lib/blink';
 
 export const useUpgraderData = (state: UpgraderState) => {
   const { user, isAuthenticated } = useAuth();
@@ -23,9 +24,7 @@ export const useUpgraderData = (state: UpgraderState) => {
     setInvLoading(true);
     if (!user?.id) { setInvLoading(false); return; }
     try {
-      const res = await fetch('/api/inventory', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load inventory');
-      const rows = await res.json();
+      const rows = await blink.db.inventory.list({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, limit: 500 });
       setInventory((Array.isArray(rows) ? rows : []).filter((r:any) => Number(r.sold ?? r.isSold ?? 0) === 0).map((r:any) => ({
         id:r.id, cardId:r.cardId || r.card_id, cardName:r.cardName || r.card_name || 'Unknown Card', rarity:r.rarity || 'common', value:Number(r.value)||0,
         emoji:r.emoji || '🃏', isFavorite:Number(r.isFavorite ?? r.is_favorite)>0, isLocked:Number(r.isLocked ?? r.is_locked)>0, cardImageUrl:r.cardImageUrl || r.card_image_url || null,
