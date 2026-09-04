@@ -18,8 +18,8 @@ app.post('/inventory/sell',async c=>{
       const rows=await client.query('SELECT * FROM inventory WHERE id=$1 AND user_id=$2 FOR UPDATE',[inventoryId,userId]);
       if(!rows.rowCount)return {kind:'not_found' as const};
       const card=rows.rows[0];
-      if(Number(card.sold ?? card.is_sold ?? 0) !== 0)return {kind:'sold' as const};
-      if(Number(card.locked ?? card.is_locked ?? 0) !== 0)throw new Error('Card is locked');
+      if(Number(card.sold ?? 0) !== 0)return {kind:'sold' as const};
+      if(Number(card.locked ?? 0) !== 0)throw new Error('Card is locked');
       const value=Number(card.value||0);
       if(!Number.isFinite(value) || value < 0)throw new Error('Invalid card value');
 
@@ -28,8 +28,9 @@ app.post('/inventory/sell',async c=>{
 
       const wallet=await processWalletTransactionInClient(client,{userId,type:'sell',amount:value,sourceId:inventoryId});
       if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
-      const cardName=card.card_name || card.cardName || 'Card';
-      const imageUrl=card.card_image_url || card.cardImageUrl || '';
+      const data=card.data && typeof card.data === 'object' ? card.data : {};
+      const cardName=data.cardName || data.card_name || data.name || 'Card';
+      const imageUrl=data.cardImageUrl || data.card_image_url || data.imageUrl || data.image_url || '';
       const description=`Sold ${cardName}${imageUrl ? ` |img:${imageUrl}|` : ''}`;
       const transactionId=`txn_sell_${inventoryId}`;
       await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[transactionId,userId,'sell',value,description,inventoryId]);
@@ -45,7 +46,7 @@ app.post('/inventory/sell-all',async c=>{
   const userId=await auth(c);if(typeof userId!=='string')return userId;
   try{
     const result=await transaction(async client=>{
-      const cards=await client.query('SELECT * FROM inventory WHERE user_id=$1 AND COALESCE(sold,0)=0 AND COALESCE(is_locked,locked,0)=0 FOR UPDATE',[userId]);
+      const cards=await client.query('SELECT * FROM inventory WHERE user_id=$1 AND COALESCE(sold,0)=0 AND COALESCE(locked,0)=0 FOR UPDATE',[userId]);
       if(!cards.rowCount)return null;
       const total=cards.rows.reduce((s:number,r:any)=>s+Number(r.value||0),0);
       const ids=cards.rows.map((r:any)=>r.id);
@@ -54,8 +55,9 @@ app.post('/inventory/sell-all',async c=>{
       const wallet=await processWalletTransactionInClient(client,{userId,type:'sell_all',amount:total,sourceId});
       if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
       for(const card of cards.rows){
-        const cardName=card.card_name || card.cardName || 'Card';
-        const imageUrl=card.card_image_url || card.cardImageUrl || '';
+        const data=card.data && typeof card.data === 'object' ? card.data : {};
+        const cardName=data.cardName || data.card_name || data.name || 'Card';
+        const imageUrl=data.cardImageUrl || data.card_image_url || data.imageUrl || data.image_url || '';
         const description=`Sold ${cardName}${imageUrl ? ` |img:${imageUrl}|` : ''}`;
         await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[`txn_sell_${card.id}`,userId,'sell',Number(card.value||0),description,card.id]);
       }
