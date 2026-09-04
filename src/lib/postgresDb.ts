@@ -11,6 +11,17 @@ function getAdminSecret(): string | null {
   }
 }
 
+async function publicUserLookup(options: any): Promise<any[] | null> {
+  const where = options?.where || {};
+  const username = where.username ?? where.email ?? where.displayName ?? where.display_name;
+  if (!username) return null;
+  const parameter = where.email !== undefined ? 'email' : where.displayName !== undefined || where.display_name !== undefined ? 'displayName' : 'username';
+  const response = await fetch(`${BACKEND_BASE}/auth/user-lookup?${parameter}=${encodeURIComponent(String(username))}`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || `User lookup failed (${response.status})`);
+  return Array.isArray(payload.users) ? payload.users : [];
+}
+
 async function request<T>(tokenProvider: TokenProvider, body: Record<string, unknown>): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-DB-Table': String(body.table || '') };
   try {
@@ -30,7 +41,12 @@ async function request<T>(tokenProvider: TokenProvider, body: Record<string, unk
 }
 
 function tableClient(tokenProvider: TokenProvider, table: string) {
-  const list = <T = any>(options: any = {}) => request<T[]>(tokenProvider, { table, operation: 'list', ...options });
+  const list = <T = any>(options: any = {}) => {
+    if (table === 'users' && options?.where && !options?.where?.id) {
+      return publicUserLookup(options) as Promise<T[]>;
+    }
+    return request<T[]>(tokenProvider, { table, operation: 'list', ...options });
+  };
   const get = <T = any>(id: string) => request<T>(tokenProvider, { table, operation: 'get', id });
   const count = <T = number>(options: any = {}) => request<T>(tokenProvider, { table, operation: 'count', ...options });
   return {
