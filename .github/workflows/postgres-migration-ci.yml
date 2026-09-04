@@ -47,9 +47,9 @@ jobs:
       - name: Test provably-fair server seed bootstrap
         run: npx tsx --test backend/provablyFairServerSeed.test.ts
       - name: Test upgrader and battle PostgreSQL cutover
-        run: npx tsx --test backend/pgCutoverRegression.test.ts backend/battleExecutionSchemaRegression.test.ts backend/battleUtils.test.ts backend/walletIdempotency.test.ts backend/battleRecovery.test.ts
+        run: npx tsx --test backend/pgCutoverRegression.test.ts backend/battleExecutionSchemaRegression.test.ts backend/battleUtils.test.ts backend/walletIdempotency.test.ts backend/battleRecovery.test.ts backend/packBattleHardening.test.ts
       - name: Test battle client state guards
-        run: npx tsx --test src/pages/battles/room/useBattleExecution.test.ts
+        run: npx tsx --test src/pages/battles/room/useBattleExecution.test.ts src/pages/battles/board/rejoinBattle.test.ts src/admin/packSortOrder.test.ts
       - name: Test Railway frontend serving
         run: npx tsx --test backend/frontendServing.test.ts
       - name: Test frontend wallet refresh interval
