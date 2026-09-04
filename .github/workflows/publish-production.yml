@@ -8,6 +8,11 @@ on:
         required: true
         default: staging
         type: string
+      confirm:
+        description: Type PUBLISH to confirm the production deployment
+        required: true
+        default: PUBLISH
+        type: string
 
 permissions:
   contents: read
@@ -23,6 +28,12 @@ jobs:
     environment: production
 
     steps:
+      - name: Require explicit confirmation
+        if: ${{ inputs.confirm != 'PUBLISH' }}
+        run: |
+          echo "Production publish cancelled: confirmation must be exactly PUBLISH."
+          exit 1
+
       - name: Checkout tested source
         uses: actions/checkout@v4
         with:
@@ -48,4 +59,5 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-        run: railway up --service "$RAILWAY_SERVICE_ID" --ci
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_PRODUCTION_ENVIRONMENT_ID }}
+        run: railway up --service "$RAILWAY_SERVICE_ID" --environment "$RAILWAY_ENVIRONMENT_ID" --ci
