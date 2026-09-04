@@ -8,6 +8,7 @@ import type { OpenedCard } from './types';
 
 const app = new Hono();
 function parseJson(value: unknown, fallback: any = []) { try { return JSON.parse(String(value ?? '')); } catch { return fallback; } }
+function cents(value: unknown) { return Math.round(Number(value || 0) * 100); }
 
 app.post('/execute', async (c) => {
   let userId: string;
@@ -34,6 +35,7 @@ app.post('/execute', async (c) => {
       const packIds = [...new Set(packs.map((p: any) => String(p?.id || '')).filter(Boolean))];
       if (!packIds.length) throw new Error('Battle has no packs configured');
       const allCards: any[] = (await client.query(`SELECT id,pack_id,card_name,name,rarity,estimated_value,value,card_image_url,image_url,odds,pull_chance FROM pack_cards WHERE pack_id=ANY($1::text[]) ORDER BY pack_id,id`, [packIds])).rows;
+      const replacementCards: any[] = (await client.query(`SELECT id,pack_id,card_name,name,rarity,estimated_value,value,card_image_url,image_url FROM pack_cards WHERE COALESCE(estimated_value,value,0) > 0 ORDER BY id`)).rows;
       const cardsByPack = new Map<string, any[]>();
       for (const packId of packIds) cardsByPack.set(packId, allCards.filter(card => String(card.pack_id) === packId));
       for (const packId of packIds) if (!(cardsByPack.get(packId) || []).length) throw new Error(`Pack ${packId} has no cards configured`);
@@ -77,38 +79,49 @@ app.post('/execute', async (c) => {
       if (mode === 'shared' || isDraw) {
         for (const p of playerResults) for (const card of p.cards) rewardAssignments.push({ card, userId: getRewardUserId(p.userId, p.isAi) });
       } else if (isTeamBattle && winningTeam) {
-        // The winning team receives the complete card pot. Find the two-way
-        // partition whose totals are closest to half of the pot. Cards may be
-        // reassigned from the player who pulled them; ownership is based on the
-        // final balanced result, not on the original pull.
         const winners = playerResults.filter(p => p.teamSide === winningTeam);
-        const allPulledCards = playerResults.flatMap(p => p.cards);
-        const totalCents = Math.round(allPulledCards.reduce((sum, card) => sum + Number(card.value || 0), 0) * 100);
-        const targetCents = totalCents / 2;
-        let bestSubset: any[] = [];
-        let bestDifference = Infinity;
-        const cardCount = allPulledCards.length;
-        const subsetCount = cardCount <= 20 ? 1 << cardCount : 0;
-        if (subsetCount) {
-          for (let mask = 0; mask < subsetCount; mask++) {
-            const subset: any[] = [];
-            let valueCents = 0;
-            for (let index = 0; index < cardCount; index++) if (mask & (1 << index)) { subset.push(allPulledCards[index]); valueCents += Math.round(Number(allPulledCards[index].value || 0) * 100); }
-            const difference = Math.abs(valueCents - targetCents);
-            if (difference < bestDifference || (difference === bestDifference && subset.length < bestSubset.length)) { bestSubset = subset; bestDifference = difference; }
+        const pulledCards = playerResults.flatMap(p => p.cards);
+        const target = pulledCards.reduce((sum, card) => sum + cents(card.value), 0) / winners.length;
+        const chosen: any[][] = winners.map(() => []);
+        const used = new Set<string>();
+        const ordered = [...pulledCards].sort((a, b) => cents(b.value) - cents(a.value));
+        for (const card of ordered) {
+          let bestIndex = 0, bestScore = Infinity;
+          for (let i = 0; i < winners.length; i++) {
+            const current = chosen[i].reduce((sum, item) => sum + cents(item.value), 0);
+            const score = Math.abs(current + cents(card.value) - target);
+            if (score < bestScore) { bestScore = score; bestIndex = i; }
           }
-        } else {
-          const ordered = [...allPulledCards].sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
-          let valueCents = 0;
-          for (const card of ordered) { if (Math.abs(valueCents + Math.round(Number(card.value || 0) * 100) - targetCents) < Math.abs(valueCents - targetCents)) { bestSubset.push(card); valueCents += Math.round(Number(card.value || 0) * 100); } }
+          chosen[bestIndex].push(card);
+          used.add(card.id);
         }
-        const firstWinnerCards = bestSubset;
-        const firstWinnerIds = new Set(firstWinnerCards.map(card => card.id));
-        const secondWinnerCards = allPulledCards.filter(card => !firstWinnerIds.has(card.id));
-        const winnerBuckets = [firstWinnerCards, secondWinnerCards];
-        for (let index = 0; index < winners.length; index++) {
-          const winner = winners[index];
-          const wonCards = winnerBuckets[index] || [];
+        // Replace cards when the raw pulled-card partition cannot get close enough.
+        // Replacement cards come from the configured catalog and are never cards
+        // already pulled in this battle. The final target is the total pot / winners.
+        for (let i = 0; i < winners.length; i++) {
+          let bucket = chosen[i];
+          let total = bucket.reduce((sum, card) => sum + cents(card.value), 0);
+          const replacementPool = replacementCards.filter(card => !used.has(String(card.id)));
+          if (bucket.length === 0 && replacementPool.length) {
+            const replacement = replacementPool.reduce((best, card) => Math.abs(cents(card.estimated_value ?? card.value) - target) < Math.abs(cents(best.estimated_value ?? best.value) - target) ? card : best, replacementPool[0]);
+            bucket = [{ id: `replacement_${uid()}`, cardId: replacement.id, name: replacement.card_name || replacement.name || 'Unknown Card', rarity: replacement.rarity || 'common', value: Number(replacement.estimated_value ?? replacement.value ?? 0), imageUrl: replacement.card_image_url || replacement.image_url || null, packId: replacement.pack_id, packName: 'Balanced Battle Replacement', emoji: RARITY_EMOJIS[replacement.rarity] || '🃏', isBot: false }];
+            chosen[i] = bucket; total = cents(bucket[0].value);
+          } else if (bucket.length) {
+            const replaceIndex = bucket.reduce((bestIndex, card, index, arr) => Math.abs(cents(arr[bestIndex].value) - target) > Math.abs(cents(card.value) - target) ? index : bestIndex, 0);
+            const currentCard = bucket[replaceIndex];
+            const candidate = replacementPool.reduce((best, card) => {
+              const candidateTotal = total - cents(currentCard.value) + cents(card.estimated_value ?? card.value);
+              const bestTotal = total - cents(currentCard.value) + cents(best.estimated_value ?? best.value);
+              return Math.abs(candidateTotal - target) < Math.abs(bestTotal - target) ? card : best;
+            }, replacementPool[0]);
+            if (candidate && Math.abs(total - target) > Math.abs(total - cents(currentCard.value) + cents(candidate.estimated_value ?? candidate.value) - target)) {
+              bucket[replaceIndex] = { id: `replacement_${uid()}`, cardId: candidate.id, name: candidate.card_name || candidate.name || 'Unknown Card', rarity: candidate.rarity || 'common', value: Number(candidate.estimated_value ?? candidate.value ?? 0), imageUrl: candidate.card_image_url || candidate.image_url || null, packId: candidate.pack_id, packName: 'Balanced Battle Replacement', emoji: RARITY_EMOJIS[candidate.rarity] || '🃏', isBot: false };
+              used.add(String(candidate.id));
+            }
+          }
+        }
+        for (let i = 0; i < winners.length; i++) {
+          const winner = winners[i], wonCards = chosen[i] || [];
           winner.cards = wonCards;
           winner.totalValue = Math.round(wonCards.reduce((sum, card) => sum + Number(card.value || 0), 0) * 100) / 100;
           for (const card of wonCards) rewardAssignments.push({ card, userId: getRewardUserId(winner.userId, winner.isAi) });
