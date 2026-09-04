@@ -24,7 +24,10 @@ app.post('/inventory/sell',async c=>{
       await client.query('UPDATE inventory SET sold=1 WHERE id=$1 AND user_id=$2 AND sold=0',[inventoryId,userId]);
       const wallet=await processWalletTransactionInClient(client,{userId,type:'sell',amount:value,sourceId:inventoryId});
       if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
-      await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6)',[`txn_${Date.now().toString(36)}`,userId,'sell',value,`Sold ${card.card_name || card.cardName || 'Card'}`,inventoryId]);
+      const cardName=card.card_name || card.cardName || 'Card';
+      const imageUrl=card.card_image_url || card.cardImageUrl || '';
+      const description=`Sold ${cardName}${imageUrl ? ` |img:${imageUrl}|` : ''}`;
+      await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6)',[`txn_${Date.now().toString(36)}`,userId,'sell',value,description,inventoryId]);
       return {kind:'ok' as const,value,balance:wallet.balanceAfter};
     });
     if(result.kind==='not_found')return c.json({error:'Card not found'},404);
@@ -45,7 +48,12 @@ app.post('/inventory/sell-all',async c=>{
       await client.query('UPDATE inventory SET sold=1 WHERE user_id=$1 AND id=ANY($2::text[]) AND sold=0',[userId,ids]);
       const wallet=await processWalletTransactionInClient(client,{userId,type:'sell_all',amount:total,sourceId});
       if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
-      await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6)',[`txn_${Date.now().toString(36)}`,userId,'sell_all',total,`Sold all ${cards.rowCount} unlocked cards`,sourceId]);
+      for(const card of cards.rows){
+        const cardName=card.card_name || card.cardName || 'Card';
+        const imageUrl=card.card_image_url || card.cardImageUrl || '';
+        const description=`Sold ${cardName}${imageUrl ? ` |img:${imageUrl}|` : ''}`;
+        await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6)',[`txn_${Date.now().toString(36)}_${String(card.id).slice(-8)}`,userId,'sell',Number(card.value||0),description,card.id]);
+      }
       return {balance:wallet.balanceAfter,ids,total,count:cards.rowCount};
     });
     if(!result)return c.json({error:'No unlocked cards to sell'},400);
