@@ -33,6 +33,7 @@ export const useUpgraderData = (state: UpgraderState) => {
       });
       setInventory(
         (Array.isArray(rows) ? rows : [])
+          .filter((r: any) => Number(r.sold ?? r.isSold ?? 0) === 0)
           .map(r => ({
             id: r.id as string,
             cardId: r.cardId as string,
@@ -44,7 +45,6 @@ export const useUpgraderData = (state: UpgraderState) => {
             isLocked: Number(r.isLocked) > 0,
             cardImageUrl: (r.cardImageUrl as string) || null,
           }))
-          .filter(c => !c.isLocked)
       );
     } catch (e) {
       console.error('Failed to load inventory:', e);
@@ -103,7 +103,7 @@ export const useUpgraderData = (state: UpgraderState) => {
               setInventory(prev => prev.filter(c => !ids.has(c.id)));
               setSelectedCards(prev => prev.filter(c => !ids.has(c.id)));
             } else if (data.type === 'add') {
-              setInventory(prev => [data.card, ...prev].filter(c => !c.isLocked));
+              setInventory(prev => [data.card, ...prev]);
             } else {
               loadInventory();
             }
