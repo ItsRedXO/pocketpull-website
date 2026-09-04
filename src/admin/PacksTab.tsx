@@ -46,7 +46,9 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const { data: packs = [], isLoading, refetch } = useQuery<PackCatalog[]>({
     queryKey: ['admin-packs'],
     queryFn: async () => {
-      const rows = await blink.db.packsCatalog.list({ orderBy: { sortOrder: 'asc' } });
+      // packs_catalog does not have a sortOrder database column.
+      // Fetch without SQL ordering, then sort the normalized rows in memory.
+      const rows = await blink.db.packsCatalog.list();
       return rows
         .filter((r: any) => !r.adminDeleted)
         .map((r: any) => ({
