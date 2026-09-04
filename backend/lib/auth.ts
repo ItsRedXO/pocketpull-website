@@ -45,6 +45,11 @@ export async function requireAuth(c: Context): Promise<string> {
   return userId;
 }
 
+/** Legacy call-site compatibility only. No Blink SDK or network/database client is used. */
+export function getBlinkServer(_env?: Record<string, unknown>): null {
+  return null;
+}
+
 export function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
