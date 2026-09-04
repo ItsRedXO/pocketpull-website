@@ -77,39 +77,40 @@ app.post('/execute', async (c) => {
       if (mode === 'shared' || isDraw) {
         for (const p of playerResults) for (const card of p.cards) rewardAssignments.push({ card, userId: getRewardUserId(p.userId, p.isAi) });
       } else if (isTeamBattle && winningTeam) {
-        // Winners keep the cards they personally pulled. The remaining cards
-        // from the entire battle pot are assigned one at a time to the winner
-        // with the lower current total, choosing the card that minimizes the
-        // final difference between the two winners' values.
+        // The winning team receives the complete card pot. Find the two-way
+        // partition whose totals are closest to half of the pot. Cards may be
+        // reassigned from the player who pulled them; ownership is based on the
+        // final balanced result, not on the original pull.
         const winners = playerResults.filter(p => p.teamSide === winningTeam);
-        const winnerCards = new Map<string, any[]>();
-        const winnerTotals = new Map<string, number>();
-        for (const winner of winners) {
-          const ownCards = [...winner.cards];
-          winnerCards.set(winner.playerId, ownCards);
-          winnerTotals.set(winner.playerId, ownCards.reduce((sum, card) => sum + Number(card.value || 0), 0));
-        }
-        const winningIds = new Set(winners.map(w => w.playerId));
-        const remainingCards = playerResults.flatMap(player => player.cards.filter(card => !winningIds.has(player.playerId)));
-        for (const card of remainingCards) {
-          let bestWinner = winners[0];
-          let bestDifference = Infinity;
-          for (const winner of winners) {
-            const candidateTotal = (winnerTotals.get(winner.playerId) || 0) + Number(card.value || 0);
-            const otherTotals = winners.filter(other => other.playerId !== winner.playerId).map(other => winnerTotals.get(other.playerId) || 0);
-            const difference = Math.max(...otherTotals.map(total => Math.abs(candidateTotal - total)), 0);
-            if (difference < bestDifference || (difference === bestDifference && candidateTotal < (winnerTotals.get(bestWinner.playerId) || 0))) {
-              bestWinner = winner;
-              bestDifference = difference;
-            }
+        const allPulledCards = playerResults.flatMap(p => p.cards);
+        const totalCents = Math.round(allPulledCards.reduce((sum, card) => sum + Number(card.value || 0), 0) * 100);
+        const targetCents = totalCents / 2;
+        let bestSubset: any[] = [];
+        let bestDifference = Infinity;
+        const cardCount = allPulledCards.length;
+        const subsetCount = cardCount <= 20 ? 1 << cardCount : 0;
+        if (subsetCount) {
+          for (let mask = 0; mask < subsetCount; mask++) {
+            const subset: any[] = [];
+            let valueCents = 0;
+            for (let index = 0; index < cardCount; index++) if (mask & (1 << index)) { subset.push(allPulledCards[index]); valueCents += Math.round(Number(allPulledCards[index].value || 0) * 100); }
+            const difference = Math.abs(valueCents - targetCents);
+            if (difference < bestDifference || (difference === bestDifference && subset.length < bestSubset.length)) { bestSubset = subset; bestDifference = difference; }
           }
-          winnerCards.get(bestWinner.playerId)!.push(card);
-          winnerTotals.set(bestWinner.playerId, (winnerTotals.get(bestWinner.playerId) || 0) + Number(card.value || 0));
+        } else {
+          const ordered = [...allPulledCards].sort((a, b) => Number(b.value || 0) - Number(a.value || 0));
+          let valueCents = 0;
+          for (const card of ordered) { if (Math.abs(valueCents + Math.round(Number(card.value || 0) * 100) - targetCents) < Math.abs(valueCents - targetCents)) { bestSubset.push(card); valueCents += Math.round(Number(card.value || 0) * 100); } }
         }
-        for (const winner of winners) {
-          const wonCards = winnerCards.get(winner.playerId) || [];
+        const firstWinnerCards = bestSubset;
+        const firstWinnerIds = new Set(firstWinnerCards.map(card => card.id));
+        const secondWinnerCards = allPulledCards.filter(card => !firstWinnerIds.has(card.id));
+        const winnerBuckets = [firstWinnerCards, secondWinnerCards];
+        for (let index = 0; index < winners.length; index++) {
+          const winner = winners[index];
+          const wonCards = winnerBuckets[index] || [];
           winner.cards = wonCards;
-          winner.totalValue = Math.round(winnerTotals.get(winner.playerId)! * 100) / 100;
+          winner.totalValue = Math.round(wonCards.reduce((sum, card) => sum + Number(card.value || 0), 0) * 100) / 100;
           for (const card of wonCards) rewardAssignments.push({ card, userId: getRewardUserId(winner.userId, winner.isAi) });
         }
       } else if (winnerResult) {
