@@ -200,6 +200,7 @@ export const LiveBattleBoard: React.FC<Props> = ({ onCreateBattle, onJoinBattle,
                 loading={loading}
                 currentUserId={user?.id}
                 onWatch={onWatchBattle}
+                onRejoin={onJoinBattle}
               />
             </motion.div>
           )}
