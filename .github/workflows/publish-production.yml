@@ -6,7 +6,7 @@ on:
       source_branch:
         description: Branch to publish
         required: true
-        default: staging
+        default: main
         type: string
       confirm:
         description: Type PUBLISH to confirm the production deployment
