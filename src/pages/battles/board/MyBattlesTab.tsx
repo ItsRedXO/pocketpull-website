@@ -1,5 +1,5 @@
 import React from 'react';
-import { Swords, Eye } from 'lucide-react';
+import { Swords, Eye, LogIn } from 'lucide-react';
 import { BattleWithPlayers } from '../battleTypes';
 
 interface MyBattlesTabProps {
@@ -7,6 +7,7 @@ interface MyBattlesTabProps {
   loading: boolean;
   currentUserId?: string;
   onWatch: (id: string) => void;
+  onRejoin: (id: string) => void | Promise<void>;
 }
 
 export const MyBattlesTab: React.FC<MyBattlesTabProps> = ({
@@ -14,6 +15,7 @@ export const MyBattlesTab: React.FC<MyBattlesTabProps> = ({
   loading,
   currentUserId,
   onWatch,
+  onRejoin,
 }) => {
   if (!currentUserId) {
     return (
@@ -43,31 +45,36 @@ export const MyBattlesTab: React.FC<MyBattlesTabProps> = ({
 
   return (
     <div className="space-y-3">
-      {battles.map(b => (
-        <div key={b.id} className="glass-card p-4 flex items-center justify-between group hover:border-white/20 transition-all">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/5">
-              <Swords size={20} className="text-white/40" />
+      {battles.map(b => {
+        const isActive = ['waiting', 'starting', 'live'].includes(b.status);
+        return (
+          <div key={b.id} className="glass-card p-4 flex items-center justify-between group hover:border-white/20 transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/5">
+                <Swords size={20} className="text-white/40" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white uppercase tracking-wider">{b.hostUsername}'s Battle</p>
+                <p className="text-[10px] text-white/20 uppercase tracking-widest">{b.mode} · {b.playerCount} players · {b.status}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-bold text-white uppercase tracking-wider">{b.hostUsername}'s Battle</p>
-              <p className="text-[10px] text-white/20 uppercase tracking-widest">{b.mode} · {b.playerCount} players</p>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-sm font-display text-[#ffd700]">${b.totalCost.toFixed(2)}</p>
+                <p className="text-[9px] text-white/20 uppercase tracking-widest">Entry</p>
+              </div>
+              <button
+                onClick={() => { if (isActive) void onRejoin(b.id); else onWatch(b.id); }}
+                className={`px-4 py-2 rounded-lg border text-xs font-bold transition-all flex items-center gap-2 ${isActive
+                  ? 'bg-[#00c8ff]/10 border-[#00c8ff]/25 text-[#00c8ff] hover:bg-[#00c8ff]/20'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}`}
+              >
+                {isActive ? <><LogIn size={14} /> REJOIN</> : <><Eye size={14} /> VIEW</>}
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-sm font-display text-[#ffd700]">${b.totalCost.toFixed(2)}</p>
-              <p className="text-[9px] text-white/20 uppercase tracking-widest">Entry</p>
-            </div>
-            <button
-              onClick={() => onWatch(b.id)}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-bold hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
-            >
-              <Eye size={14} /> VIEW
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
