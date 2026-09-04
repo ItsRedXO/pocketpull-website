@@ -1,14 +1,16 @@
 import { Hono } from 'hono';
-import { requireAuth, uid } from '../../lib/auth';
+import { requireAuth } from '../../lib/auth';
 import { transaction } from '../../lib/postgres';
 import { processWalletTransactionInClient } from '../../repositories/wallet';
 
 const app = new Hono();
 
 /**
- * Recovery/cancellation endpoint. This is intentionally implemented with one
- * PostgreSQL transaction so a refund can never be paid twice, even if the
- * browser retries or the user double-clicks Cancel.
+ * Recovery/cancellation endpoint.
+ *
+ * The battle row is locked for the entire operation, settlement evidence is
+ * checked before any refund, and every refund uses a participant-specific
+ * idempotency source. Repeated requests therefore cannot mint extra balance.
  */
 app.post('/cancel', async (c) => {
   let userId: string;
@@ -25,47 +27,107 @@ app.post('/cancel', async (c) => {
       const battle: any = battleResult.rows[0];
       if (!battle) throw Object.assign(new Error('Battle not found'), { status: 404 });
       if (String(battle.host_user_id) !== userId) throw Object.assign(new Error('Only host can cancel'), { status: 403 });
+
+      // Make retries harmless. Once canceled, return the already-settled refund
+      // state without creating any new wallet entries.
+      if (String(battle.status) === 'canceled') {
+        const prior = await client.query(
+          `SELECT COALESCE(SUM(amount),0) AS refunded
+           FROM wallet_transactions
+           WHERE type='battle_entry_refund' AND source_id LIKE $1`,
+          [`${battleId}:refund:%`],
+        );
+        const user = await client.query('SELECT balance FROM users WHERE id=$1', [userId]);
+        return {
+          alreadyCanceled: true,
+          newBalance: Number(user.rows[0]?.balance || 0),
+          refundAmount: Number(prior.rows[0]?.refunded || 0),
+          refundedPlayers: 0,
+        };
+      }
+
       if (!['waiting', 'starting', 'live'].includes(String(battle.status))) {
         throw Object.assign(new Error('Battle cannot be canceled in its current state'), { status: 400 });
       }
 
-      const playerResult = await client.query('SELECT * FROM battle_players WHERE battle_id=$1', [battleId]);
+      const playerResult = await client.query('SELECT * FROM battle_players WHERE battle_id=$1 ORDER BY joined_at,id', [battleId]);
       const humans = playerResult.rows.filter((p: any) => Number(p.is_ai || 0) === 0);
-      if (humans.length > 1) throw Object.assign(new Error('Cannot cancel after another human has joined'), { status: 400 });
+      if (humans.length === 0) throw Object.assign(new Error('Battle has no refundable human participants'), { status: 400 });
 
+      // If execution is actively committing, the FOR UPDATE above waits for it.
+      // After the lock is acquired, any persisted reward/audit means the battle
+      // has settled and a cancellation refund must be rejected.
       const completed = await client.query(
         `SELECT
           (SELECT COUNT(*) FROM inventory WHERE battle_id=$1) AS inventory_count,
-          (SELECT COUNT(*) FROM battle_pull_audits WHERE battle_id=$1) AS audit_count,
-          (SELECT COUNT(*) FROM packs_opened WHERE id LIKE $2) AS pull_count`,
-        [battleId, `po_%`],
+          (SELECT COUNT(*) FROM battle_pull_audits WHERE battle_id=$1) AS audit_count`,
+        [battleId],
       );
       const row = completed.rows[0];
       if (Number(row.inventory_count) > 0 || Number(row.audit_count) > 0) {
         throw Object.assign(new Error('Battle has already settled and cannot be refunded'), { status: 409 });
       }
 
-      const refundAmount = Number(battle.total_cost || 0);
-      if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
-        throw Object.assign(new Error('Battle has no refundable entry fee'), { status: 400 });
+      let totalRefunded = 0;
+      let refundedPlayers = 0;
+      let hostBalance = 0;
+
+      for (const human of humans) {
+        const humanUserId = String(human.user_id || '');
+        if (!humanUserId) continue;
+
+        // Refund only a participant who has an authoritative battle-entry debit.
+        // This prevents a forged/stale player row from ever creating free money.
+        const entryResult = await client.query(
+          `SELECT amount,matched_before,matched_after
+           FROM wallet_transactions
+           WHERE user_id=$1 AND source_id=$2 AND type='battle_entry'
+           ORDER BY created_at ASC
+           LIMIT 1`,
+          [humanUserId, battleId],
+        );
+        const entry = entryResult.rows[0];
+        if (!entry) {
+          throw Object.assign(new Error(`Missing battle entry ledger for participant ${humanUserId}`), { status: 409 });
+        }
+
+        const entryAmount = Number(entry.amount || 0);
+        const refundAmount = Math.abs(Math.min(0, entryAmount));
+        if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+          throw Object.assign(new Error(`Invalid battle entry ledger for participant ${humanUserId}`), { status: 409 });
+        }
+
+        const matchedSpent = Math.max(0, Number(entry.matched_before || 0) - Number(entry.matched_after || 0));
+        const refundSource = `${battleId}:refund:${human.user_id}`;
+        const wallet = await processWalletTransactionInClient(client, {
+          userId: humanUserId,
+          type: 'battle_entry_refund',
+          amount: refundAmount,
+          matchedAmount: Math.min(refundAmount, matchedSpent),
+          sourceId: refundSource,
+          metadata: { battleId, reason: 'battle_cancel_or_recovery', originalEntrySource: battleId },
+        });
+        if (!wallet.success) throw Object.assign(new Error(wallet.error || 'Failed to refund balance'), { status: 500 });
+
+        totalRefunded += refundAmount;
+        refundedPlayers += 1;
+        if (humanUserId === userId) hostBalance = wallet.balanceAfter;
       }
 
-      const refundSource = `${battleId}:refund`;
-      const wallet = await processWalletTransactionInClient(client, {
-        userId,
-        type: 'battle_entry_refund',
-        amount: refundAmount,
-        sourceId: refundSource,
-        metadata: { battleId, reason: 'battle_cancel_or_recovery' },
-      });
-      if (!wallet.success) throw Object.assign(new Error(wallet.error || 'Failed to refund balance'), { status: 500 });
-
       await client.query(
-        `UPDATE battles SET status='canceled', ended_at=COALESCE(ended_at,now()), updated_at=now() WHERE id=$1 AND status IN ('waiting','starting','live')`,
+        `UPDATE battles
+         SET status='canceled', ended_at=COALESCE(ended_at,now()), updated_at=now()
+         WHERE id=$1 AND status IN ('waiting','starting','live')`,
         [battleId],
       );
       await client.query('DELETE FROM battle_players WHERE battle_id=$1 AND is_ai=1', [battleId]);
-      return { newBalance: wallet.balanceAfter, refundAmount };
+
+      return {
+        alreadyCanceled: false,
+        newBalance: hostBalance,
+        refundAmount: totalRefunded,
+        refundedPlayers,
+      };
     });
 
     return c.json({ success: true, ...result });

@@ -46,7 +46,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const { data: packs = [], isLoading, refetch } = useQuery<PackCatalog[]>({
     queryKey: ['admin-packs'],
     queryFn: async () => {
-      const rows = await blink.db.packsCatalog.list({ orderBy: { name: 'asc' } });
+      const rows = await blink.db.packsCatalog.list({ orderBy: { sortOrder: 'asc' } });
       return rows
         .filter((r: any) => !r.adminDeleted)
         .map((r: any) => ({
@@ -54,7 +54,8 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
           packType: r.packType === 'mystery' ? 'mystery' : 'standard',
           price: Number(r.price),
           sortOrder: Number(r.sortOrder ?? 0), isActive: Number(r.isActive ?? 1),
-        })) as PackCatalog[];
+        }))
+        .sort((a: any, b: any) => (a.sortOrder - b.sortOrder) || String(a.name || '').localeCompare(String(b.name || ''))) as PackCatalog[];
     },
     staleTime: 0,
     refetchInterval: 3000,

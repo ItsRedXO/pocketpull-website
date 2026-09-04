@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Swords } from 'lucide-react';
+import { Swords, RotateCcw } from 'lucide-react';
 import { MODE_INFO } from './battleUtils';
 import { useBattleRoom } from './room/useBattleRoom';
 
@@ -44,7 +44,7 @@ export const BattleRoom: React.FC<Props> = ({ battleId, onBack, watchOnly = fals
   const [cancelling, setCancelling] = React.useState(false);
 
   const handleCancel = async () => {
-    if (!window.confirm('Are you sure you want to cancel this battle? You will be fully refunded.')) return;
+    if (!window.confirm('Are you sure you want to cancel this battle? Every charged human player will be refunded once. This only succeeds if the battle has not settled.')) return;
     setCancelling(true);
     const success = await cancelBattle();
     if (success) {
@@ -83,6 +83,9 @@ export const BattleRoom: React.FC<Props> = ({ battleId, onBack, watchOnly = fals
     }
   })();
   const isHost = user?.id === battle.hostUserId;
+  const canRecoverCancel = isHost
+    && !watchOnly
+    && (battle.status === 'starting' || battle.status === 'live');
   // Finished status is authoritative after a refresh. Recover the winner from
   // persisted player flags or the battle row even if the local step reducer was
   // reset during navigation/polling.
@@ -131,6 +134,24 @@ export const BattleRoom: React.FC<Props> = ({ battleId, onBack, watchOnly = fals
           isOpening={phase === 'opening'}
           isSpinning={isRoundSpinning}
         />
+
+        {canRecoverCancel && (
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-red-500/15 bg-red-500/[0.04] px-4 py-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-white/55">Battle recovery</p>
+              <p className="text-[10px] text-white/30 mt-1">If this battle is actually stuck, you can cancel it. The server blocks refunds after cards have settled.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-red-400/25 bg-red-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RotateCcw size={13} className={cancelling ? 'animate-spin' : ''} />
+              {cancelling ? 'Refunding...' : 'Cancel & Refund'}
+            </button>
+          </div>
+        )}
 
         <BattleCountdown 
           countdown={countdown} 

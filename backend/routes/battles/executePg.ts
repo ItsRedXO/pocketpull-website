@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { requireAuth, uid, getRewardUserId } from '../../lib/auth';
 import { query, transaction } from '../../lib/postgres';
-import { processWalletTransactionInClient } from '../../repositories/wallet';
 import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../../lib/provablyFair';
 import { getOrCreateServerSeed } from '../../lib/provablyFairServerSeed';
 import { rollBotWinChance, determineBattleWinner, distributeCardsShared, getWinnerPool, isExactTie, RARITY_EMOJIS } from './utils';
@@ -75,14 +74,31 @@ app.post('/execute', async (c) => {
       if (isTeamBattle) { const left = Math.round(playerResults.filter(p => p.teamSide === 'left').reduce((s,p) => s + p.totalValue, 0) * 100), right = Math.round(playerResults.filter(p => p.teamSide === 'right').reduce((s,p) => s + p.totalValue, 0) * 100); if (left === right) isDraw = true; else { winningTeam = left > right ? 'left' : 'right'; for (const p of playerResults) p.isWinner = p.teamSide === winningTeam; winnerResult = playerResults.find(p => p.teamSide === winningTeam) || null; } }
       if (mode === 'shared') { for (const p of playerResults) p.isWinner = true; const distribution = distributeCardsShared(playerResults.map(p => ({ playerId: p.playerId, cards: p.cards }))); for (const p of playerResults) { p.cards = distribution.get(p.playerId) || []; p.totalValue = Math.round(p.cards.reduce((s:number, card:any) => s + Number(card.value || 0), 0) * 100) / 100; } }
       const rewardAssignments: Array<{ card: any; userId: string }> = [];
-      if (mode === 'shared' || isDraw) for (const p of playerResults) for (const card of p.cards) rewardAssignments.push({ card, userId: getRewardUserId(p.userId, p.isAi) });
-      else if (isTeamBattle && winningTeam) { const winners = playerResults.filter(p => p.teamSide === winningTeam); for (const [index, card] of playerResults.flatMap(p => p.cards).entries()) { const recipient = winners[index % Math.max(winners.length, 1)]; if (recipient) rewardAssignments.push({ card, userId: getRewardUserId(recipient.userId, recipient.isAi) }); } }
-      else if (winnerResult) for (const p of playerResults) for (const card of p.cards) rewardAssignments.push({ card, userId: getRewardUserId(winnerResult.userId, winnerResult.isAi) });
+      if (mode === 'shared' || isDraw) {
+        for (const p of playerResults) for (const card of p.cards) rewardAssignments.push({ card, userId: getRewardUserId(p.userId, p.isAi) });
+      } else if (isTeamBattle && winningTeam) {
+        // The winning 2v2 team receives the complete pulled-card pot. Split the
+        // pot evenly by card count, while balancing value as closely as possible.
+        // No wallet cash reward is created: the cards themselves are the winnings.
+        const winners = playerResults.filter(p => p.teamSide === winningTeam);
+        const allPulledCards = playerResults.flatMap(p => p.cards);
+        const teamDistribution = distributeCardsShared(winners.map((winner, index) => ({
+          playerId: winner.playerId,
+          cards: index === 0 ? allPulledCards : [],
+        })));
+        for (const winner of winners) {
+          const wonCards = teamDistribution.get(winner.playerId) || [];
+          for (const card of wonCards) {
+            rewardAssignments.push({ card, userId: getRewardUserId(winner.userId, winner.isAi) });
+          }
+        }
+      } else if (winnerResult) {
+        for (const p of playerResults) for (const card of p.cards) rewardAssignments.push({ card, userId: getRewardUserId(winnerResult.userId, winnerResult.isAi) });
+      }
       for (const assignment of rewardAssignments) await client.query(`INSERT INTO inventory(id,user_id,card_id,pack_id,battle_id,card_name,rarity,value,emoji,card_image_url,pack_name,is_favorite,favorite,is_locked,locked,sold,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,0,0,0,0,now())`, [`inv_${uid()}`, assignment.userId, assignment.card.cardId, assignment.card.packId, battleId, assignment.card.name, assignment.card.rarity, Number(assignment.card.value || 0), assignment.card.emoji || '🃏', assignment.card.imageUrl || null, assignment.card.packName || null]);
       for (const p of playerResults) await client.query(`UPDATE battle_players SET cards_json=$1,total_value=$2,is_winner=$3 WHERE id=$4`, [JSON.stringify(p.cards), p.totalValue, p.isWinner ? 1 : 0, p.playerId]);
       for (const audit of audits) await client.query(`INSERT INTO battle_pull_audits(id,battle_id,participant_id,client_seed,nonce,roll_value,server_seed_hash,odds_version_hash,data) VALUES($1,$2,NULL,$3,$4,$5,$6,$7,$8)`, [audit.id, battleId, audit.clientSeed, audit.nonce, audit.rollValue, audit.serverSeedHash, audit.oddsVersionHash, JSON.stringify(audit)]);
       for (const pull of humanPulls) await client.query(`INSERT INTO packs_opened(id,user_id,pack_id,pack_name,cost,card_name,rarity,client_seed,nonce,roll_value,server_seed_hash,odds_version_hash,provably_fair,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,1,now())`, [`po_${uid()}`, pull.userId, pull.packId, pull.packName, pull.cost, pull.cardName, pull.rarity, pull.clientSeed, pull.nonce, pull.rollValue, pull.serverSeedHash, pull.oddsVersionHash]);
-      if (isTeamBattle && winningTeam && !isDraw) { const winningPlayers = playerResults.filter(p => p.teamSide === winningTeam && !p.isAi), teamPot = Number(battle.total_cost || 0) * playerResults.length, share = teamPot / Math.max(winningPlayers.length, 1); for (const p of winningPlayers) { const wallet = await processWalletTransactionInClient(client, { userId: p.userId, type: 'battle_team_reward', amount: share, sourceId: `${battleId}_${winningTeam}`, metadata: { teamSide: winningTeam, teamPot, share } }); if (!wallet.success) throw new Error(wallet.error || 'Failed to award team battle winnings'); } }
       await client.query(`UPDATE battles SET status='finished',ended_at=now(),winner_user_id=$1,winner_username=$2 WHERE id=$3`, [winnerResult?.userId || null, winnerResult?.username || null, battleId]);
       return { alreadyFinished: false, battle, playerResults, winner: winnerResult, isDraw };
     });

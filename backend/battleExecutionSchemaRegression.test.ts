@@ -11,7 +11,9 @@ test('PostgreSQL battle execution does not update the removed is_spinning column
   assert.doesNotMatch(executeSource, /\bis_spinning\b/);
 });
 
-test('battle execution schema test covers the PostgreSQL route, not the legacy route', () => {
+test('battle execution schema test covers the PostgreSQL settlement route, not the legacy route', () => {
   assert.match(executeSource, /app\.post\('\/execute'/);
-  assert.match(executeSource, /processWalletTransactionInClient/);
+  assert.match(executeSource, /transaction\(async \(client\)/);
+  assert.match(executeSource, /INSERT INTO inventory/);
+  assert.match(executeSource, /UPDATE battles SET status='finished'/);
 });
