@@ -1,54 +1,34 @@
 import type { Context } from 'hono';
-import { jwtVerify } from 'jose';
+import { createClient } from '@blinkdotnew/sdk';
 import { getUser } from '../repositories/users';
-
-function getRuntimeEnv(env: Record<string, string> = {}) {
-  return {
-    ...(typeof process !== 'undefined' ? process.env as Record<string, string> : {}),
-    ...(env || {}),
-  };
-}
-
-function getJwtSecret(env: Record<string, string>) {
-  const secret = env.SUPABASE_JWT_SECRET || env.JWT_SECRET;
-  if (!secret) throw new Error('SUPABASE_JWT_SECRET is not configured');
-  return new TextEncoder().encode(secret);
-}
+import { postgresBlinkDb } from './postgresBlinkDb';
 
 export async function requireAuth(c: Context): Promise<string> {
-  const authorization = c.req.header('Authorization') || '';
-  const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
-  if (!token) throw new Error('UNAUTHORIZED');
-
-  const env = getRuntimeEnv(c.env as Record<string, string>);
-  let payload: Record<string, unknown>;
+  const blink = getBlinkServer(c.env as any);
+  const auth = await blink.auth.verifyToken(c.req.header('Authorization'));
+  if (!auth.valid || !auth.userId) throw new Error('UNAUTHORIZED');
   try {
-    const verified = await jwtVerify(token, getJwtSecret(env), {
-      algorithms: ['HS256'],
-      issuer: env.SUPABASE_URL ? `${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1` : undefined,
-      audience: 'authenticated',
-    });
-    payload = verified.payload as Record<string, unknown>;
-  } catch {
-    throw new Error('UNAUTHORIZED');
-  }
-
-  const userId = String(payload.sub || '');
-  if (!userId) throw new Error('UNAUTHORIZED');
-
-  try {
-    const user = await getUser(userId);
+    const user = await getUser(auth.userId);
     if (user && Number(user.is_deleted || 0) > 0) throw new Error('ACCOUNT_DEACTIVATED');
   } catch (err: any) {
     if (err.message === 'ACCOUNT_DEACTIVATED') throw err;
   }
-  return userId;
+  return auth.userId;
 }
 
-// Legacy route compatibility: migrated routes may still import this name.
-// It intentionally does not create or access a Blink client.
-export function getBlinkServer(_env?: Record<string, unknown>): null {
-  return null;
+/** Blink remains the authentication provider; application data is PostgreSQL-backed. */
+export function getBlinkServer(env: Record<string,string> = {}) {
+  const runtimeEnv: Record<string,string> = {
+    ...(typeof process !== 'undefined' ? process.env as Record<string,string> : {}),
+    ...(env || {}),
+  };
+  if (runtimeEnv.DATABASE_URL && typeof process !== 'undefined') process.env.DATABASE_URL = runtimeEnv.DATABASE_URL;
+  const client: any = createClient({ projectId: runtimeEnv.BLINK_PROJECT_ID, secretKey: runtimeEnv.BLINK_SECRET_KEY });
+  return new Proxy(client, {
+    get(target, property, receiver) {
+      return property === 'db' ? postgresBlinkDb : Reflect.get(target, property, receiver);
+    },
+  });
 }
 
 export function uid(): string {
@@ -68,6 +48,7 @@ export function getRewardUserId(originalUserId: string, isBot: boolean) {
   if (isBot || originalUserId.startsWith('ai_')) return BOT_REWARD_RECIPIENT_ID;
   return originalUserId;
 }
+
 export function assertPositive(val: number, name = 'amount') {
   if (!Number.isFinite(val) || val <= 0) throw new Error(`Invalid ${name}: must be a positive number`);
 }
