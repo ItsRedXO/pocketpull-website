@@ -1,25 +1,16 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyResult } from 'jose';
 
 /**
- * Verifies Supabase Auth JWTs. Runs entirely alongside the existing Blink
- * auth path; nothing here is wired into requireAuth() yet.
+ * Verifies Supabase Auth JWTs. Accepted as an additional path inside
+ * requireAuth() (see ./auth.ts resolveUserId) alongside the existing Blink
+ * verification — not a replacement.
  *
- * Supabase projects sign session JWTs one of two ways depending on project
- * age/settings:
- *   1. Newer "JWT Signing Keys" (asymmetric, e.g. ES256) — verifiable via the
- *      project's public JWKS endpoint, no secret needed.
- *   2. Legacy shared-secret JWTs (HS256) — verifiable only with the
- *      project's JWT secret (Settings -> API -> JWT Settings), a real
- *      secret that must be set as SUPABASE_JWT_SECRET.
+ * Confirmed live against this project (2026-09-06): it uses modern
+ * JWKS-based (asymmetric) signing, so JWKS verification succeeds with no
+ * SUPABASE_JWT_SECRET set. The HS256 fallback below is unused defensive
+ * code, kept only in case the project's signing method ever changes.
  *
- * This project's anon key is in the legacy HS256 format, so path 2 is the
- * one that's actually needed here — but this tries JWKS first and falls
- * back cleanly, so it keeps working if the project is ever migrated to the
- * newer signing-keys system without code changes.
- *
- * SUPABASE_URL is required either way (public, safe to expose). Only set
- * SUPABASE_JWT_SECRET if JWKS verification doesn't work for this project —
- * see README_WIRING.md.
+ * SUPABASE_URL is required (public, safe to expose).
  */
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
