@@ -235,7 +235,7 @@ export const BattleCard: React.FC<BattleCardProps> = ({
             )}
             {isJoined && (
               <button
-                onClick={onJoin}
+                onClick={() => onJoin()}
                 className="flex-[2] py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-500/30 transition-all"
               >
                 <Users size={14} /> RE-JOIN

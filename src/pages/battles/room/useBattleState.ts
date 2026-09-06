@@ -264,6 +264,7 @@ export const useBattleState = (battleId: string) => {
         totalValue: Number(p.totalValue || p.total_value || 0),
         isWinner:   Number(p.isWinner || p.is_winner) > 0,
         teamSide: p.teamSide || p.team_side || null,
+        cardsJson: p.cardsJson || p.cards_json,
       }));
       setPlayers(normalPlayers);
 
@@ -275,20 +276,20 @@ export const useBattleState = (battleId: string) => {
         // card data during animation (not empty shells).
         if (resultsRef.current.length === 0 || normalPlayers.some(p => {
           const existing = resultsRef.current.find(r => r.playerId === p.id);
-          const cardsLen = JSON.parse(p.cardsJson || p.cards_json || '[]').length;
+          const cardsLen = JSON.parse(p.cardsJson || '[]').length;
           return cardsLen > 0 && (existing?.cards?.length || 0) < cardsLen;
         })) {
           dispatch({
             type: 'SET_RESULTS',
             results: normalPlayers.map(p => ({
               playerId: p.id,
-              teamSide: p.teamSide || p.team_side || null,
+              teamSide: p.teamSide,
               userId:   p.userId,
               username: p.username,
               avatar:   p.avatar,
               isAi:     p.isAi,
-              cards:    JSON.parse(p.cardsJson || p.cards_json || '[]'),
-              totalValue: Number(p.totalValue || p.total_value || 0),
+              cards:    JSON.parse(p.cardsJson || '[]'),
+              totalValue: p.totalValue,
               isWinner: p.isWinner,
             })),
           });
@@ -329,13 +330,13 @@ export const useBattleState = (battleId: string) => {
         finishSyncRef.current = battleId;
         const dbResults: PlayerBattleResult[] = normalPlayers.map(p => ({
           playerId:   p.id,
-          teamSide:   p.teamSide || p.team_side || null,
+          teamSide:   p.teamSide,
           userId:     p.userId,
           username:   p.username,
           avatar:     p.avatar,
           isAi:       p.isAi,
-          cards:      JSON.parse(p.cardsJson || p.cards_json || '[]'),
-          totalValue: Number(p.totalValue || p.total_value || 0),
+          cards:      JSON.parse(p.cardsJson || '[]'),
+          totalValue: p.totalValue,
           isWinner:   p.isWinner,
         }));
         dispatch({ type: 'SET_RESULTS', results: dbResults });
