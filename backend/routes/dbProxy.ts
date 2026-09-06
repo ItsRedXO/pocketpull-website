@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getBlinkServer } from '../lib/auth';
+import { resolveUserId } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { postgresBlinkDb } from '../lib/postgresBlinkDb';
 import { buildSupportMessageScope } from '../supportMessageScope';
@@ -40,13 +40,7 @@ const mapRow = (row: any) => {
 };
 
 async function auth(c: any): Promise<{ userId: string | null; admin: boolean }> {
-  const blink = getBlinkServer(c.env as any);
-  let userId: string | null = null;
-  try {
-    const result = await blink.auth.verifyToken(c.req.header('Authorization'));
-    if (result.valid && result.userId) userId = result.userId;
-  } catch {}
-
+  const userId = await resolveUserId(c);
   let admin = false;
   const secret = c.req.header('X-Admin-Secret');
   if (secret && secret !== 'true') {

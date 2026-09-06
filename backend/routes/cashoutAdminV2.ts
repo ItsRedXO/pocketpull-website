@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getBlinkServer, uid } from '../lib/auth';
+import { resolveUserId, uid } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
 import { sendEmailWithLog } from '../lib/emailLogging';
 import { isAdminSecretCandidate } from '../lib/adminAuthorization';
@@ -24,12 +24,9 @@ async function requireAdmin(c: any): Promise<void> {
     if (rows[0]?.id) return;
   }
 
-  const authorization = c.req.header('Authorization');
-  if (!authorization?.startsWith('Bearer ')) throw new Error('UNAUTHORIZED');
-  const blink = getBlinkServer(c.env as any);
-  const auth = await blink.auth.verifyToken(authorization);
-  if (!auth.valid || !auth.userId) throw new Error('UNAUTHORIZED');
-  const rows = await query<{ role: string; is_admin: number }>('SELECT role,is_admin FROM users WHERE id=$1 LIMIT 1', [auth.userId]);
+  const userId = await resolveUserId(c);
+  if (!userId) throw new Error('UNAUTHORIZED');
+  const rows = await query<{ role: string; is_admin: number }>('SELECT role,is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
   const user = rows[0];
   if (user?.role !== 'admin' && user?.role !== 'owner' && Number(user?.is_admin || 0) !== 1) throw new Error('FORBIDDEN');
 }
