@@ -142,7 +142,7 @@ function SellDetails({ details, valueIn }: { details: any; valueIn: number }) {
     queryKey: ['admin-sale-card-images', cardNames],
     queryFn: async () => {
       try {
-        return await blink.db.table<any>('packCards').list({ limit: 5000 });
+        return await blink.db.table('packCards').list({ limit: 5000 });
       } catch {
         return [];
       }
