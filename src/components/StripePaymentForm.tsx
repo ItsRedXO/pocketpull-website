@@ -107,7 +107,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
               type: 'accordion',
               defaultCollapsed: false,
               radios: 'never',
-              spaced: true
+              spacedAccordionItems: true
             },
             fields: {
               billingDetails: { address: { country: 'auto' } },

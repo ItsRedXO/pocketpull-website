@@ -111,7 +111,7 @@ export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => vo
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await blink.db.table<OutboundEmail>('outboundEmails').list({ orderBy: { createdAt: 'desc' }, limit: 500 });
+      const rows = await blink.db.table('outboundEmails').list({ orderBy: { createdAt: 'desc' }, limit: 500 });
       setEmails(Array.isArray(rows) ? (rows as any[]).map(mapEmailRow) : []);
     } catch (error: any) {
       showToast?.(error?.message || 'Failed to load outbound emails', false);

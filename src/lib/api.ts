@@ -41,7 +41,7 @@ export interface CreateBattleResult { success: boolean; battleId: string; privat
 export const createBattle = (params: { selectedPackIds: string[]; mode: string; playerCount: number; isPublic: boolean; teamMode?: boolean }) => post<CreateBattleResult>('/battles/create', params);
 export interface BattleStateResult { success: boolean; battle: any; players: any[]; packCards: any[]; }
 export const fetchBattleStateAPI = (battleId: string) => get<BattleStateResult>(`/battles/state?battleId=${encodeURIComponent(battleId)}`);
-export interface JoinBattleResult { success: boolean; alreadyJoined?: boolean; newBalance: number; }
+export interface JoinBattleResult { success: boolean; alreadyJoined?: boolean; newBalance: number; message?: string; }
 export const joinBattle = (battleId: string, teamSide?: 'left' | 'right') => post<JoinBattleResult>('/battles/join', { battleId, teamSide });
 export const resolvePrivateBattleCode = (privateCode: string) => post<{ success: boolean; battleId: string; privateCode: string }>('/battles/resolve-code', { privateCode });
 export const cancelBattle = (battleId: string) => post<{ success: boolean; newBalance: number }>('/battles/cancel', { battleId });
