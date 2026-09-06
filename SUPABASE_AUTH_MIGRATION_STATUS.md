@@ -1,4 +1,4 @@
-# Supabase Auth Migration — Status (as of 2026-09-06)
+# Supabase Auth Migration — Status (as of 2026-09-06, Phase 2 complete)
 
 ## Goal
 Final architecture: GitHub (source) → Railway (backend/API) → Supabase (Postgres + Supabase Auth).
@@ -70,17 +70,54 @@ Phase 0 (identity model) approved: keep existing `usr_XXXX` app IDs, link via `a
 touched, removed, or disabled — it remains the only live auth path for all other users. Cleared to
 proceed to Phase 2.
 
-## Next: Phase 2 — backend JWT verification cutover (not started)
-Per the full migration plan (see PR #27 description / prior chat):
-1. Add a `verifySupabaseJwt(authHeader)` + `auth_user_id → usr_XXXX` lookup as the new source of truth
-   inside `requireAuth()` in `backend/lib/auth.ts` — but only as an *additional* accepted path
-   alongside the existing Blink verification, not a replacement, until Phase 3 frontend cutover is
-   also live and tested per-user.
-2. Replace the ~10 independent `blink.auth.verifyToken` call sites (admin-role checks) the same way.
-3. Still branch + PR workflow, still staging-first, per your standing instructions.
-4. Do NOT remove `BLINK_PROJECT_ID`/`BLINK_SECRET_KEY` or any Blink code until the 71 real users have
-   actually been migrated to Supabase identities and the frontend cutover (Phase 3) is live and
-   verified — right now only 1 of 71 real accounts has an `auth_user_id` link.
+## Phase 2 — backend JWT verification cutover — COMPLETE (2026-09-06)
+Branch `feat/supabase-auth-phase2` (based on `feat/supabase-auth-phase1`), **PR #28** opened against
+`main`: `https://github.com/ItsRedXO/pocketpull-website/pull/28` — **NOT merged**. Do not merge until
+the user reviews it (per the standing branch + PR constraint).
+
+1. ✅ Added `resolveUserId(c)` in `backend/lib/auth.ts`: tries Blink token verification first (exact
+   same call as before — zero behavior change for the ~70 not-yet-migrated accounts), and only if that
+   fails, tries interpreting the same `Authorization` header as a Supabase Auth token and resolving it
+   via `SELECT id FROM users WHERE auth_user_id=$1`. Returns `null` if both fail.
+2. ✅ `requireAuth()` now calls `resolveUserId()` instead of calling Blink directly — this one change
+   flows through to all ~17 files that already call `requireAuth()`, with no other edits needed there.
+3. ✅ Replaced the ~10 independent `blink.auth.verifyToken` call sites (admin-role checks) with the
+   same `resolveUserId()`, one function at a time, preserving each site's existing downstream role-check
+   logic exactly (only the token-verification line changed): `adminLogs.ts`, `adminStats.ts`,
+   `adminLogsGuard.ts`, `cashoutAdmin.ts`, `cashoutAdminV2.ts`, `upgraderSettings.ts`,
+   `provablyFair.ts` (two sites: `verifyUserToken` and `isAdminRequest`), `dbProxy.ts`,
+   `userDbProxy.ts`, `supportDbProxy.ts`.
+4. ✅ Corrected a stale comment in `backend/lib/supabaseAuth.ts` that claimed HS256/`SUPABASE_JWT_SECRET`
+   was "the one that's actually needed" — the Phase 1 pilot verification already proved this project uses
+   JWKS with no secret needed; the comment now says so.
+5. ✅ `tsc --noEmit`: 0 errors in any `backend/` file (47 pre-existing frontend-only errors are unchanged
+   from the `main`/Phase 1 baseline — confirmed by running the same check on both branches).
+6. ✅ Merged into `staging` (real merge, same pattern as Phase 1) and pushed — Railway auto-deployed it
+   successfully. Verified on the live staging deployment:
+   - `GET /health` → `200 {"status":"ok","database":"postgresql",...}`.
+   - `GET /auth/whoami-supabase` with no token → `401 SUPABASE_TOKEN_MISSING` (unchanged from Phase 1).
+   - `GET /referrals` (requireAuth-guarded) with no token and with a garbage bearer token → both
+     `UNAUTHORIZED`, confirming the Blink-then-Supabase fallback correctly rejects invalid input on
+     both paths rather than falsely authenticating.
+   - `GET /admin/stats` with no auth → `401 UNAUTHORIZED` (admin-role-check refactor didn't loosen
+     anything).
+   - Did not re-test the pilot account's positive `/auth/whoami-supabase` path in this session (would
+     require the pilot's live Supabase session token); that path's underlying code is unchanged from
+     Phase 1, only the *lookup helper* it plugs into elsewhere (`resolveUserId`) is new.
+
+**What Phase 2 does NOT do**: no destructive schema changes, no changes to balances/user records, Blink
+auth not disabled (tried first everywhere), no frontend changes — the frontend still only ever issues
+Blink tokens, so this new path carries zero real production traffic until Phase 3.
+
+## Next: Phase 3 — frontend cutover (not started)
+1. Get PR #28 reviewed and merged to `main` (user's call).
+2. Frontend: for linked accounts, start issuing/attaching Supabase session tokens on the `Authorization`
+   header instead of (or in addition to, during a transition) Blink tokens.
+3. Backfill `auth_user_id` for the remaining real users (the 71-vs-321 distinction below) — needs a plan
+   for how those users authenticate against Supabase (new password set? magic link? still open).
+4. Only after Phase 3 is live and verified per-user: remove `BLINK_PROJECT_ID`/`BLINK_SECRET_KEY` and any
+   remaining Blink auth code. Right now only 1 of 71 real accounts has an `auth_user_id` link, and the
+   frontend has not been touched, so this is still far off.
 
 ## Hard constraints still in force (from the user, unchanged)
 - No destructive schema changes.
