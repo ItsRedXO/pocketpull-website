@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getBlinkServer } from '../lib/auth';
+import { resolveUserId } from '../lib/auth';
 import { query } from '../lib/postgres';
 
 const app = new Hono();
@@ -9,9 +9,8 @@ const safeColumn = (v:string) => { const column=camelToSnake(v); if(!/^[a-z_][a-
 const mapRow=(row:any)=>{const out:any={};for(const [key,value] of Object.entries(row))out[snakeToCamel(key)]=value;if(row.data&&typeof row.data==='object'&&!Array.isArray(row.data))Object.assign(out,row.data);return out;};
 
 async function identity(c:any){
-  const blink=getBlinkServer(c.env as any);
-  let userId:string|null=null,admin=false;
-  try{const result=await blink.auth.verifyToken(c.req.header('Authorization'));if(result.valid&&result.userId)userId=result.userId;}catch{}
+  const userId=await resolveUserId(c);
+  let admin=false;
   const secret=c.req.header('X-Admin-Secret');
   if(secret&&secret!=='true'){
     try{const rows=await query<{admin_pass:string}>('SELECT admin_pass FROM admin_credentials WHERE admin_pass=$1 LIMIT 1',[secret]);admin=rows.length>0;}catch{}

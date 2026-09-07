@@ -8,7 +8,7 @@
  *   - Sends email to user listing shipped vs returned cards
  */
 import { Hono } from 'hono';
-import { getBlinkServer, uid } from '../lib/auth';
+import { getBlinkServer, resolveUserId, uid } from '../lib/auth';
 import { sendEmailWithLog } from '../lib/emailLogging';
 
 const app = new Hono();
@@ -29,13 +29,10 @@ async function isAdminRequest(c: any): Promise<boolean> {
 
   // 2. Check for real user auth with role='admin'
   try {
-    const authHeader = c.req.header('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const auth = await blink.auth.verifyToken(authHeader);
-      if (auth.valid && auth.userId) {
-        const user = await blink.db.users.get(auth.userId) as any;
-        if (user && (user.role === 'admin' || user.role === 'owner')) return true;
-      }
+    const userId = await resolveUserId(c);
+    if (userId) {
+      const user = await blink.db.users.get(userId) as any;
+      if (user && (user.role === 'admin' || user.role === 'owner')) return true;
     }
   } catch { /* fall through */ }
 

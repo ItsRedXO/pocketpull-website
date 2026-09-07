@@ -18,19 +18,14 @@
  *   POST /admin/provably-fair/complete-rotation   → Phase 2: reveal old, promote pending
  */
 import { Hono } from 'hono';
-import { getBlinkServer } from '../lib/auth';
+import { getBlinkServer, resolveUserId } from '../lib/auth';
 import { sha256, computeRoll } from '../lib/provablyFair';
 
 const app = new Hono();
 
-/** Verify a regular user JWT — returns userId or null. */
+/** Verify a regular user JWT (Blink or Supabase) — returns userId or null. */
 async function verifyUserToken(c: any): Promise<string | null> {
-  const blink = getBlinkServer(c.env as any);
-  try {
-    const auth = await blink.auth.verifyToken(c.req.header('Authorization'));
-    if (auth.valid && auth.userId) return auth.userId;
-  } catch { /* not authenticated */ }
-  return null;
+  return resolveUserId(c);
 }
 
 /** Check if request is from an admin */
@@ -47,13 +42,10 @@ async function isAdminRequest(c: any): Promise<boolean> {
   }
 
   try {
-    const authHeader = c.req.header('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const auth = await blink.auth.verifyToken(authHeader);
-      if (auth.valid && auth.userId) {
-        const user = await blink.db.users.get(auth.userId) as any;
-        if (user && (user.role === 'admin' || user.role === 'owner')) return true;
-      }
+    const userId = await resolveUserId(c);
+    if (userId) {
+      const user = await blink.db.users.get(userId) as any;
+      if (user && (user.role === 'admin' || user.role === 'owner')) return true;
     }
   } catch { /* fall through */ }
 
