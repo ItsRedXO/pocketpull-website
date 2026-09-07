@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { verifySupabaseToken, extractSupabaseBearer } from '../lib/supabaseAuth';
+import { getOrCreateSupabaseIdentity } from '../lib/supabaseAdmin';
 import { query } from '../lib/postgres';
 
 const app = new Hono();
@@ -70,6 +71,75 @@ app.post('/auth/link-supabase', async (c) => {
   }
 
   return c.json({ success: true, alreadyLinked: false, userId: existing.id });
+});
+
+/**
+ * POST /auth/silent-migrate
+ *
+ * Phase 3: fired best-effort by the frontend immediately after a successful
+ * Blink sign-in (see src/hooks/useAuth.ts). Silently creates and links a
+ * Supabase Auth identity for this account using the password the user just
+ * typed, so real accounts get migrated over time with zero user-facing
+ * action. Idempotent and safe to call on every login -- a no-op once
+ * auth_user_id is already set. Never touches balance, inventory,
+ * transactions, or any other field.
+ *
+ * This is the one place in the backend where a plaintext password arrives
+ * from the client. It is used only to mirror the credential into Supabase
+ * via the Admin API (see ../lib/supabaseAdmin.ts) and is never persisted.
+ *
+ * Always returns 200 except for auth/validation failures -- this must never
+ * block or surface an error to a user who just successfully logged in via
+ * Blink; migration is a best-effort side effect, not a login gate.
+ */
+app.post('/auth/silent-migrate', async (c) => {
+  let userId: string;
+  try {
+    userId = await requireAuth(c);
+  } catch (err: any) {
+    if (err.message === 'ACCOUNT_DEACTIVATED') return c.json({ error: 'Account deactivated' }, 403);
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const password = typeof body.password === 'string' ? body.password : '';
+
+  const rows = await query<{ id: string; email: string | null; auth_user_id: string | null }>(
+    'SELECT id, email, auth_user_id FROM users WHERE id=$1 LIMIT 1',
+    [userId]
+  );
+  const existing = rows[0];
+  if (!existing) return c.json({ error: 'Account not found' }, 404);
+
+  if (existing.auth_user_id) {
+    return c.json({ success: true, migrated: false, alreadyLinked: true });
+  }
+  if (!existing.email) {
+    return c.json({ error: 'No email on file for this account' }, 400);
+  }
+  if (!password) {
+    return c.json({ error: 'Password required' }, 400);
+  }
+
+  let supabaseUserId: string;
+  try {
+    supabaseUserId = await getOrCreateSupabaseIdentity(existing.email, password);
+  } catch (err: any) {
+    console.error('[auth/silent-migrate] Supabase identity error:', err?.message || err);
+    return c.json({ success: false, migrated: false, error: 'Migration deferred' });
+  }
+
+  try {
+    await query('UPDATE users SET auth_user_id=$1 WHERE id=$2 AND auth_user_id IS NULL', [supabaseUserId, userId]);
+  } catch (err: any) {
+    // Unique constraint violation: this Supabase identity is already linked elsewhere.
+    // Not this request's problem to resolve -- just don't crash the caller's login.
+    if (err?.code === '23505') return c.json({ success: true, migrated: false });
+    console.error('[auth/silent-migrate] link error:', err?.message || err);
+    return c.json({ success: false, migrated: false, error: 'Migration deferred' });
+  }
+
+  return c.json({ success: true, migrated: true });
 });
 
 /**
