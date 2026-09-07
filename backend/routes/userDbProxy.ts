@@ -57,8 +57,18 @@ app.post('/db', async (c, next) => {
 
     if (body.operation === 'create') {
       const data = { ...(body.data || {}) };
-      console.error('[DEBUG userDbProxy create]', JSON.stringify({ dataId: data.id, userId, match: data.id === userId, dataKeys: Object.keys(data) }));
       if (data.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
+      try {
+        const cols = await query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`);
+        const trigs = await query(`SELECT tgname, proname FROM pg_trigger t JOIN pg_proc p ON t.tgfoid = p.oid WHERE NOT t.tgisinternal AND tgrelid = 'users'::regclass`);
+        let trigSrc: any[] = [];
+        if (trigs.length) {
+          trigSrc = await query(`SELECT proname, prosrc FROM pg_proc WHERE proname = ANY($1)`, [trigs.map((t: any) => t.proname)]);
+        }
+        console.error('[DEBUG users-schema]', JSON.stringify({ columns: cols.map((c: any) => c.column_name), triggers: trigs, triggerSource: trigSrc }));
+      } catch (diagErr: any) {
+        console.error('[DEBUG users-schema] introspection failed:', diagErr?.message || diagErr);
+      }
       const keys = Object.keys(data);
       const columns = keys.map(snake);
       const values = Object.values(data).map((value) => value && typeof value === 'object' ? JSON.stringify(value) : value);
