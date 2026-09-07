@@ -49,7 +49,6 @@ app.post('/db', async (c, next) => {
     if (!userId) return c.json({ error: 'UNAUTHORIZED' }, 401);
 
     if (body.operation === 'get') {
-      console.error('[DEBUG userDbProxy get]', JSON.stringify({ bodyId: body.id, userId, match: body.id === userId }));
       if (body.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
       const rows = await query('SELECT * FROM users WHERE id=$1 LIMIT 1', [userId]);
       return c.json({ data: rows[0] ? mapRow(rows[0]) : null });
@@ -57,7 +56,6 @@ app.post('/db', async (c, next) => {
 
     if (body.operation === 'create') {
       const data = { ...(body.data || {}) };
-      console.error('[DEBUG userDbProxy create]', JSON.stringify({ dataId: data.id, userId, match: data.id === userId, dataKeys: Object.keys(data) }));
       if (data.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
       const keys = Object.keys(data);
       const columns = keys.map(snake);
