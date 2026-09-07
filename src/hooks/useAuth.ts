@@ -21,6 +21,28 @@ async function resolveLoginEmail(identifier: string): Promise<string> {
   return match.email;
 }
 
+/**
+ * Phase 3 of the Blink -> Supabase Auth migration: fired best-effort right
+ * after a successful Blink sign-in, using the password the user just typed
+ * to silently create and link a Supabase Auth identity for this account on
+ * the backend (see backend/routes/authSupabase.ts POST /auth/silent-migrate).
+ * Never awaited by the caller and never throws -- must not affect or delay
+ * the actual login in any way.
+ */
+async function silentlyMigrateToSupabase(password: string): Promise<void> {
+  try {
+    const token = await blink.auth.getValidToken();
+    if (!token) return;
+    await fetch(`${BACKEND_BASE}/auth/silent-migrate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ password }),
+    });
+  } catch {
+    // Best-effort only.
+  }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +61,9 @@ export function useAuth() {
     const identifier = emailOrUsername.trim();
     if (!identifier || !password) throw new Error('INVALID_CREDENTIALS');
     const email = await resolveLoginEmail(identifier);
-    return blink.auth.signInWithEmail(email, password);
+    const result = await blink.auth.signInWithEmail(email, password);
+    void silentlyMigrateToSupabase(password);
+    return result;
   };
 
   const signUp = async (email: string, password: string, username: string, referralCode?: string) => {
