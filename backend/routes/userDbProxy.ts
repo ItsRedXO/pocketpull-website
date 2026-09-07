@@ -58,19 +58,24 @@ app.post('/db', async (c, next) => {
     if (body.operation === 'create') {
       const data = { ...(body.data || {}) };
       if (data.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
-      try {
-        const searchPath = await query(`SHOW search_path`);
-        const cols = await query(`SELECT table_schema, column_name FROM information_schema.columns WHERE table_name = 'users' ORDER BY table_schema`);
-        const resolved = await query(`SELECT to_regclass('users') AS unqualified, to_regclass('public.users') AS qualified`);
-        console.error('[DEBUG users-schema]', JSON.stringify({ searchPath: searchPath[0], resolved: resolved[0], columnsBySchema: cols }));
-      } catch (diagErr: any) {
-        console.error('[DEBUG users-schema] introspection failed:', diagErr?.message || diagErr);
-      }
       const keys = Object.keys(data);
       const columns = keys.map(snake);
       const values = Object.values(data).map((value) => value && typeof value === 'object' ? JSON.stringify(value) : value);
       const placeholders = values.map((_, i) => `$${i + 1}`).join(',');
-      const rows = await query(`INSERT INTO users (${columns.join(',')}) VALUES (${placeholders}) RETURNING *`, values);
+      const sql = `INSERT INTO users (${columns.join(',')}) VALUES (${placeholders}) RETURNING *`;
+      let rows;
+      try {
+        rows = await query(sql, values);
+      } catch (insertErr: any) {
+        console.error('[DEBUG insert-fail]', JSON.stringify({
+          sql, values, keys, columns,
+          message: insertErr?.message, code: insertErr?.code, detail: insertErr?.detail,
+          hint: insertErr?.hint, position: insertErr?.position, schema: insertErr?.schema,
+          table: insertErr?.table, column: insertErr?.column, dataType: insertErr?.dataType,
+          constraint: insertErr?.constraint, routine: insertErr?.routine,
+        }));
+        throw insertErr;
+      }
       return c.json({ data: mapRow(rows[0]) });
     }
 
