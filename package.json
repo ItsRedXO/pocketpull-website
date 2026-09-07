@@ -18,12 +18,12 @@
     "db:import": "tsx backend/db/import/importBlinkExport.ts"
   },
   "devDependencies": {
-    "typescript": "~6.0.2",
-    "vite": "^8.0.4",
-    "@types/pg": "^8.23.1",
     "@types/node": "^24.3.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.7"
+    "@types/react-dom": "^19.2.7",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4"
   },
   "dependencies": {
     "@blinkdotnew/sdk": "^2.6.1",
@@ -34,6 +34,7 @@
     "@hono/node-server": "^1.19.6",
     "@stripe/react-stripe-js": "^6.4.0",
     "@stripe/stripe-js": "^9.7.0",
+    "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.99.0",
     "@types/howler": "^2.2.13",
     "@vitejs/plugin-react": "5.2.0",
