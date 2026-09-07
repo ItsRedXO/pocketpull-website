@@ -1,9 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { BALANCE_QUERY_KEY, type BalanceData } from './useBalance';
 
 type AuthUser = { id: string; email?: string; displayName?: string; emailVerified?: boolean; [key: string]: unknown };
+
+/**
+ * Phase 3 of the Blink -> Supabase Auth migration: fired best-effort right
+ * after a successful Blink sign-in, using the password the user just typed
+ * to silently create and link a Supabase Auth identity for this account on
+ * the backend (see backend/routes/authSupabase.ts POST /auth/silent-migrate).
+ * Never awaited by the caller and never throws -- must not affect or delay
+ * the actual login in any way.
+ */
+async function silentlyMigrateToSupabase(password: string): Promise<void> {
+  try {
+    const token = await blink.auth.getValidToken();
+    if (!token) return;
+    await fetch(`${BACKEND_BASE}/auth/silent-migrate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ password }),
+    });
+  } catch {
+    // Best-effort only.
+  }
+}
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -24,7 +47,9 @@ export function useAuth() {
     if (!identifier || !password) throw new Error('INVALID_CREDENTIALS');
     // Username resolution and authentication are handled by the Supabase-backed auth adapter.
     // Do not query the protected database before a session exists.
-    return blink.auth.signInWithEmail(identifier, password);
+    const result = await blink.auth.signInWithEmail(identifier, password);
+    void silentlyMigrateToSupabase(password);
+    return result;
   };
 
   const signUp = async (email: string, password: string, username: string, referralCode?: string) => {
