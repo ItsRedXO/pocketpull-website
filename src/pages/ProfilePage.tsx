@@ -341,7 +341,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
           savingProfile={savingProfile}
           signOut={signOut}
           onBack={onBack}
-          onCashOut={() => setCashOutOpen(true)}
           passwordMsg={passwordMsg}
           handleChangePassword={handleChangePassword}
           showCurrentPw={showCurrentPw}

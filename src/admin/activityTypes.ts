@@ -1,3 +1,5 @@
+import type React from 'react';
+
 export interface LogEntryRaw {
   id: string;
   type: string;

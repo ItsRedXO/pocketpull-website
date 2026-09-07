@@ -4,7 +4,7 @@ import { ChevronDown, Plus, Shield } from 'lucide-react';
 import { useAuth, useUserStats } from '../hooks/useAuth';
 import { useBalance } from '../hooks/useBalance';
 
-type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile';
+type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault';
 interface NavbarProps { currentPage: Page; onPageChange: (page: Page) => void; openAuthModal: (tab: 'login' | 'signup') => void; onProfileOpen: () => void; onDepositOpen: () => void; }
 const navTabs: { id: Page; label: string }[] = [
   { id: 'home', label: 'Packs' }, { id: 'upgrader', label: 'Upgrader' }, { id: 'battle', label: 'Pack Battle' }, { id: 'exchanger', label: 'Exchanger' }, { id: 'inventory', label: 'My Collection' },

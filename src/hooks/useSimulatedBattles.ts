@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { generateUsername, seededRandom, getDailySeed } from '../lib/simulation';
-import type { BattleWithPlayers, BattlePlayer } from '../pages/battles/battleTypes';
+import type { BattleWithPlayers, BattlePlayer, BattleStatus } from '../pages/battles/battleTypes';
 import { usePacks } from './usePacks';
 
 /**
@@ -61,7 +61,7 @@ export function useSimulatedBattles() {
             return {
               ...battle,
               players: newPlayers,
-              status: nowFull ? 'live' : 'waiting'
+              status: (nowFull ? 'live' : 'waiting') as BattleStatus
             };
           }
 

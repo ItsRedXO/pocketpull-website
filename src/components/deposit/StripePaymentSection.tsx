@@ -11,7 +11,7 @@ interface StripePaymentSectionProps {
   clientSecret: string;
   intentError: string;
   onBack: () => void;
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (paymentIntentId: string) => Promise<void>;
   onError: (msg: string) => void;
 }
 

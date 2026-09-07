@@ -103,9 +103,9 @@ export const PackBattleSpinner: React.FC<Props> = ({
   // ── Transition from stripPhase ──────────────────────────────────────────
   const transition =
     stripPhase === 'spinning'
-      ? { duration: 3.5, ease: [0.05, 0.8, 0.3, 1] }  // spin easing
+      ? { duration: 3.5, ease: [0.05, 0.8, 0.3, 1] as const }  // spin easing
       : stripPhase === 'landed'
-        ? { duration: 0.2, ease: 'easeOut' }            // settle ease-out
+        ? { duration: 0.2, ease: 'easeOut' as const }    // settle ease-out
         : { duration: 0 };                               // idle/revealed: snap instantly
 
   // ── Build strip tiles using real pack card data ─────────────────────────

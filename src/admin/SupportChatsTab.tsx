@@ -175,7 +175,7 @@ export function SupportChatsTab({ showToast }: { showToast: (m: string, ok?: boo
               />
             </div>
             <button
-              onClick={loadChats}
+              onClick={() => loadChats()}
               disabled={loading}
               className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-all disabled:opacity-30"
             >
