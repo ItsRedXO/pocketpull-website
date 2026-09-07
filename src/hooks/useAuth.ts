@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { supabase } from '../lib/supabase';
 import { BACKEND_BASE } from '../lib/backend';
 import { BALANCE_QUERY_KEY, type BalanceData } from './useBalance';
 
@@ -22,24 +23,45 @@ async function resolveLoginEmail(identifier: string): Promise<string> {
 }
 
 /**
- * Phase 3 of the Blink -> Supabase Auth migration: fired best-effort right
- * after a successful Blink sign-in, using the password the user just typed
- * to silently create and link a Supabase Auth identity for this account on
- * the backend (see backend/routes/authSupabase.ts POST /auth/silent-migrate).
- * Never awaited by the caller and never throws -- must not affect or delay
- * the actual login in any way.
+ * Phase 3 of the Blink -> Supabase Auth migration: silently creates and
+ * links a Supabase Auth identity for this account, using the password the
+ * user just typed (see backend/routes/authSupabase.ts POST
+ * /auth/silent-migrate). Idempotent -- a no-op once already linked.
  */
 async function silentlyMigrateToSupabase(password: string): Promise<void> {
+  const token = await blink.auth.getValidToken();
+  if (!token) return;
+  await fetch(`${BACKEND_BASE}/auth/silent-migrate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password }),
+  });
+}
+
+/**
+ * Phase 4: after a successful Blink sign-in, ensure the account is linked
+ * (Phase 3) and then opportunistically sign into Supabase directly with
+ * the same credentials to establish a real session. This only succeeds for
+ * accounts already linked from a *previous* login (the very first
+ * migration only creates the Supabase identity -- signing into it here on
+ * the same pass is a bonus that also works, since the identity now exists
+ * with this exact password).
+ *
+ * Never awaited by the caller and never throws -- must not affect or delay
+ * the actual login in any way. Accounts with no Supabase session simply
+ * keep using Blink; see getPreferredAuthToken() in ../lib/blink.ts.
+ */
+async function establishSupabaseSession(email: string, password: string): Promise<void> {
   try {
-    const token = await blink.auth.getValidToken();
-    if (!token) return;
-    await fetch(`${BACKEND_BASE}/auth/silent-migrate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ password }),
-    });
+    await silentlyMigrateToSupabase(password);
   } catch {
-    // Best-effort only.
+    // Best-effort -- Blink remains the account's working login regardless.
+  }
+  if (!supabase) return;
+  try {
+    await supabase.auth.signInWithPassword({ email, password });
+  } catch {
+    // Not linked yet, or Supabase unreachable -- fine, try again next login.
   }
 }
 
@@ -62,7 +84,7 @@ export function useAuth() {
     if (!identifier || !password) throw new Error('INVALID_CREDENTIALS');
     const email = await resolveLoginEmail(identifier);
     const result = await blink.auth.signInWithEmail(email, password);
-    void silentlyMigrateToSupabase(password);
+    void establishSupabaseSession(email, password);
     return result;
   };
 
@@ -73,15 +95,22 @@ export function useAuth() {
     return blink.auth.signUp({ email: trimmedEmail, password, displayName: trimmedUsername });
   };
 
+  // A stale Supabase session must never outlive a Blink sign-out -- getPreferredAuthToken()
+  // (../lib/blink.ts) would otherwise keep authenticating as this user after "logout".
+  const signOutAll = async () => {
+    if (supabase) await supabase.auth.signOut().catch(() => {});
+    return blink.auth.signOut();
+  };
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
     signIn,
     signUp,
-    signOut: () => blink.auth.signOut(),
+    signOut: signOutAll,
     login: () => blink.auth.login(),
-    logout: () => blink.auth.signOut(),
+    logout: signOutAll,
     sendPasswordReset: (email: string) => blink.auth.sendPasswordResetEmail(email),
   };
 }
