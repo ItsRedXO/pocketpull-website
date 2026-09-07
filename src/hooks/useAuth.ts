@@ -127,7 +127,10 @@ export function useUserStats(userId?: string, userEmail?: string, userDisplayNam
       }
       const displayName = userDisplayName || `Trainer_${userId.slice(-4)}`;
       const referralCode = Math.random().toString(36).slice(2, 10).toUpperCase();
-      await blink.db.users.create({ id: userId, balance: 0, matchedBalance: 0, displayName, username: displayName, email: userEmail || '', avatarUrl: '', emailVerified: 1, role: '', isBanned: false, isDeleted: false, referralCode, referralRewardPaid: false }).catch((error: any) => { if (error?.status !== 409) throw error; });
+      // is_banned/is_deleted/referral_reward_paid are integer columns (0/1), matching
+      // email_verified above -- not native booleans. Sending JS `false` fails with
+      // "invalid input syntax for type integer" and silently orphans the signup.
+      await blink.db.users.create({ id: userId, balance: 0, matchedBalance: 0, displayName, username: displayName, email: userEmail || '', avatarUrl: '', emailVerified: 1, role: '', isBanned: 0, isDeleted: 0, referralCode, referralRewardPaid: 0 }).catch((error: any) => { if (error?.status !== 409) throw error; });
       return { balance: 0, matchedBalance: 0, displayName, avatarUrl: '', email: userEmail || '', username: displayName, emailVerified: true, role: '', isBanned: false, isDeleted: false, referralCode };
     },
     staleTime: 15000,
