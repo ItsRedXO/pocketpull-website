@@ -59,10 +59,13 @@ app.post('/db', async (c, next) => {
       const data = { ...(body.data || {}) };
       if (data.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
       try {
-        const searchPath = await query(`SHOW search_path`);
-        const cols = await query(`SELECT table_schema, column_name FROM information_schema.columns WHERE table_name = 'users' ORDER BY table_schema`);
-        const resolved = await query(`SELECT to_regclass('users') AS unqualified, to_regclass('public.users') AS qualified`);
-        console.error('[DEBUG users-schema]', JSON.stringify({ searchPath: searchPath[0], resolved: resolved[0], columnsBySchema: cols }));
+        const cols = await query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`);
+        const trigs = await query(`SELECT tgname, proname FROM pg_trigger t JOIN pg_proc p ON t.tgfoid = p.oid WHERE NOT t.tgisinternal AND tgrelid = 'users'::regclass`);
+        let trigSrc: any[] = [];
+        if (trigs.length) {
+          trigSrc = await query(`SELECT proname, prosrc FROM pg_proc WHERE proname = ANY($1)`, [trigs.map((t: any) => t.proname)]);
+        }
+        console.error('[DEBUG users-schema]', JSON.stringify({ columns: cols.map((c: any) => c.column_name), triggers: trigs, triggerSource: trigSrc }));
       } catch (diagErr: any) {
         console.error('[DEBUG users-schema] introspection failed:', diagErr?.message || diagErr);
       }
