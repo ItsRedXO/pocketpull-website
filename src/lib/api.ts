@@ -2,13 +2,13 @@
  * Secure API Client — all economy operations go through the Railway backend.
  * Frontend never directly writes balances, inventory, or transaction records.
  */
-import { blink } from './blink';
+import { getPreferredAuthToken } from './blink';
 import { BACKEND_BASE } from './backend';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   try {
-    const token = await blink.auth.getValidToken();
+    const token = await getPreferredAuthToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   } catch { /* unauthenticated requests remain possible */ }
   return headers;

@@ -1,6 +1,7 @@
 import { createClient } from '@blinkdotnew/sdk';
 import { createPostgresDb } from './postgresDb';
 import { BACKEND_BASE } from './backend';
+import { supabase } from './supabase';
 
 const LEGACY_BACKEND = 'https://b2nnhe2n.backend.blink.new';
 
@@ -23,10 +24,32 @@ const blinkClient = createClient({
   auth: { mode: 'headless' }
 });
 
+/**
+ * Phase 4: prefer a live Supabase session's access token (set once an
+ * account is linked and has signed in since -- see useAuth.ts) and fall
+ * back to the Blink token otherwise. Every account not yet linked, or
+ * without a currently valid Supabase session, is completely unaffected --
+ * this only ever adds a path, never removes the Blink one.
+ */
+export async function getPreferredAuthToken(): Promise<string | null> {
+  if (supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const supabaseToken = data?.session?.access_token;
+      if (supabaseToken) return supabaseToken;
+    } catch { /* fall back to Blink */ }
+  }
+  try {
+    return await blinkClient.auth.getValidToken();
+  } catch {
+    return null;
+  }
+}
+
 export const blink: any = new Proxy(blinkClient, {
   get(target, property, receiver) {
     if (property !== 'db') return Reflect.get(target, property, receiver);
-    const tokenProvider = () => target.auth.getValidToken();
+    const tokenProvider = () => getPreferredAuthToken();
     const postgresDb = createPostgresDb(tokenProvider);
     const usersClient = postgresDb.users;
     return new Proxy(postgresDb, {
