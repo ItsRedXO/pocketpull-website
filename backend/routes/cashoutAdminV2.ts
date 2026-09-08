@@ -153,7 +153,7 @@ app.post('/admin/cashout/partial-fulfill', async c => {
     if (result.kind === 'no_cards') return c.json({ error: 'No cards in request' }, 400);
     if (result.kind === 'bad_index') return c.json({ error: `Invalid card index: ${result.index}` }, 400);
 
-    const blink = getBlinkServer(c.env as any);
+    const blink = getBlinkDb();
     const recipient = emailFor(result.req);
     if (recipient) {
       try {

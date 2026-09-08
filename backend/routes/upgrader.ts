@@ -3,7 +3,7 @@
  * Critical economy mutations are committed in one PostgreSQL transaction.
  */
 import { Hono } from 'hono';
-import { requireAuth, getBlinkServer, uid, getRewardUserId } from '../lib/auth';
+import { requireAuth, getBlinkDb, uid, getRewardUserId } from '../lib/auth';
 import { writeLog } from './logs';
 import { transaction, query } from '../lib/postgres';
 import { processWalletTransactionInClient } from '../repositories/wallet';
@@ -27,7 +27,7 @@ app.post('/upgrader/spin', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const body = await c.req.json<any>();
     const inventoryIds = Array.isArray(body.inventoryIds) ? body.inventoryIds.map(String) : [];

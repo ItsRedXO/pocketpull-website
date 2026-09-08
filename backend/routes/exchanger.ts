@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, uid, getRewardUserId, getBlinkServer } from '../lib/auth';
+import { requireAuth, uid, getRewardUserId, getBlinkDb } from '../lib/auth';
 import { transaction } from '../lib/postgres';
 import { processWalletTransactionInClient } from '../repositories/wallet';
 import { writeLog } from './logs';
@@ -95,7 +95,7 @@ app.post('/exchanger/trade', async (c) => {
     if (result.kind === 'value_exceeded') return c.json({ error: `Cannot receive more than offered. Offer: $${result.offerTotal.toFixed(2)}, Receive: $${result.receiveTotal.toFixed(2)}` }, 400);
 
     try {
-      await writeLog(getBlinkServer(c.env as any), {
+      await writeLog(getBlinkDb(), {
         type: 'exchange', userId, username: result.username, action: 'Card Exchange',
         details: {
           offeredCards: result.offeredCards.map((card: any) => ({ name: card.card_name, value: Number(card.value || 0), rarity: card.rarity })),

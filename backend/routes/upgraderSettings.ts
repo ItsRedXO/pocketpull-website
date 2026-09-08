@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
-import { getBlinkServer, resolveUserId } from '../lib/auth';
+import { getBlinkDb, resolveUserId } from '../lib/auth';
 
 const app = new Hono();
 
 // Helper to check if request is from an admin
 async function isAdminRequest(c: any): Promise<boolean> {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   // 1. Check for legacy X-Admin-Secret (dedicated admin password)
   const adminSecret = c.req.header('X-Admin-Secret');
@@ -41,7 +41,7 @@ async function isAdminRequest(c: any): Promise<boolean> {
  * Publicly fetch multiplier settings
  */
 app.get('/upgrader/settings', async (c) => {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const settings = await blink.db.upgraderMultiplierSettings.list({
       orderBy: { multiplier: 'asc' }
@@ -69,7 +69,7 @@ app.post('/admin/upgrader/settings', async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const body = await c.req.json().catch(() => null);
     if (!body || !Array.isArray(body.settings)) {
