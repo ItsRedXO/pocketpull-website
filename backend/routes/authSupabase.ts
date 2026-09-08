@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { verifySupabaseToken, extractSupabaseBearer } from '../lib/supabaseAuth';
-import { getOrCreateSupabaseIdentity } from '../lib/supabaseAdmin';
+import { getOrCreateSupabaseIdentity, inviteSupabaseIdentity } from '../lib/supabaseAdmin';
 import { query } from '../lib/postgres';
 
 const app = new Hono();
@@ -179,6 +179,57 @@ app.get('/auth/whoami-supabase', async (c) => {
   }
 
   return c.json({ success: true, account: rows[0] });
+});
+
+/**
+ * POST /admin/auth/bulk-migrate-next
+ *
+ * One-shot bulk-backfill step, called repeatedly (e.g. by a throttled
+ * scheduled task) to migrate accounts that have never logged in since the
+ * silent-migration flow shipped, and so never had a chance to mirror their
+ * password into Supabase. Unlike /auth/silent-migrate, this never sees a
+ * password: it creates a passwordless Supabase identity and sends Supabase's
+ * built-in invite email (a "set your password" link) via inviteSupabaseIdentity.
+ *
+ * Protected by a dedicated MIGRATION_TASK_SECRET (not the general admin
+ * secret) since this is only ever called by the automated backfill task, not
+ * a human admin session.
+ *
+ * Picks exactly one account per call (oldest-first, by id) so the caller can
+ * throttle to Supabase's email-sending rate limit. Returns {done:true} once
+ * no real, unlinked account remains.
+ */
+app.post('/admin/auth/bulk-migrate-next', async (c) => {
+  const secret = c.req.header('X-Migration-Secret');
+  if (!secret || secret !== process.env.MIGRATION_TASK_SECRET) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const rows = await query<{ id: string; email: string }>(
+    `SELECT id, email FROM users
+     WHERE is_deleted=0 AND is_bot=0 AND email IS NOT NULL AND auth_user_id IS NULL
+       AND email <> 'manzar@blink.new'
+     ORDER BY id ASC LIMIT 1`
+  );
+  const next = rows[0];
+  if (!next) return c.json({ done: true });
+
+  let supabaseUserId: string;
+  try {
+    supabaseUserId = await inviteSupabaseIdentity(next.email);
+  } catch (err: any) {
+    console.error('[admin/auth/bulk-migrate-next] invite error:', err?.message || err);
+    return c.json({ done: false, error: err?.message || 'Invite failed', skipped: next.email }, 502);
+  }
+
+  try {
+    await query('UPDATE users SET auth_user_id=$1 WHERE id=$2 AND auth_user_id IS NULL', [supabaseUserId, next.id]);
+  } catch (err: any) {
+    if (err?.code === '23505') return c.json({ done: false, migrated: false, note: 'already linked elsewhere' });
+    throw err;
+  }
+
+  return c.json({ done: false, migrated: next.email });
 });
 
 export default app;
