@@ -61,7 +61,24 @@ export async function subscribe(channelName: string, callback: Listener): Promis
   };
 }
 
-/** Drop-in replacement for blink.realtime.channel(name) -- presence only. */
+interface PresenceEntry {
+  channel: RealtimeChannel;
+  callbacks: Set<(users: any[]) => void>;
+  latest: any[];
+  ready: Promise<void> | null;
+  refCount: number;
+}
+
+const presenceEntries = new Map<string, PresenceEntry>();
+
+/**
+ * Drop-in replacement for blink.realtime.channel(name) -- presence only.
+ * Multiple callers passing the same name (e.g. useLiveCounters is mounted
+ * from several components at once) share one real underlying channel --
+ * Supabase throws if you try to register a second presence handler on a
+ * topic that's already mid-subscribe, so this must not create a new
+ * supabase.channel() per caller.
+ */
 export function channel(name: string) {
   if (!supabase) {
     return {
@@ -71,38 +88,55 @@ export function channel(name: string) {
       async unsubscribe() {},
     };
   }
+  const activeSupabase = supabase;
 
-  const ch = supabase.channel(name, { config: { presence: { key: Math.random().toString(36).slice(2) } } });
-  let latest: any[] = [];
-  let presenceCallback: ((users: any[]) => void) | null = null;
-
-  // Must be registered before subscribe() per Supabase's contract.
-  ch.on('presence', { event: 'sync' }, () => {
-    const state = ch.presenceState();
-    latest = Object.values(state).flat();
-    presenceCallback?.(latest);
-  });
+  let entry = presenceEntries.get(name);
+  if (!entry) {
+    const ch = activeSupabase.channel(name, { config: { presence: { key: Math.random().toString(36).slice(2) } } });
+    const newEntry: PresenceEntry = { channel: ch, callbacks: new Set(), latest: [], ready: null, refCount: 0 };
+    // Must be registered before subscribe() per Supabase's contract.
+    ch.on('presence', { event: 'sync' }, () => {
+      const state = ch.presenceState();
+      newEntry.latest = Object.values(state).flat();
+      newEntry.callbacks.forEach(fn => { try { fn(newEntry.latest); } catch { /* listener error, ignore */ } });
+    });
+    presenceEntries.set(name, newEntry);
+    entry = newEntry;
+  }
+  entry.refCount++;
+  const activeEntry = entry;
+  let myCallback: ((users: any[]) => void) | null = null;
 
   return {
     async subscribe() {
-      await new Promise<void>((resolve) => {
-        ch.subscribe(async (status: string) => {
-          if (status === 'SUBSCRIBED') {
-            try { await ch.track({ online_at: new Date().toISOString() }); } catch { /* best-effort */ }
-            resolve();
-          }
+      if (!activeEntry.ready) {
+        activeEntry.ready = new Promise<void>((resolve) => {
+          activeEntry.channel.subscribe(async (status: string) => {
+            if (status === 'SUBSCRIBED') {
+              try { await activeEntry.channel.track({ online_at: new Date().toISOString() }); } catch { /* best-effort */ }
+              resolve();
+            }
+          });
         });
-      });
+      }
+      await activeEntry.ready;
     },
     onPresence(fn: (users: any[]) => void) {
-      presenceCallback = fn;
+      if (myCallback) activeEntry.callbacks.delete(myCallback);
+      myCallback = fn;
+      activeEntry.callbacks.add(fn);
     },
     async getPresence(): Promise<any[]> {
-      return latest;
+      return activeEntry.latest;
     },
     async unsubscribe() {
-      try { await ch.untrack(); } catch { /* best-effort */ }
-      supabase?.removeChannel(ch);
+      if (myCallback) { activeEntry.callbacks.delete(myCallback); myCallback = null; }
+      activeEntry.refCount--;
+      if (activeEntry.refCount <= 0) {
+        try { await activeEntry.channel.untrack(); } catch { /* best-effort */ }
+        activeSupabase.removeChannel(activeEntry.channel);
+        presenceEntries.delete(name);
+      }
     },
   };
 }
