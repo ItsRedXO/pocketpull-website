@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 import { BALANCE_REFRESH_INTERVAL_MS } from './balanceRefresh';
 
 // Keep in sync with useAuth.ts — avoid circular import
@@ -58,7 +59,7 @@ export function useBalance(userId?: string) {
 
     const subscribeToBalance = async () => {
       try {
-        unsubscribe = await blink.realtime.subscribe(`user-updates-${userId}`, (message) => {
+        unsubscribe = await realtime.subscribe(`user-updates-${userId}`, (message) => {
           if (!active || message.type !== 'balance_updated') return;
           const nextBalance = Number(message.data?.newBalance) || 0;
           const nextMatchedBalance = Number(message.data?.newMatchedBalance);

@@ -4,7 +4,7 @@ import { Shield, X, Send, ChevronLeft, Loader2, CheckCircle } from 'lucide-react
 import { useAuth } from '../hooks/useAuth';
 import { useAdminSupportChats, SUPPORT_CHANNEL } from '../hooks/useSupportChat';
 import type { SupportChat, SupportMessage } from '../hooks/useSupportChat';
-import { blink } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 
 function formatTime(iso: string) {
   try {
@@ -68,7 +68,7 @@ export const AdminQuickChat: React.FC<Props> = ({ isOpen, setIsOpen, isDesktop }
 
     const sub = async () => {
       try {
-        unsub = await blink.realtime.subscribe(SUPPORT_CHANNEL, (event: any) => {
+        unsub = await realtime.subscribe(SUPPORT_CHANNEL, (event: any) => {
           if (!mounted) return;
           if (event.type === 'new_message' && event.data?.chatId === selectedChat.id) {
             const msg: SupportMessage = event.data.message;

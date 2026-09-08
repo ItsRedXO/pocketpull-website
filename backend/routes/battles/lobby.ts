@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { requireAuth, getBlinkServer, uid } from '../../lib/auth';
 import { AI_NAMES } from './utils';
 import { processWalletTransaction } from '../../lib/wallet';
+import { realtime } from '../../lib/realtime';
 
 const app = new Hono();
 
@@ -273,7 +274,7 @@ app.post('/create', async (c) => {
     // Notify public lobby subscribers immediately; polling remains the fallback.
     if (isPublic) {
       try {
-        await blink.realtime.publish('battle-lobby', 'battle_created', { battleId });
+        await realtime.publish('battle-lobby', 'battle_created', { battleId });
       } catch (realtimeErr: any) {
         console.warn('[battles/create] Lobby realtime publish failed:', realtimeErr?.message);
       }
