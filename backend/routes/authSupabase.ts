@@ -208,7 +208,7 @@ app.post('/admin/auth/bulk-migrate-next', async (c) => {
   const rows = await query<{ id: string; email: string }>(
     `SELECT id, email FROM users
      WHERE is_deleted=0 AND is_bot=0 AND email IS NOT NULL AND auth_user_id IS NULL
-       AND email <> 'manzar@blink.new'
+       AND email NOT LIKE '%@blink.new'
      ORDER BY id ASC LIMIT 1`
   );
   const next = rows[0];
