@@ -1,8 +1,18 @@
-# Blink → Supabase Auth Migration — Full Handoff (as of 2026-09-07)
+# Blink → Supabase Auth Migration — Full Handoff (as of 2026-09-08)
 
 This document is written to be read on its own, in a fresh conversation, with
 no other context. If you are picking this up cold: read this whole file
 before changing anything. Section 10 names the single next recommended step.
+
+**Most urgent item, read this first**: production's public domain
+(`pocketpull-website-production.up.railway.app` and the custom domain)
+currently serves the **static frontend bundle for every single request**,
+including API paths — the Node/Hono backend is not receiving traffic on
+its public domain at all right now. This is a pre-existing Railway
+platform/networking issue, unrelated to (and discovered while checking)
+the Supabase env var fix below. See Section 8a for full detail and
+Section 10 for the recommended next step. **Staging is unaffected** — its
+backend works correctly.
 
 **Final architecture goal**: GitHub (source) → Railway (backend/API) →
 Supabase (Postgres + Supabase Auth). Blink retained only for the
@@ -263,26 +273,35 @@ cleanly, no divergence):
 **Environment variables, by environment** (names only; values are
 secrets and are not reproduced here):
 
-`production` currently has:
+`production` currently has (**updated 2026-09-08**):
 `BLINK_PROJECT_ID`, `BLINK_SECRET_KEY`, `BLINK_SERVER_SEED`,
 `COINBASE_API_KEY`, `COINBASE_WEBHOOK_SECRET`, `DATABASE_URL`,
-`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `VITE_SUPABASE_ANON_KEY`,
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_ANON_KEY`,
 `VITE_SUPABASE_URL`.
 
-`staging` currently has all of the above **plus**: `SUPABASE_URL`,
-`SUPABASE_SERVICE_ROLE_KEY`, `VITE_BACKEND_URL` (added mid-migration —
-staging's frontend was found to be calling production's backend by
-default until this was set).
+`staging` currently has all of the above **plus**: `VITE_BACKEND_URL`
+(added mid-migration — staging's frontend was found to be calling
+production's backend by default until this was set).
 
-**This asymmetry is important and is called out again in Section 8 as
-a known issue**: production is missing the plain (non-`VITE_`,
-backend-only) `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-Production has the two `VITE_` (frontend-public) Supabase vars, which
-is what let Phase 4 be activated and verified there, but the
-**backend's own** Supabase verification path (`resolveUserId` in
-`backend/lib/auth.ts`, and `/auth/silent-migrate`) cannot function on
-production without `SUPABASE_URL`, and `/auth/silent-migrate`
-additionally needs `SUPABASE_SERVICE_ROLE_KEY`.
+**Resolved 2026-09-08**: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+are now set on production, matching staging. `SUPABASE_URL` (public,
+non-secret) was set directly using the known project URL
+(`https://etyeqpwxwuzdplptetwh.supabase.co`, same value documented in
+`.env.example`). `SUPABASE_SERVICE_ROLE_KEY` was added by the site
+owner directly in the Railway dashboard (not by Claude — this session's
+Railway connection cannot read secret variable values in plaintext,
+and handling API keys/tokens directly is outside what Claude does
+regardless). Both variables were confirmed present via `list-variables`,
+then production was redeployed (`redeploy` reusing the existing build,
+deployment id `3d519bf1-1079-47c9-a003-1f5c738bff9e`) — deployment
+status `SUCCESS`, service state `online`, 1/1 replica, no issues per
+`environment-status`. This closes the gap this section used to
+describe as a known issue (formerly 8a) — **but see the new, more
+urgent 8a below**, discovered while trying to verify this fix: the
+verification itself could not be completed because production's public
+domain isn't routing to the backend at all right now, for unrelated
+reasons.
 
 **Database state** (confirmed via direct Supabase SQL query,
 2026-09-07): `auth.users` (the Supabase side) contains exactly 2 rows —
@@ -343,6 +362,24 @@ re-typechecked (`tsc --noEmit`), re-built (`npm run build`), and
 re-pushed before retrying the GitHub merge — every one of these merges
 is clean in the final `main` history.
 
+**2026-09-08, Supabase env var fix + redeploy**: added `SUPABASE_URL`
+and `SUPABASE_SERVICE_ROLE_KEY` to production, redeployed
+(deployment `3d519bf1`, status `SUCCESS`, service `online`). Attempted
+to verify per the user's request ("pilot account can log in and make
+an authenticated API request") but discovered the deeper issue in
+Section 8a first: production's public domain doesn't route to the
+backend at all right now (confirmed via direct HTTP checks — `/health`,
+`/battles/stats`, a random path, and a `POST /auth/silent-migrate` all
+return the static frontend bundle or a static-file-server 405, not
+Hono responses). Staging was checked in parallel as a control and
+confirmed working correctly (real JSON, real 401s, correct CORS
+headers). **The requested verification could not be completed** — not
+due to the Supabase fix itself, but due to this separate, more urgent
+routing issue. No attempt was made to fix the routing issue itself in
+this session — it requires the site owner's Railway dashboard access
+and is out of scope for what was asked ("just fix this configuration
+gap, verify it").
+
 **A note on tooling**: this session's automated safety classifier
 blocked several of the `PUT .../pulls/{n}/merge` API calls on the
 first attempt (apparently a rate/caution mechanism after consecutive
@@ -355,29 +392,115 @@ stop and ask, don't retry blindly.
 
 ## 8. Known issues
 
-### 8a. ACTIVE / production-affecting: backend Supabase env vars missing on production
+### 8a. ACTIVE / production-affecting, URGENT: production's public domain does not reach the backend at all
 
-Discovered while writing this document (2026-09-07), **not yet fixed**.
-Production has `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (frontend,
-public) but is **missing** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-(backend-only). Consequence: if any production account's browser
-establishes a live Supabase session (Phase 4) and `getPreferredAuthToken()`
-starts sending a Supabase token instead of a Blink one, the **backend
-cannot verify it** — `verifySupabaseToken` throws immediately because
-`SUPABASE_URL` is unset, `resolveUserId` falls through to `null`
-(Blink verification also fails, since the token isn't a Blink token),
-and the request comes back `401 UNAUTHORIZED` — even though the same
-account has a perfectly valid Blink session sitting unused.
+Discovered 2026-09-08, while trying to verify the fix below — **not
+fixed, needs the site owner's Railway dashboard access to diagnose
+further**. This is a bigger, unrelated problem than the one it was
+found while investigating.
 
-This is currently **latent, not confirmed-active**: it only triggers
-once a production account both (a) has `auth_user_id` linked and (b)
-has logged in since Phase 4's production activation moments ago. As of
-writing, the only production account meeting (a) is the pilot
-(`usr_YZHIwRCxVfoM`), and it is not yet confirmed whether they have
-logged in again since. **This should be treated as urgent** — the fix
-is adding the same two variables already present on `staging` to
-`production` and letting it redeploy. Not applied in this session per
-explicit instruction to make documentation-only changes.
+Every request to `pocketpull-website-production.up.railway.app` (and
+presumably the custom domain, same target) returns the static frontend
+bundle (`dist/index.html`), **regardless of path or HTTP method** —
+confirmed against `/health`, `/battles/stats` (a real dynamic JSON
+route), a random nonexistent path, and a `POST /auth/silent-migrate`
+with no body. The POST case is the clearest proof: it comes back
+`405 Method Not Allowed` with header `allow: GET, HEAD` and an empty
+body — no `Content-Type: application/json`, no CORS header, no
+Hono-shaped error. That response shape is not something this codebase's
+Hono app can produce (Hono's own catch-all is a `GET *` route serving
+`index.html`, and `requireAuth`-guarded routes always return JSON).  It
+is the signature of a plain static-file server rejecting a
+non-GET/HEAD method.
+
+**Staging is unaffected** — the identical A/B check against
+`pocketpull-website-staging.up.railway.app` returns the real Hono app's
+responses: `GET /health` → real JSON with `database: "postgresql"`;
+`GET` of a random path → `index.html` served *by our own app's
+`serveStatic` fallback*, correctly carrying our `cors()` middleware's
+`access-control-allow-origin: *` header (production's equivalent
+response has no such header); `POST /auth/silent-migrate` with no auth
+→ proper `401 {"error":"Authentication required"}` JSON, exactly
+matching `requireAuth()`'s real behavior.
+
+What was ruled out:
+- **Not a build/code problem.** Inspected the actual Railway build logs
+  for production's most recent image (deployment `b418cf0d`): it really
+  did build from `Dockerfile.backend` via BuildKit (`[internal] load
+  build definition from Dockerfile.backend`, all `[build 1/6]`…
+  `[runtime 7/7]` steps present, ending in the correct
+  `CMD ["npm","run","start:backend"]`). Staging builds from the same
+  Dockerfile and works.
+- **Not the `railway.json` builder config** — it correctly declares
+  `"builder": "DOCKERFILE"` / `"dockerfilePath": "Dockerfile.backend"`,
+  and the build logs confirm that's what actually ran.
+- **Not a port mismatch.** Both `production` and `staging` service
+  domains target port 8080 identically (`list-domains`); staging works
+  fine at that same target port, so the app does correctly bind to
+  Railway's expected port at runtime.
+- **Not edge caching of a stale response** — tested a freshly
+  timestamped nonexistent path and a POST (POST responses are not
+  cached by any normal CDN/edge layer); behavior was identical.
+- **Not a crashed/unhealthy deployment** — `environment-status` shows
+  production `online`, 1/1 replica running, 0 crashes, 0 issues. The
+  Railway healthcheck (`GET /health`, per `railway.json`) only checks
+  HTTP status code, not body, so it happily passes even though the
+  response body is wrong — this is why the deployment shows `SUCCESS`
+  despite this bug.
+- **Telling clue**: production's own deploy logs (for the exact
+  deployment currently live, `3d519bf1`) never contain the line
+  `backend/server.ts` unconditionally logs on every successful start —
+  `PocketPull PostgreSQL backend listening on <address>:<port>` — across
+  the full deploy log output (Caddy-looking platform log lines,
+  `Starting Container`, and HTTP access logs are present, but never
+  our own app's startup line). Staging's equivalent Node process
+  presumably does log this (not independently re-checked this session,
+  but staging's live JSON responses prove its Hono app is actually
+  handling requests).
+
+**Working theory, not confirmed**: something at Railway's edge/platform
+layer for this specific service+environment (production only) is
+configured to serve static assets directly, bypassing the container
+entirely for all paths — this would explain a real static-file-server
+`405` response to POST without ever reaching our code. This is most
+likely a **Railway dashboard-level setting** specific to the production
+environment (not something visible or fixable via the Railway MCP
+tools available this session — `get-service-config` does not expose a
+"static asset serving" toggle, and there is no way found to disable it
+via API). It does not appear to be caused by anything changed in this
+session (the `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` addition and
+redeploy did not change this behavior — it was already present
+immediately after redeploying, and nothing in this session touched
+Railway's networking/static-serving settings).
+
+**Consequence**: the requested verification ("pilot account can log in
+and make an authenticated API request" on production) **could not be
+completed** — not because of the Supabase env var gap (that part is
+now fixed, see Section 6), but because production's backend is
+unreachable via its public domain for this separate reason. Until this
+is resolved, production's live site is very likely serving a **stale,
+non-functional experience for any dynamic feature** that depends on the
+backend (login persistence checks, balance loading, pack opening, admin
+panel, everything) — though this needs direct confirmation from the
+site owner opening the real site in a browser, since a curl/API check
+can't tell us what the SPA does with these responses client-side (e.g.
+whether cached data or a loading spinner papers over the failures).
+**This is a serious, live production issue that goes well beyond the
+scope of the Supabase auth migration** and should be treated as the
+top priority — see Section 10.
+
+### 8a-history. RESOLVED 2026-09-08: backend Supabase env vars missing on production
+
+(Kept for history — this was the original "8a" entry before the issue
+above was discovered.) Production was missing the backend-only
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (it only had the two
+`VITE_` frontend-public equivalents). This meant `resolveUserId()`'s
+Supabase-verification branch would throw and fail closed to `null` on
+production, and `/auth/silent-migrate` couldn't call the Supabase Admin
+API. **Fixed**: both variables added to production (see Section 6),
+production redeployed successfully. Functional verification of this
+specific fix is blocked by the new 8a issue above, not by anything
+wrong with the fix itself.
 
 ### 8b. Recurring, unresolved: `"column \"data\" does not exist"` 500
 
@@ -460,8 +583,13 @@ best-effort philosophy, but not defended against.
 
 ## 9. What is NOT finished
 
-- **Backend Supabase env vars on production** (Section 8a) — not set.
-  This is the most urgent gap; see Section 10.
+- **Production's public domain does not reach the backend at all**
+  (Section 8a) — this is now the single most urgent open item, and it's
+  a live production issue affecting the whole site, not just auth. Not
+  diagnosed to a root cause, not fixed. See Section 10.
+- **Backend Supabase env vars on production** (Section 8a-history) —
+  fixed and redeployed 2026-09-08, but functionally unverified because
+  of the issue above.
 - **The `data`-column 500** (Section 8b) — not root-caused, not fixed.
 - **Real user coverage is essentially zero.** Only 2 accounts total
   have a linked Supabase identity (1 real, 1 test). 69-70 of the 71
@@ -503,31 +631,37 @@ best-effort philosophy, but not defended against.
 
 ## 10. Exact next recommended step
 
-**Do not start this yet — the user has asked for documentation only in
-this pass.**
+**Do not start this yet unless the user directs otherwise — this is a
+recommendation, not something to act on automatically.**
 
-The single highest-priority action, ahead of any new feature work, is:
+The single highest-priority action, ahead of any new feature work
+(including the rest of the auth migration itself), is:
 
-1. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the
-   `production` environment on Railway (same values already present on
-   `staging` — `SUPABASE_URL` is public and safe to copy directly;
-   `SUPABASE_SERVICE_ROLE_KEY` is a real secret and should be re-copied
-   carefully, not guessed or regenerated). This one change closes the
-   gap described in Section 8a and makes the backend's Supabase
-   verification path (and `/auth/silent-migrate`) actually functional
-   in production, matching what's already proven to work on staging.
-2. Immediately after, verify: log in as the pilot account (or any
-   linked account) on production and confirm requests succeed
-   normally — specifically confirm this does **not** produce 401s once
-   a Supabase session is established client-side, since that's exactly
-   the failure mode 8a describes.
-3. Only after that is confirmed safe, the natural following steps (in
-   rough priority order, none started, none scoped in detail yet) are:
-   root-causing the `data`-column 500 (8b), cleaning up test/junk
+1. **Diagnose and fix Section 8a** — production's public domain not
+   reaching the backend. This needs the site owner to look at the
+   Railway dashboard directly (this session's Railway MCP connection
+   could not find or change whatever setting is causing it): check the
+   production service's networking/settings for anything related to
+   static asset serving, compare production vs. staging service
+   settings side by side for any difference beyond the env vars already
+   known about, and check Railway's own status page / support if
+   nothing obvious is found. This is a live production issue with
+   likely broad impact (probably not limited to auth) and should be
+   treated as more urgent than any further migration work.
+2. Once 8a is fixed, **redo the verification** this session couldn't
+   complete: confirm the pilot account (or any linked account) can log
+   in on production and that subsequent API requests succeed — this is
+   what confirms the `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` fix
+   from 2026-09-08 (Section 6) actually works end-to-end, not just that
+   the variables are present.
+3. Only after both of those are confirmed, the natural following steps
+   (in rough priority order, none started, none scoped in detail yet)
+   are: root-causing the `data`-column 500 (8b), cleaning up test/junk
    accounts (8c), and eventually deciding whether/when to build
    anything for the ~69 real users who may take a long time to
    naturally log in and get linked otherwise.
 
 Do not begin a "Phase 5", do not remove any Blink code, and do not
 treat "Phase 4 is merged" as "the migration is done" — real-user
-coverage is effectively at the starting line.
+coverage is effectively at the starting line, and as of this writing
+it's not even confirmed that production's backend is reachable at all.
