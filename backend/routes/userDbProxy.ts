@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { getBlinkServer, resolveUserId } from '../lib/auth';
+import { getBlinkDb, resolveUserId } from '../lib/auth';
 import { query } from '../lib/postgres';
 
 const app = new Hono();
@@ -11,7 +11,7 @@ const mapRow = (row: any) => {
 };
 
 async function identity(c: any) {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   const userId = await resolveUserId(c);
   let admin = false;
   const secret = c.req.header('X-Admin-Secret');

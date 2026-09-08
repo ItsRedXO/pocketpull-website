@@ -6,7 +6,7 @@
  * Body: { toEmail: string, adminSecret: string }
  */
 import { Hono } from 'hono';
-import { getBlinkServer } from '../lib/auth';
+import { getBlinkDb } from '../lib/auth';
 import { sendEmailWithLog } from '../lib/emailLogging';
 
 const app = new Hono();
@@ -15,7 +15,7 @@ const SUPPORT_EMAIL = 'support@pocketpulltcg.com';
 const SENDER_NAME = 'PocketPullTCG';
 
 app.post('/send-test-emails', async (c) => {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();

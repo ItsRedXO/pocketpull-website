@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, getBlinkServer, uid } from '../../lib/auth';
+import { requireAuth, getBlinkDb, uid } from '../../lib/auth';
 import { AI_NAMES } from './utils';
 import { processWalletTransaction } from '../../lib/wallet';
 import { realtime } from '../../lib/realtime';
@@ -11,7 +11,7 @@ const app = new Hono();
  * Optimized endpoint to fetch all data needed for the battle board in one request.
  */
 app.get('/lobby', async (c) => {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   const userId = c.req.query('userId');
 
   try {
@@ -122,7 +122,7 @@ app.get('/state', async (c) => {
   const battleId = c.req.query('battleId');
   if (!battleId) return c.json({ error: 'battleId required' }, 400);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const battle = await blink.db.battles.get(battleId) as any;
     if (!battle) return c.json({ error: 'Battle not found' }, 404);
@@ -156,7 +156,7 @@ app.post('/create', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();
@@ -300,7 +300,7 @@ app.post('/resolve-code', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();
@@ -339,7 +339,7 @@ app.post('/join', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();
@@ -466,7 +466,7 @@ app.post('/start-countdown', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();
@@ -531,7 +531,7 @@ app.post('/cancel', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();
@@ -610,7 +610,7 @@ app.post('/add-ai', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();

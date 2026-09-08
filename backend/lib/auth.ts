@@ -42,6 +42,17 @@ export async function requireAuth(c: Context): Promise<string> {
   return userId;
 }
 
+/**
+ * PostgreSQL-backed data access for routes that don't need Blink auth
+ * verification -- everything except resolveUserId() only ever touched
+ * `.db` on getBlinkServer()'s result, so this avoids constructing a real
+ * Blink SDK client (and needing BLINK_PROJECT_ID/BLINK_SECRET_KEY) at all
+ * for those call sites.
+ */
+export function getBlinkDb() {
+  return { db: postgresBlinkDb };
+}
+
 /** Blink remains the authentication provider; application data is PostgreSQL-backed. */
 export function getBlinkServer(env: Record<string,string> = {}) {
   const runtimeEnv: Record<string,string> = {

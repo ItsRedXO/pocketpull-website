@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, getBlinkServer, uid } from '../lib/auth';
+import { requireAuth, getBlinkDb, uid } from '../lib/auth';
 import { transaction } from '../lib/postgres';
 import { writeLog } from './logs';
 import { sendEmailWithLog } from '../lib/emailLogging';
@@ -16,7 +16,7 @@ app.post('/cashout/submit', async c => {
     return c.json({ error: error?.message === 'ACCOUNT_DEACTIVATED' ? 'Account deactivated' : 'Authentication required' }, 403);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const body = await c.req.json().catch(() => ({}));
     const { inventoryIds, shipping, idImageUrl } = body;

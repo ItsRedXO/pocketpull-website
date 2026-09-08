@@ -18,7 +18,7 @@
  *   POST /admin/provably-fair/complete-rotation   → Phase 2: reveal old, promote pending
  */
 import { Hono } from 'hono';
-import { getBlinkServer, resolveUserId } from '../lib/auth';
+import { getBlinkDb, resolveUserId } from '../lib/auth';
 import { sha256, computeRoll } from '../lib/provablyFair';
 
 const app = new Hono();
@@ -30,7 +30,7 @@ async function verifyUserToken(c: any): Promise<string | null> {
 
 /** Check if request is from an admin */
 async function isAdminRequest(c: any): Promise<boolean> {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   const adminSecret = c.req.header('X-Admin-Secret');
   if (adminSecret && adminSecret !== 'true') {
@@ -66,7 +66,7 @@ function generateServerSeed(): string {
 
 /** Returns the current active (unrevealed) server seed hash. */
 app.get('/provably-fair/seed-hash', async (c) => {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const rows = await blink.db.serverSeeds.list({
       where: { status: 'active' },
@@ -90,7 +90,7 @@ app.get('/provably-fair/my-openings', async (c) => {
   const userId = await verifyUserToken(c);
   if (!userId) return c.json({ error: 'Authentication required' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const rows = await blink.db.packsOpened.list({
       where: { userId, provablyFair: 1 },
@@ -121,7 +121,7 @@ app.get('/provably-fair/verify/:openingId', async (c) => {
   const userId = await verifyUserToken(c);
   if (!userId) return c.json({ error: 'Authentication required' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const openingId = c.req.param('openingId');
     const opening = await blink.db.packsOpened.get(openingId) as any;
@@ -180,7 +180,7 @@ app.get('/provably-fair/verify/:openingId', async (c) => {
 
 /** Public seed history — current hash + past revealed seeds (no auth required). */
 app.get('/provably-fair/seed-history', async (c) => {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const activeRows = await blink.db.serverSeeds.list({
       where: { status: 'active' },
@@ -222,7 +222,7 @@ app.get('/provably-fair/my-upgrades', async (c) => {
   const userId = await verifyUserToken(c);
   if (!userId) return c.json({ error: 'Authentication required' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const rows = await blink.db.table('upgraderSpins').list({
       where: { userId },
@@ -256,7 +256,7 @@ app.get('/provably-fair/verify-upgrade/:spinId', async (c) => {
   const userId = await verifyUserToken(c);
   if (!userId) return c.json({ error: 'Authentication required' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const spinId = c.req.param('spinId');
     const spin = await blink.db.table('upgraderSpins').get(spinId) as any;
@@ -339,7 +339,7 @@ app.get('/provably-fair/verify-upgrade/:spinId', async (c) => {
 app.post('/admin/provably-fair/initialize', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const existing = await blink.db.serverSeeds.list({
       where: { status: 'active' },
@@ -396,7 +396,7 @@ app.post('/admin/provably-fair/initialize', async (c) => {
 app.post('/admin/provably-fair/generate-seed', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     // Check for existing pending seed
     const pendingRows = await blink.db.serverSeeds.list({
@@ -460,7 +460,7 @@ app.post('/admin/provably-fair/generate-seed', async (c) => {
 app.post('/admin/provably-fair/complete-rotation', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const body = await c.req.json();
     const { oldSeed } = body;
@@ -556,7 +556,7 @@ app.post('/admin/provably-fair/complete-rotation', async (c) => {
 app.post('/admin/provably-fair/rotate', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const activeRows = await blink.db.serverSeeds.list({
       where: { status: 'active' },
@@ -642,7 +642,7 @@ app.post('/admin/provably-fair/rotate', async (c) => {
 app.get('/admin/provably-fair/status', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const [activeRows, pendingRows, allRows] = await Promise.all([
       blink.db.serverSeeds.list({ where: { status: 'active' }, orderBy: { createdAt: 'desc' }, limit: 1 }),
@@ -682,7 +682,7 @@ app.get('/admin/provably-fair/status', async (c) => {
 app.get('/admin/provably-fair/history', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
   try {
     const rows = await blink.db.serverSeeds.list({
       orderBy: { createdAt: 'desc' },

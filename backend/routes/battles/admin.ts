@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth, getBlinkServer, uid } from '../../lib/auth';
+import { requireAuth, getBlinkDb, uid } from '../../lib/auth';
 import { writeLog } from '../logs';
 import { processWalletTransaction } from '../../lib/wallet';
 
@@ -19,7 +19,7 @@ app.post('/cancel', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json();

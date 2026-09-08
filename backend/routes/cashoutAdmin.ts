@@ -8,14 +8,14 @@
  *   - Sends email to user listing shipped vs returned cards
  */
 import { Hono } from 'hono';
-import { getBlinkServer, resolveUserId, uid } from '../lib/auth';
+import { getBlinkDb, resolveUserId, uid } from '../lib/auth';
 import { sendEmailWithLog } from '../lib/emailLogging';
 
 const app = new Hono();
 
 /** Check if request is from an admin */
 async function isAdminRequest(c: any): Promise<boolean> {
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   // 1. Check for legacy X-Admin-Secret (dedicated admin password)
   const adminSecret = c.req.header('X-Admin-Secret');
@@ -190,7 +190,7 @@ app.post('/admin/cashout/partial-fulfill', async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json().catch(() => ({}));
@@ -354,7 +354,7 @@ app.post('/admin/cashout/send-email', async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const blink = getBlinkServer(c.env as any);
+  const blink = getBlinkDb();
 
   try {
     const body = await c.req.json().catch(() => ({}));
