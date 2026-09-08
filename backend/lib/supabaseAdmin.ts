@@ -50,3 +50,33 @@ export async function getOrCreateSupabaseIdentity(email: string, password: strin
   }
   throw new Error(`Supabase reports email already registered, but no matching user was found`);
 }
+
+/**
+ * Bulk-backfill path: creates a Supabase Auth identity with no password set
+ * and sends Supabase's built-in invite email (a "set your password" link),
+ * for accounts that have never logged in since the silent-migration flow
+ * shipped and so never had a chance to mirror their password. If an identity
+ * for this email already exists, returns its id instead of erroring (mirrors
+ * getOrCreateSupabaseIdentity's dedupe behavior) without sending a duplicate
+ * invite.
+ */
+export async function inviteSupabaseIdentity(email: string): Promise<string> {
+  const admin = getAdminClient().auth.admin;
+
+  const invited = await admin.inviteUserByEmail(email);
+  if (!invited.error) {
+    if (!invited.data.user) throw new Error('Supabase admin inviteUserByEmail returned no user');
+    return invited.data.user.id;
+  }
+  if (invited.error.code !== 'email_exists') throw invited.error;
+
+  const normalizedEmail = email.trim().toLowerCase();
+  for (let page = 1; page <= 5; page++) {
+    const { data, error } = await admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const match = data.users.find((u) => (u.email || '').trim().toLowerCase() === normalizedEmail);
+    if (match) return match.id;
+    if (data.users.length < 200) break;
+  }
+  throw new Error(`Supabase reports email already registered, but no matching user was found`);
+}
