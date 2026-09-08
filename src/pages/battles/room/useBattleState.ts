@@ -19,6 +19,7 @@ import {
   BATTLE_CHANNEL_PREFIX,
   BATTLE_EVENTS
 } from '../../../lib/blink';
+import { realtime } from '../../../lib/realtime';
 import type { Battle, BattlePlayer, PlayerBattleResult } from '../battleTypes';
 import { fetchBattleStateAPI } from '../../../lib/api';
 import { useAuth } from '../../../hooks/useAuth';
@@ -405,7 +406,7 @@ export const useBattleState = (battleId: string) => {
       subInProgress.current = battleId;
       try {
         console.log(`[Realtime] Subscribing to battle ${battleId} (attempt ${retryCount + 1})`);
-        unsubFn = await blink.realtime.subscribe(
+        unsubFn = await realtime.subscribe(
           `${BATTLE_CHANNEL_PREFIX}-${battleId}`,
           (msg) => {
             if (!mounted) return;

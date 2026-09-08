@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { blink } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 import { startOfDay } from 'date-fns';
 import { getDailyIncrementalValue, getDailySeed, seededRandom } from '../lib/simulation';
 import { getLeaderboardData } from '../lib/leaderboard';
@@ -97,29 +97,20 @@ export function useLiveCounters() {
   const [simulatedOffset, setSimulatedOffset] = useState(180);
 
   useEffect(() => {
-    // Presence is a protected realtime read. Do not open the channel on the
-    // public landing page before managed/headless auth has resolved; otherwise
-    // the SDK emits an avoidable 401 and browsers report it as Failed to fetch.
-    let channel: ReturnType<typeof blink.realtime.channel> | null = null;
-    let unsubscribeAuth: (() => void) | undefined;
+    const presenceChannel = realtime.channel('app-presence');
     const initPresence = async () => {
-      if (!blink.auth.isAuthenticated()) return;
-      channel = blink.realtime.channel('app-presence');
       try {
-        await channel.subscribe();
-        channel.onPresence((users) => {
+        await presenceChannel.subscribe();
+        presenceChannel.onPresence((users) => {
           setRealPlayers(users.length);
         });
-        const initial = await channel.getPresence();
+        const initial = await presenceChannel.getPresence();
         setRealPlayers(initial.length);
       } catch {
         // Simulated players remain available when realtime is unavailable.
       }
     };
-
-    unsubscribeAuth = blink.auth.onAuthStateChanged((state) => {
-      if (!state.isLoading) void initPresence();
-    });
+    void initPresence();
 
     // Fluctuate simulated players every 15 seconds
     const interval = setInterval(() => {
@@ -131,8 +122,7 @@ export function useLiveCounters() {
     }, 15000);
 
     return () => {
-      unsubscribeAuth?.();
-      void channel?.unsubscribe();
+      void presenceChannel.unsubscribe();
       clearInterval(interval);
     };
   }, []);

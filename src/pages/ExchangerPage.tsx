@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { blink, INVENTORY_CHANNEL, INVENTORY_UPDATED_EVENT } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 import { useAuth, useUserStats } from '../hooks/useAuth';
 import { MarketPanel } from './exchanger/MarketPanel';
 import { ExchangerHeader } from './exchanger/ExchangerHeader';
@@ -97,7 +98,7 @@ export const ExchangerPage: React.FC = () => {
 
     const sub = async () => {
       try {
-        const unsubscribe = await blink.realtime.subscribe(`${INVENTORY_CHANNEL}-${user.id}`, (msg) => {
+        const unsubscribe = await realtime.subscribe(`${INVENTORY_CHANNEL}-${user.id}`, (msg) => {
           if (!mounted) return;
 
           if (msg.event === INVENTORY_UPDATED_EVENT) {

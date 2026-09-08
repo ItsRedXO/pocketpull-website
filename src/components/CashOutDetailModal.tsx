@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Package, Calendar, MapPin, AlertCircle, RefreshCw, Undo2, Loader2 } from 'lucide-react';
 import { blink, INVENTORY_CHANNEL, INVENTORY_UPDATED_EVENT } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 import { toast } from '@blinkdotnew/ui';
 
 interface CashOutDetailModalProps {
@@ -55,7 +56,7 @@ export const CashOutDetailModal: React.FC<CashOutDetailModalProps> = ({ isOpen, 
       await Promise.all(returnPromises);
 
       // 3. Notify app of inventory changes
-      await blink.realtime.publish(`${INVENTORY_CHANNEL}-${request.userId}`, INVENTORY_UPDATED_EVENT, { 
+      await realtime.publish(`${INVENTORY_CHANNEL}-${request.userId}`, INVENTORY_UPDATED_EVENT, {
         type: 'add_many', 
         message: 'Cards returned from canceled cashout'
       });

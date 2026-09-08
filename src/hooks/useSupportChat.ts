@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 
 export interface SupportMessage {
   id: string;
@@ -156,7 +157,7 @@ export function useUserSupportChat(userId: string | null, username: string, enab
 
     // Publish realtime event for admin
     try {
-      await blink.realtime.publish(SUPPORT_CHANNEL, 'new_message', {
+      await realtime.publish(SUPPORT_CHANNEL, 'new_message', {
         chatId,
         message: newMsg,
         fromUser: true,
@@ -172,7 +173,7 @@ export function useUserSupportChat(userId: string | null, username: string, enab
 
     const sub = async () => {
       try {
-        unsub = await blink.realtime.subscribe(SUPPORT_CHANNEL, (event: any) => {
+        unsub = await realtime.subscribe(SUPPORT_CHANNEL, (event: any) => {
           if (!mounted) return;
           
           if (event.type === 'admin_reply' && event.data?.chatId === chat?.id) {
@@ -271,7 +272,7 @@ export function useAdminSupportChats() {
     qc.invalidateQueries({ queryKey: [...SUPPORT_MESSAGES_QUERY_KEY, chatId] });
 
     try {
-      await blink.realtime.publish(SUPPORT_CHANNEL, 'admin_reply', {
+      await realtime.publish(SUPPORT_CHANNEL, 'admin_reply', {
         chatId,
         message: newMsg,
         fromAdmin: true,
@@ -286,7 +287,7 @@ export function useAdminSupportChats() {
     await blink.db.supportChats.update(chatId, { status, updatedAt: now });
     qc.invalidateQueries({ queryKey: SUPPORT_CHATS_QUERY_KEY });
     try {
-      await blink.realtime.publish(SUPPORT_CHANNEL, 'chat_status_changed', {
+      await realtime.publish(SUPPORT_CHANNEL, 'chat_status_changed', {
         chatId,
         status,
       });
@@ -299,7 +300,7 @@ export function useAdminSupportChats() {
 
     const sub = async () => {
       try {
-        unsub = await blink.realtime.subscribe(SUPPORT_CHANNEL, (event: any) => {
+        unsub = await realtime.subscribe(SUPPORT_CHANNEL, (event: any) => {
           if (!mounted) return;
           if (event.type === 'new_message' && event.data?.fromUser) {
             qc.invalidateQueries({ queryKey: SUPPORT_CHATS_QUERY_KEY });

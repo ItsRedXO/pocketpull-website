@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, CheckCircle, ChevronLeft, Clock, Loader2, MessageCircle, RefreshCw, Search, Send, Zap } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { realtime } from '../lib/realtime';
 import { isLatestRequest } from './supportChatRequest';
 
 type Status = 'pending' | 'active' | 'completed' | 'archived';
@@ -39,7 +40,7 @@ export function SupportChatsTabFixed({showToast}:{showToast:(m:string,ok?:boolea
  useEffect(()=>{void reconcileChats(true);const timer=window.setInterval(()=>void reconcileChats(false),15000);return()=>window.clearInterval(timer)},[reconcileChats]);
  useEffect(()=>{
   let mounted=true;let unsub:(()=>void)|null=null;
-  void (async()=>{try{unsub=await blink.realtime.subscribe(CHANNEL,(event:any)=>{
+  void (async()=>{try{unsub=await realtime.subscribe(CHANNEL,(event:any)=>{
    if(!mounted)return;const chatId=event.data?.chatId;if(!chatId)return;
    const msg=event.data?.message as SupportMessage|undefined;
    if((event.type==='new_message'||event.type==='admin_reply')&&msg){
@@ -55,8 +56,8 @@ export function SupportChatsTabFixed({showToast}:{showToast:(m:string,ok?:boolea
 
  const filtered=useMemo(()=>chats.filter(c=>{const q=search.trim().toLowerCase();return(!q||`${c.username} ${c.subject||''} ${c.lastMessage||''}`.toLowerCase().includes(q))&&(filter==='all'||c.status===filter)}),[chats,search,filter]);
  const counts=useMemo(()=>({pending:chats.filter(c=>c.status==='pending').length,active:chats.filter(c=>c.status==='active').length,completed:chats.filter(c=>c.status==='completed').length,archived:chats.filter(c=>c.status==='archived').length}),[chats]);
- const changeStatus=async(chat:SupportChat,status:Status)=>{try{await blink.db.supportChats.update(chat.id,{status,updatedAt:new Date().toISOString()});setSelected(c=>c?.id===chat.id?{...c,status}:c);setChats(p=>p.map(c=>c.id===chat.id?{...c,status}:c));try{await blink.realtime.publish(CHANNEL,'chat_status_changed',{chatId:chat.id,status})}catch{}showToast(`Chat marked ${status}.`)}catch(e:any){showToast(e?.message||'Status update failed',false)}};
- const sendReply=async()=>{if(!selected||!reply.trim()||sending)return;setSending(true);const text=reply.trim(),now=new Date().toISOString();const msg:SupportMessage={id:`support_msg_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,chatId:selected.id,userId:selected.userId,senderType:'admin',message:text,createdAt:now};try{await blink.db.supportMessages.create(msg);await blink.db.supportChats.update(selected.id,{status:'active',lastMessage:text,lastMessageAt:now,updatedAt:now});setMessages(p=>p.some(m=>m.id===msg.id)?p:[...p,msg]);setSelected(c=>c?{...c,status:'active',lastMessage:text,lastMessageAt:now}:c);setChats(p=>p.map(c=>c.id===selected.id?{...c,status:'active',lastMessage:text,lastMessageAt:now}:c));setReply('');try{await blink.realtime.publish(CHANNEL,'admin_reply',{chatId:selected.id,message:msg,fromAdmin:true})}catch{}showToast('Reply sent.')}catch(e:any){setReply(text);showToast(e?.message||'Failed to send reply',false)}finally{setSending(false)}};
+ const changeStatus=async(chat:SupportChat,status:Status)=>{try{await blink.db.supportChats.update(chat.id,{status,updatedAt:new Date().toISOString()});setSelected(c=>c?.id===chat.id?{...c,status}:c);setChats(p=>p.map(c=>c.id===chat.id?{...c,status}:c));try{await realtime.publish(CHANNEL,'chat_status_changed',{chatId:chat.id,status})}catch{}showToast(`Chat marked ${status}.`)}catch(e:any){showToast(e?.message||'Status update failed',false)}};
+ const sendReply=async()=>{if(!selected||!reply.trim()||sending)return;setSending(true);const text=reply.trim(),now=new Date().toISOString();const msg:SupportMessage={id:`support_msg_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,chatId:selected.id,userId:selected.userId,senderType:'admin',message:text,createdAt:now};try{await blink.db.supportMessages.create(msg);await blink.db.supportChats.update(selected.id,{status:'active',lastMessage:text,lastMessageAt:now,updatedAt:now});setMessages(p=>p.some(m=>m.id===msg.id)?p:[...p,msg]);setSelected(c=>c?{...c,status:'active',lastMessage:text,lastMessageAt:now}:c);setChats(p=>p.map(c=>c.id===selected.id?{...c,status:'active',lastMessage:text,lastMessageAt:now}:c));setReply('');try{await realtime.publish(CHANNEL,'admin_reply',{chatId:selected.id,message:msg,fromAdmin:true})}catch{}showToast('Reply sent.')}catch(e:any){setReply(text);showToast(e?.message||'Failed to send reply',false)}finally{setSending(false)}};
 
  return <section className="flex min-h-[calc(100vh-170px)] h-[calc(100vh-170px)] overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]">
   <div className={`${selected?'hidden lg:flex':'flex'} w-full lg:w-80 shrink-0 flex-col border-r border-white/5`}>
