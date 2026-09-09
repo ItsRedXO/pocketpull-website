@@ -39,11 +39,18 @@ function VaultParticles({ color, burst = false }: { color: string; burst?: boole
 }
 
 // Rotating light rays behind the emerging card — the classic pack-app "big moment" backdrop.
+// Masked with a radial fade so the rays taper off softly instead of getting a hard
+// clip against the panel's border (which reads as the rays "leaking" past the edge).
 function LightRays({ color, intense = false }: { color: string; intense?: boolean }) {
+  const fade = 'radial-gradient(circle, black 0%, black 45%, transparent 78%)';
+  const size = 320;
   return (
+    // framer-motion's animate (scale/rotate) owns this element's `transform`, which
+    // would silently clobber Tailwind's translate-based centering classes -- so
+    // center with a fixed negative margin instead of -translate-x/y-1/2.
     <motion.div
-      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-      style={{ width: 420, height: 420 }}
+      className="pointer-events-none absolute overflow-hidden"
+      style={{ width: size, height: size, left: '50%', top: '50%', marginLeft: -size / 2, marginTop: -size / 2 }}
       initial={{ opacity: 0, scale: 0.6, rotate: 0 }}
       animate={{ opacity: intense ? [0, 0.9, 0.65] : [0, 0.5], scale: 1, rotate: 90 }}
       transition={{ duration: intense ? 1.6 : 1.2, ease: 'easeOut' }}
@@ -53,6 +60,8 @@ function LightRays({ color, intense = false }: { color: string; intense?: boolea
         style={{
           background: `conic-gradient(from 0deg, transparent 0deg, ${color}55 8deg, transparent 16deg, transparent 40deg, ${color}55 48deg, transparent 56deg, transparent 80deg, ${color}55 88deg, transparent 96deg, transparent 120deg, ${color}55 128deg, transparent 136deg, transparent 160deg, ${color}55 168deg, transparent 176deg, transparent 200deg, ${color}55 208deg, transparent 216deg, transparent 240deg, ${color}55 248deg, transparent 256deg, transparent 280deg, ${color}55 288deg, transparent 296deg, transparent 320deg, ${color}55 328deg, transparent 336deg, transparent 360deg)`,
           borderRadius: '50%',
+          WebkitMaskImage: fade,
+          maskImage: fade,
         }}
       />
     </motion.div>
@@ -106,19 +115,22 @@ function VaultPack({
       </motion.div>
     </motion.div>
 
-    {flashing && <motion.div className="absolute left-1/2 top-[65px] h-10 w-[125%] -translate-x-1/2 border-y-2 border-dashed border-[#ffd700]" initial={{ scaleX: 0, opacity: 0 }} animate={{ scaleX: 1, opacity: [0, 1, 0] }} transition={{ duration: 0.8 }} />}
+    {flashing && <motion.div className="absolute top-[65px] h-10 w-[125%] border-y-2 border-dashed border-[#ffd700]" style={{ left: '50%', marginLeft: '-62.5%' }} initial={{ scaleX: 0, opacity: 0 }} animate={{ scaleX: 1, opacity: [0, 1, 0] }} transition={{ duration: 0.8 }} />}
 
     {/* Draggable pull tab — drag right past the threshold to tear the seal; release early and it snaps back */}
     {!active && (
       <div
         className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab touch-none items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
-        style={{ transform: `translateX(${dragX}px) scale(${1 + dragProgress * 0.15})` }}
+        style={{ transform: `translateX(${dragX}px) scale(${1 + dragProgress * 0.15})`, touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
+        draggable={false}
+        onDragStart={e => e.preventDefault()}
         onPointerDown={e => {
           if (disabled) return;
-          (e.target as HTMLElement).setPointerCapture(e.pointerId);
+          e.preventDefault();
+          e.currentTarget.setPointerCapture(e.pointerId);
           onDragStart();
           const startX = e.clientX;
-          const handleMove = (ev: PointerEvent) => onDrag(Math.min(DRAG_THRESHOLD + 24, Math.max(0, ev.clientX - startX)));
+          const handleMove = (ev: PointerEvent) => { ev.preventDefault(); onDrag(Math.min(DRAG_THRESHOLD + 24, Math.max(0, ev.clientX - startX))); };
           const handleUp = () => {
             window.removeEventListener('pointermove', handleMove);
             window.removeEventListener('pointerup', handleUp);
@@ -189,7 +201,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   return <div className="space-y-5">
     <div className="rounded-2xl p-5 text-center" style={{ background: 'linear-gradient(135deg, rgba(255,215,0,0.12), rgba(155,92,255,0.12))', border: '1px solid rgba(255,215,0,0.25)' }}><div className="flex items-center justify-center gap-2 text-[#ffd700] text-[10px] uppercase tracking-[0.25em] font-bold">{isVaulted ? <LockKeyhole size={14} /> : <Sparkles size={14} />} {isVaulted ? 'Vaulted Archive' : 'Mystery Vault'}</div><div className="mt-3 text-white font-display text-2xl">Collected {collectedTotal}/{originalTotal}</div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[#ffd700] to-[#9b5cff] transition-all" style={{ width: `${originalTotal ? (collectedTotal / originalTotal) * 100 : 0}%` }} /></div></div>
 
-    {!isVaulted && <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-[#090a12] px-4 pb-6 pt-10 text-center" style={{ minHeight: 420 }}>
+    {!isVaulted && phase !== 'revealed' && <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-[#090a12] px-4 pb-6 pt-10 text-center" style={{ minHeight: 420 }}>
       <AnimatePresence>{isAnimating && <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><VaultParticles color={color} burst={phase === 'opening' || phase === 'revealing'} /></motion.div>}</AnimatePresence>
 
       {/* Full flash burst at the moment the vault breaches — the "big moment" beat */}
@@ -247,7 +259,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
             Pull tab · Rip seal
           </button>
         )}
-        {phase !== 'idle' && phase !== 'revealed' && (
+        {phase !== 'idle' && (
           <div className="mt-5 rounded-xl border border-[#ffd700]/20 bg-[#ffd700]/5 px-7 py-3 font-display text-sm font-bold uppercase tracking-widest text-[#ffd700]/60">
             Opening…
           </div>
