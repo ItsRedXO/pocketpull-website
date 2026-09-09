@@ -29,10 +29,10 @@ app.post('/inventory/sell',async c=>{
       if(!rows.rowCount)return {kind:'not_found' as const}; const card=rows.rows[0];
       if(Number(card.sold||0)!==0)return {kind:'sold' as const}; if(Number(card.locked||0)!==0)throw new Error('Card is locked');
       const value=Number(card.value||0); if(!Number.isFinite(value)||value<0)throw new Error('Invalid card value');
-      const wallet=await processWalletTransactionInClient(client,{userId,type:'sell',amount:value,sourceId:inventoryId}); if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
+      const wallet=await processWalletTransactionInClient(client,{userId,type:'sell',amount:value,sourceId:`sell:${inventoryId}`}); if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
       const updated=await client.query('UPDATE inventory SET sold=1 WHERE id=$1 AND user_id=$2 AND COALESCE(sold,0)=0',[inventoryId,userId]); if(updated.rowCount!==1)throw new Error('Card could not be marked sold');
       const data=card.data&&typeof card.data==='object'?card.data:{}; const cardName=data.cardName||data.card_name||data.name||'Card'; const imageUrl=data.cardImageUrl||data.card_image_url||data.imageUrl||data.image_url||''; const description=`Sold ${cardName}${imageUrl?` |img:${imageUrl}|`:''}`;
-      try{await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[`txn_sell_${inventoryId}`,userId,'sell',value,description,inventoryId]);}catch(historyError){console.error('[inventory/sell] history insert failed; sale retained',historyError);}
+      try{await client.query('SAVEPOINT sell_history_insert');await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[`txn_sell_${inventoryId}`,userId,'sell',value,description,`sell:${inventoryId}`]);}catch(historyError){await client.query('ROLLBACK TO SAVEPOINT sell_history_insert').catch(()=>undefined);console.error('[inventory/sell] history insert failed; sale retained',historyError);}
       return {kind:'ok' as const,value,balance:wallet.balanceAfter};
     });
     if(result.kind==='not_found')return c.json({error:'Card not found'},404); if(result.kind==='sold')return c.json({error:'Card already sold'},409); return c.json({success:true,inventoryId,soldCardId:inventoryId,value:result.value,cardValue:result.value,balance:result.balance,newBalance:result.balance});
