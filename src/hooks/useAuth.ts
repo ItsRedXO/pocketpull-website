@@ -129,7 +129,7 @@ export interface UserStats {
   referralCode: string;
 }
 
-export const USER_STATS_QUERY_KEY = ['user-stats'];
+const USER_STATS_QUERY_KEY = ['user-stats'];
 
 export function useUserStats(userId?: string, userEmail?: string, userDisplayName?: string, isEmailVerified?: boolean) {
   const qc = useQueryClient();

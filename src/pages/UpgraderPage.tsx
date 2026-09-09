@@ -17,7 +17,7 @@ export const UpgraderPage: React.FC = () => {
     tgtSearch, setTgtSearch, tgtRarityFilter, setTgtRarityFilter, tgtMinValue, setTgtMinValue, tgtMaxValue, setTgtMaxValue,
     upgrading, spinning, outcome, wonCards, error,
     selectedCardTotal, totalUpgradeValue, targetValueThreshold, perTargetChance,
-    chanceForTarget, filteredInventory, filteredTargets,
+    filteredInventory, filteredTargets,
     paginatedInventory, paginatedTargets,
     invPage, setInvPage, totalInvPages,
     tgtPage, setTgtPage, totalTgtPages,
@@ -70,9 +70,7 @@ export const UpgraderPage: React.FC = () => {
           <CenterPanel
             upgrading={upgrading} spinning={spinning} outcome={outcome}
             multiplierIdx={multiplierIdx} setMultiplierIdx={setMultiplierIdx}
-            selectedCardTotal={selectedCardTotal} effectiveAddedBalance={useBalance ? addedBalance : 0}
-            totalUpgradeValue={totalUpgradeValue} targetValue={targetValueThreshold}
-            perTargetChance={perTargetChance} selectedTargetsCount={selectedTargets.length}
+            perTargetChance={perTargetChance}
             isAuthenticated={isAuthenticated} stats={stats}
             useBalance={useBalance} setUseBalance={setUseBalance}
             addedBalance={addedBalance} setAddedBalance={setAddedBalance}
@@ -91,8 +89,6 @@ export const UpgraderPage: React.FC = () => {
             minValue={tgtMinValue} setMinValue={setTgtMinValue}
             maxValue={tgtMaxValue} setMaxValue={setTgtMaxValue}
             selectedTargets={selectedTargets} toggleTarget={toggleTarget}
-            perTargetChance={perTargetChance} selectedCardsCount={selectedCards.length}
-            chanceForTarget={chanceForTarget}
             paginatedTargets={paginatedTargets}
             page={tgtPage} setPage={setTgtPage} totalPages={totalTgtPages}
           />
@@ -101,5 +97,3 @@ export const UpgraderPage: React.FC = () => {
     </motion.div>
   );
 };
-
-export default UpgraderPage;

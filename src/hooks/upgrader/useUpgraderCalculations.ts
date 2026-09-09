@@ -3,8 +3,6 @@ import { MULTIPLIERS, TargetCard } from '../../pages/upgrader/constants';
 import { UpgraderState, CARDS_PER_PAGE } from './useUpgraderState';
 import { UpgraderData } from './useUpgraderData';
 
-export const HOUSE_EDGE_FACTOR = 0.90;
-
 export const useUpgraderCalculations = (state: UpgraderState, data: UpgraderData) => {
   const {
     inventory, allDbCards, invSearch, invRarityFilter,

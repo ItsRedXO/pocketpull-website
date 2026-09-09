@@ -30,13 +30,13 @@ export interface BattleStepState {
   resultsReady: boolean;   // cards have arrived from backend
 }
 
-export const INITIAL_STATE: BattleStepState = {
+const INITIAL_STATE: BattleStepState = {
   step: IDLE_STEP,
   results: [],
   resultsReady: false,
 };
 
-export function battleStepReducer(
+function battleStepReducer(
   state: BattleStepState,
   action: StepAction
 ): BattleStepState {

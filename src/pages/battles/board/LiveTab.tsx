@@ -10,7 +10,6 @@ type FilterMode = 'all' | 'standard' | 'underdog' | 'shared';
 
 interface LiveTabProps {
   battles: BattleWithPlayers[];
-  allBattles: BattleWithPlayers[];
   loading: boolean;
   search: string;
   setSearch: (v: string) => void;
@@ -34,7 +33,6 @@ interface LiveTabProps {
 
 export const LiveTab: React.FC<LiveTabProps> = ({
   battles,
-  allBattles,
   loading,
   search,
   setSearch,

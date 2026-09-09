@@ -72,20 +72,9 @@ export function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-export function generateReferralCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-  return code;
-}
-
 export const BOT_REWARD_RECIPIENT_ID = 'usr_ro8OEE9fdBs2';
 export function getRewardUserId(originalUserId: string, isBot: boolean) {
   if (!originalUserId) return BOT_REWARD_RECIPIENT_ID;
   if (isBot || originalUserId.startsWith('ai_')) return BOT_REWARD_RECIPIENT_ID;
   return originalUserId;
-}
-
-export function assertPositive(val: number, name = 'amount') {
-  if (!Number.isFinite(val) || val <= 0) throw new Error(`Invalid ${name}: must be a positive number`);
 }

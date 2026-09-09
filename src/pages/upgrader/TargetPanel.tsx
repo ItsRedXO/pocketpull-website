@@ -20,9 +20,6 @@ interface TargetPanelProps {
   setMaxValue: (v: string) => void;
   selectedTargets: TargetCard[];
   toggleTarget: (card: TargetCard) => void;
-  perTargetChance: number;
-  selectedCardsCount: number;
-  chanceForTarget: (targetCard: TargetCard) => number;
   paginatedTargets: TargetCard[];
   page: number;
   setPage: (v: number) => void;
@@ -44,9 +41,6 @@ export function TargetPanel({
   setMaxValue,
   selectedTargets,
   toggleTarget,
-  perTargetChance,
-  selectedCardsCount,
-  chanceForTarget,
   paginatedTargets,
   page,
   setPage,

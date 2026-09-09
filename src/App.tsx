@@ -11,7 +11,6 @@ import { AudioProvider, AudioButton } from './components/AudioSystem';
 import { SupportChat } from './components/SupportChat';
 import { InfoModal, InfoModalType } from './components/InfoModal';
 import ProvablyFairModal from './components/ProvablyFairModal';
-import { PackOpeningModal } from './components/PackOpeningModal';
 import { AuthModal } from './components/AuthModal';
 import { DepositModal } from './components/DepositModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -30,13 +29,11 @@ import { ExchangerPage } from './pages/ExchangerPage';
 import { Inventory } from './pages/Inventory';
 import { ProfilePage } from './pages/ProfilePage';
 import { VaultPage } from './pages/VaultPage';
-import type { Pack } from './data/mockData';
 
 type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault';
 
 export default function App() {
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) return <AdminApp />;
-  const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'signup'>('login');
@@ -57,7 +54,6 @@ export default function App() {
   const handleDepositClose = useCallback(() => setDepositOpen(false), []);
   const handleAuthClose = useCallback(() => setAuthModalOpen(false), []);
   const handleInfoClose = useCallback(() => setInfoModalType(null), []);
-  const handlePackClose = useCallback(() => setSelectedPack(null), []);
   const openAuthModal = useCallback((tab: 'login' | 'signup') => { setAuthModalTab(tab); setAuthModalOpen(true); }, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search); const ref = params.get('ref');
@@ -71,5 +67,5 @@ export default function App() {
     window.addEventListener('pocketpull-open-info', handleOpenInfo); window.addEventListener('pocketpull-open-auth', handleOpenAuth); window.addEventListener('pocketpull-open-provably-fair', handleOpenProvablyFair);
     return () => { window.removeEventListener('pocketpull-open-info', handleOpenInfo); window.removeEventListener('pocketpull-open-auth', handleOpenAuth); window.removeEventListener('pocketpull-open-provably-fair', handleOpenProvablyFair); };
   }, [openAuthModal]);
-  return <AudioProvider><><LoadingSplash ready={homepageReady} /><AgeGate /><ParticleBackground /><AnimatePresence>{stats?.isBanned && <motion.div initial={{opacity:0,y:-20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-20}} className="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white px-4 py-3 text-center font-display uppercase tracking-widest text-sm">Your account is currently banned. Please contact support.</motion.div>}</AnimatePresence><div className="relative z-10 min-h-screen bg-[#0a0b0f]"><Navbar onPageChange={handlePageChange} currentPage={currentPage} openAuthModal={openAuthModal} onProfileOpen={handleProfileOpen} onDepositOpen={handleDepositOpen} /><LiveTicker /><main className="pb-20 lg:pb-0"><AnimatePresence mode="wait">{currentPage === 'home' && <motion.div key="home" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.35}}><HeroSection onPackOpen={setSelectedPack} onPageChange={handlePageChange} /><FeaturedPacksSection onPackOpen={setSelectedPack} /><Leaderboard /><CommunitySection /><HowItWorks /><TrustSection /></motion.div>}{currentPage === 'vault' && <motion.div key="vault" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.35}}><VaultPage /></motion.div>}{currentPage === 'upgrader' && <UpgraderPage />}{currentPage === 'battle' && <PackBattlesPage />}{currentPage === 'exchanger' && <ExchangerPage />}{currentPage === 'inventory' && <Inventory onDepositOpen={handleDepositOpen} onProfileOpen={handleProfileOpen} />}{currentPage === 'profile' && <ProfilePage onBack={() => setCurrentPage('home')} />}</AnimatePresence></main><Footer onPageChange={handlePageChange} /><MobileBottomNav currentPage={currentPage} onPageChange={handlePageChange} /></div><AnimatePresence>{selectedPack && <PackOpeningModal pack={selectedPack} onClose={handlePackClose} />}</AnimatePresence><AuthModal isOpen={authModalOpen} onClose={handleAuthClose} defaultTab={authModalTab} /><DepositModal isOpen={depositOpen} onClose={handleDepositClose} userId={user?.id || ''} username={stats?.username} email={stats?.email || user?.email} currentBalance={stats?.balance || 0} onBalanceUpdate={updateBalance} /><AudioButton /><SupportChat /><InfoModal type={infoModalType} onClose={handleInfoClose} /><ProvablyFairModal isOpen={provablyFairOpen} onClose={() => setProvablyFairOpen(false)} /></></AudioProvider>;
+  return <AudioProvider><><LoadingSplash ready={homepageReady} /><AgeGate /><ParticleBackground /><AnimatePresence>{stats?.isBanned && <motion.div initial={{opacity:0,y:-20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-20}} className="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white px-4 py-3 text-center font-display uppercase tracking-widest text-sm">Your account is currently banned. Please contact support.</motion.div>}</AnimatePresence><div className="relative z-10 min-h-screen bg-[#0a0b0f]"><Navbar onPageChange={handlePageChange} currentPage={currentPage} openAuthModal={openAuthModal} onProfileOpen={handleProfileOpen} onDepositOpen={handleDepositOpen} /><LiveTicker /><main className="pb-20 lg:pb-0"><AnimatePresence mode="wait">{currentPage === 'home' && <motion.div key="home" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.35}}><HeroSection /><FeaturedPacksSection /><Leaderboard /><CommunitySection /><HowItWorks /><TrustSection /></motion.div>}{currentPage === 'vault' && <motion.div key="vault" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.35}}><VaultPage /></motion.div>}{currentPage === 'upgrader' && <UpgraderPage />}{currentPage === 'battle' && <PackBattlesPage />}{currentPage === 'exchanger' && <ExchangerPage />}{currentPage === 'inventory' && <Inventory onDepositOpen={handleDepositOpen} onProfileOpen={handleProfileOpen} />}{currentPage === 'profile' && <ProfilePage onBack={() => setCurrentPage('home')} />}</AnimatePresence></main><Footer onPageChange={handlePageChange} /><MobileBottomNav currentPage={currentPage} onPageChange={handlePageChange} /></div><AuthModal isOpen={authModalOpen} onClose={handleAuthClose} defaultTab={authModalTab} /><DepositModal isOpen={depositOpen} onClose={handleDepositClose} userId={user?.id || ''} username={stats?.username} email={stats?.email || user?.email} currentBalance={stats?.balance || 0} onBalanceUpdate={updateBalance} /><AudioButton /><SupportChat /><InfoModal type={infoModalType} onClose={handleInfoClose} /><ProvablyFairModal isOpen={provablyFairOpen} onClose={() => setProvablyFairOpen(false)} /></></AudioProvider>;
 }

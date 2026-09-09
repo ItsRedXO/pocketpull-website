@@ -49,12 +49,3 @@ export const StepDot: React.FC<{ active: boolean; done: boolean; num: number }> 
   </div>
 );
 
-// ─── ErrorBanner ──────────────────────────────────────────────────────────────
-export const ErrorBanner: React.FC<{ message: string }> = ({ message }) => (
-  <div
-    className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
-    style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)' }}
-  >
-    <span className="text-xs text-red-400">{message}</span>
-  </div>
-);

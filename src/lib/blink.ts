@@ -84,7 +84,6 @@ export const blink: any = new Proxy(blinkClient, {
 export const INVENTORY_CHANNEL = 'inventory-updates';
 export const INVENTORY_UPDATED_EVENT = 'updated';
 export const BATTLE_CHANNEL_PREFIX = 'battle-state';
-export const BATTLE_LOBBY_CHANNEL = 'battle-lobby';
 export const BATTLE_EVENTS = {
   PHASE_CHANGE: 'phase_change',
   ROUND_UPDATE: 'round_update',

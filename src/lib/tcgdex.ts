@@ -69,7 +69,7 @@ interface DetailCard {
 
 // ── Image URL normalisation ───────────────────────────────────────────────────
 
-export function normaliseTcgDexImage(rawImage: string | undefined): string {
+function normaliseTcgDexImage(rawImage: string | undefined): string {
   if (!rawImage) return '';
   if (/\.(png|jpg|jpeg|webp)$/i.test(rawImage)) return rawImage;
   return `${rawImage}/high.png`;
@@ -276,48 +276,5 @@ export async function hydrateTcgDexCards(entries: ListEntry[]): Promise<TcgDexCa
   } catch (err) {
     console.error('[TCGDex] Batch hydration failed:', err);
     return [];
-  }
-}
-
-export async function searchTcgDexCards(query: string, limit = 1000): Promise<TcgDexCard[]> {
-  try {
-    const matches = await getTcgDexMatches(query);
-    if (!matches || matches.length === 0) return [];
-    return hydrateTcgDexCards(matches.slice(0, limit));
-  } catch (err) {
-    console.error('[TCGDex] searchTcgDexCards failed:', err);
-    return [];
-  }
-}
-
-export async function fetchTcgDexCard(id: string): Promise<TcgDexCard | null> {
-  try {
-    const detail = await fetchDetail(id);
-    if (!detail) return null;
-    const { tcgplayer, cardmarket } = extractPrice(detail);
-    return {
-      id: detail.id,
-      localId: detail.localId ?? '',
-      name: detail.name || 'Unknown Card',
-      image: normaliseTcgDexImage(detail.image),
-      set: extractSetName(detail),
-      rarity: detail.rarity ?? null,
-      hp: detail.hp ?? null,
-      types: detail.types ?? [],
-      category: detail.category ?? '',
-      description: detail.description ?? null,
-      effect: detail.effect ?? null,
-      attacks: detail.attacks ?? [],
-      abilities: detail.abilities ?? [],
-      illustrator: detail.illustrator ?? null,
-      dexId: detail.dexId ?? null,
-      stage: detail.stage ?? null,
-      evolveFrom: detail.evolveFrom ?? null,
-      tcgplayerPrice: tcgplayer,
-      cardmarketPrice: cardmarket,
-    };
-  } catch (err) {
-    console.error(`[TCGDex] fetchTcgDexCard failed for ${id}:`, err);
-    return null;
   }
 }

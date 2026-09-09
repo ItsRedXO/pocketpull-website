@@ -25,9 +25,11 @@ test('Email admin tab orders by createdAt and reads legacy fields from row data'
   assert.match(source, /sentAt:\s*String\(r\?\.sentAt \|\| data\.sentAt \|\| r\?\.createdAt/);
 });
 
-test('Stats admin tab keeps successful metrics when one metric query fails', () => {
-  const source = read('src/admin/StatsTab.tsx');
-  assert.match(source, /Promise\.allSettled\(/);
-  assert.match(source, /totalUsersResult/);
-  assert.match(source, /totalPacksResult/);
-});
+// NOTE: the "Stats admin tab keeps successful metrics when one metric query
+// fails" test used to live here, checking client-side Promise.allSettled
+// resilience in src/admin/StatsTab.tsx. That component was dead code (the
+// live tab is StatsTabFixed.tsx, which fetches everything from a single
+// GET /admin/stats backend call instead of running several client-side
+// queries), so it was removed. The per-metric partial-failure resilience
+// this test checked for does not currently exist in StatsTabFixed.tsx or in
+// backend/routes/adminStats.ts either -- worth a look if that matters.

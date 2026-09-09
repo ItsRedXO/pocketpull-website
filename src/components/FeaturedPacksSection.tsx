@@ -1,38 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Pack } from '../data/mockData';
 import { usePacks, PackCatalog, useUserCooldowns } from '../hooks/usePacks';
 import { PackDetailsModal } from './PackDetailsModal';
 import { useAuth } from '../hooks/useAuth';
 
-interface Props {
-  onPackOpen: (pack: Pack) => void;
-}
-
-// Build a compatibility shim: PackCatalog → Pack (for opening animation)
-function catalogToMockPack(p: PackCatalog): Pack {
-  return {
-    id: p.id,
-    name: p.name,
-    price: p.price,
-    tier: p.price <= 1 ? 'low' : p.price <= 10 ? 'mid' : 'high',
-    emoji: '🎴',
-    rarity: 'uncommon',
-    borderColor: p.borderColor,
-    glowColor: p.glowColor,
-    description: p.description,
-    odds: { common: 50, uncommon: 30, rare: 12, ultra: 6, secret: 2 },
-    totalOpened: '0',
-    featured: true,
-    featuredCards: [],
-    quantityLimit: p.quantityLimit,
-    currentQuantity: p.currentQuantity,
-    cooldownHours: p.cooldownHours,
-    expiresAt: p.expiresAt,
-  };
-}
-
-export const FeaturedPacksSection: React.FC<Props> = ({ onPackOpen }) => {
+export const FeaturedPacksSection: React.FC = () => {
   const { user } = useAuth();
   const { data: packs = [], isLoading, isError, refetch } = usePacks();
   const { data: cooldowns = {} } = useUserCooldowns(user?.id);
@@ -143,8 +115,6 @@ export const FeaturedPacksSection: React.FC<Props> = ({ onPackOpen }) => {
             key={detailPack.id}
             pack={detailPack}
             onClose={() => setDetailPack(null)}
-            onOpenPack={(pack) => { onPackOpen(pack); setDetailPack(null); }}
-            mockPack={catalogToMockPack(detailPack)}
           />
         )}
       </AnimatePresence>

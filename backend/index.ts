@@ -11,7 +11,6 @@ import upgraderRoutes from './routes/upgrader';
 import exchangerRoutes from './routes/exchanger';
 import battleRoutes from './routes/battles/index';
 import cashoutRoutes from './routes/cashoutV2';
-import legacyCashoutRoutes from './routes/cashout';
 import cashoutAdminRoutes from './routes/cashoutAdminV2';
 import legacyCashoutAdminRoutes from './routes/cashoutAdmin';
 import inventoryRoutes from './routes/inventory';
@@ -42,7 +41,7 @@ function getDailyPacksOpened() { const now = new Date(new Date().toLocaleString(
 app.get('/battles/stats', async c => { try { const rows = await query<{ count: string }>('SELECT count(*)::text count FROM battles WHERE status IN ($1,$2) AND is_public=1', ['waiting', 'live']); return c.json({ success: true, liveBattles: Number(rows[0]?.count || 0), packsOpened: getDailyPacksOpened(), timestamp: new Date().toISOString() }); } catch { return c.json({ error: 'Failed to fetch battle stats' }, 500); } });
 app.route('/', cashoutRoutes); app.route('/', cashoutAdminRoutes); app.route('/', adminLogsRoutes); app.route('/', adminStatsRoutes);
 app.use('/admin-logs', adminLogsGuard); app.use('/admin-logs/*', adminLogsGuard);
-app.route('/', legacyCashoutRoutes); app.route('/', legacyCashoutAdminRoutes); app.route('/', inventoryRoutes); app.route('/', upgraderSettingsRoutes); app.route('/', sendTestEmailsRoutes); app.route('/', logsRoutes); app.route('/', provablyFairRoutes);
+app.route('/', legacyCashoutAdminRoutes); app.route('/', inventoryRoutes); app.route('/', upgraderSettingsRoutes); app.route('/', sendTestEmailsRoutes); app.route('/', logsRoutes); app.route('/', provablyFairRoutes);
 // Phase 1 of the Blink -> Supabase Auth migration. Additive only: does not
 // touch requireAuth() or any existing route. See backend/lib/supabaseAuth.ts.
 app.route('/', authSupabaseRoutes);

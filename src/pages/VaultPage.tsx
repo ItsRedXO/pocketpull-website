@@ -1,18 +1,7 @@
 import React, { useState } from 'react';
 import { Vault } from 'lucide-react';
 import { usePacks, PackCatalog } from '../hooks/usePacks';
-import type { Pack } from '../data/mockData';
 import { PackDetailsModal } from '../components/PackDetailsModal';
-
-const toPack = (p: PackCatalog): Pack => ({
-  id: p.id, name: p.name, price: p.price,
-  tier: p.price <= 10 ? 'mid' : 'high', emoji: '🎴', rarity: 'secret',
-  borderColor: p.borderColor, glowColor: p.glowColor, description: p.description,
-  odds: { common: 0, uncommon: 0, rare: 0, ultra: 0, secret: 100 },
-  totalOpened: `${p.currentQuantity}/${p.quantityLimit}`, featured: true,
-  featuredCards: [], quantityLimit: p.quantityLimit, currentQuantity: p.currentQuantity,
-  cooldownHours: p.cooldownHours, expiresAt: p.expiresAt,
-});
 
 export const VaultPage: React.FC = () => {
   const { data: packs = [], isLoading } = usePacks();
@@ -30,8 +19,6 @@ export const VaultPage: React.FC = () => {
         key={detailPack.id}
         pack={detailPack}
         onClose={() => setDetailPack(null)}
-        onOpenPack={() => {}}
-        mockPack={toPack(detailPack)}
       />
     )}
   </section>;

@@ -197,40 +197,6 @@ export function useRecentPulls(limit = 12) {
   });
 }
 
-export function useHallOfFame(limit = 5) {
-  return useQuery({
-    queryKey: ['hall-of-fame', limit],
-    queryFn: async () => {
-      const pulls = await blink.db.inventory.list({
-        orderBy: { value: 'desc' },
-        limit,
-      });
-      const userIds = [...new Set(pulls.map((p: any) => p.userId))];
-      const users = await Promise.all(
-        userIds.map(id => blink.db.users.get(id))
-      );
-      const userMap = Object.fromEntries(
-        users
-          .filter((u: any) => u && Number(u.isDeleted || u.is_deleted || 0) === 0 && Number(u.isBanned || u.is_banned || 0) === 0)
-          .map((u: any) => [u.id, u.username || u.displayName || 'Trainer'])
-      );
-      return pulls
-        .filter((p: any) => userMap[p.userId])
-        .map((p: any) => ({
-          ...p,
-          user: userMap[p.userId],
-          time: formatDistanceToNow(new Date(p.createdAt), { addSuffix: true }),
-        }));
-    },
-    staleTime: 60000,
-    refetchIntervalInBackground: false,
-    refetchOnMount: 'always',
-    refetchOnReconnect: true,
-    retry: 6,
-    retryDelay: attempt => Math.min(1500 * 2 ** attempt, 15000),
-  });
-}
-
 export function useGodPulls() {
   return useQuery({
     queryKey: ['god-pulls-catalog'],

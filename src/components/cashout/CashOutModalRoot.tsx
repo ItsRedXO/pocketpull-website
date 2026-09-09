@@ -10,7 +10,7 @@ import { StepReview } from './StepReview';
 import { StepSuccess } from './StepSuccess';
 import { submitCashout } from '../../lib/api';
 
-export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose, userId, username, userEmail }) => {
+export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose, userId, userEmail }) => {
   const [step, setStep] = useState(1);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loadingInv, setLoadingInv] = useState(false);

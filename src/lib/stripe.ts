@@ -33,14 +33,3 @@ export async function createPaymentIntent(
 
   return data.clientSecret;
 }
-
-/**
- * @deprecated Backend webhook handles verification and balance updates now.
- * Retrieving PaymentIntent client-side is no longer recommended for balance updates.
- */
-export async function getPaymentIntent(clientSecret: string): Promise<{ status: string; id: string }> {
-  // We no longer expose the secret key to the client, so we can't fetch this directly.
-  // This is replaced by the backend webhook flow.
-  console.warn('getPaymentIntent client-side is deprecated. Use backend webhooks.');
-  return { status: 'check_webhook', id: 'pi_webhook_verified' };
-}

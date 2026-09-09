@@ -12,7 +12,7 @@ import { RefreshCw } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { lockCard, favoriteCard, sellCard, sellAllCards } from '../lib/api';
 
-export const INVENTORY_QUERY_KEY = ['inventory'];
+const INVENTORY_QUERY_KEY = ['inventory'];
 
 export const Inventory: React.FC<{ onDepositOpen?: () => void; onProfileOpen?: () => void }> = ({ onDepositOpen, onProfileOpen }) => {
   const { user, isAuthenticated } = useAuth();

@@ -2,7 +2,6 @@ export interface CashOutModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
-  username: string;
   userEmail: string;
 }
 

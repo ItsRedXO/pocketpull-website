@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, LockKeyhole, Sparkles, ShieldCheck } from 'lucide-react';
 import { PackCatalog, usePackCards, useUserCooldowns } from '../hooks/usePacks';
 import { PackSpinner } from './PackSpinner';
-import type { Pack } from '../data/mockData';
 import { useAuth, useUserStats } from '../hooks/useAuth';
 import { CardImageLightbox } from './CardImageLightbox';
 import { MysteryPackReveal } from './MysteryPackReveal';
@@ -22,8 +21,6 @@ const RARITY_CFG: Record<string, { label: string; color: string; bg: string }> =
 interface Props {
   pack: PackCatalog | null;
   onClose: () => void;
-  onOpenPack: (pack: Pack) => void;  // kept for interface compatibility
-  mockPack: Pack;
 }
 
 interface LightboxCard {

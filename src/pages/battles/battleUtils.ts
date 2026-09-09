@@ -1,6 +1,4 @@
 // ─── Battle Utilities ──────────────────────────────────────────────────────
-import type { OpenedCard, BattleMode, PlayerBattleResult } from './battleTypes';
-import { blink } from '../../lib/blink';
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -8,83 +6,6 @@ export function uid(): string {
 
 export function generatePrivateCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
-
-export function openPackCards(pack: any, dbCards: any[]): OpenedCard[] {
-  const cards: OpenedCard[] = [];
-  
-  if (dbCards.length > 0) {
-    const rand = Math.random() * 100;
-    let cumulative = 0;
-    let selected = dbCards[dbCards.length - 1];
-    for (const card of dbCards) {
-      cumulative += Number(card.pullChance);
-      if (rand <= cumulative) {
-        selected = card;
-        break;
-      }
-    }
-    
-    cards.push({
-      id: uid(),
-      name: selected.cardName,
-      emoji: '🃏',
-      rarity: selected.rarity,
-      value: Number(selected.estimatedValue),
-      packId: pack.id,
-      packName: pack.name,
-      imageUrl: selected.cardImageUrl,
-    });
-  } else {
-    // Extreme fallback if no cards in DB for this pack
-    cards.push({
-      id: uid(),
-      name: 'Mystery Card',
-      emoji: '❓',
-      rarity: 'common',
-      value: 1.00,
-      packId: pack.id,
-      packName: pack.name,
-    });
-  }
-
-  return cards;
-}
-
-export function determineBattleWinner(
-  results: PlayerBattleResult[],
-  mode: BattleMode
-): PlayerBattleResult {
-  if (mode === 'standard') {
-    return results.reduce((best, p) => p.totalValue > best.totalValue ? p : best, results[0]);
-  }
-  if (mode === 'underdog') {
-    return results.reduce((best, p) => p.totalValue < best.totalValue ? p : best, results[0]);
-  }
-  // shared — no single winner; return first for reference
-  return results[0];
-}
-
-export async function awardCards(userId: string, cards: OpenedCard[]) {
-  for (const card of cards) {
-    try {
-      const invId = uid();
-      const newCard = {
-        id: invId,
-        userId,
-        cardId: card.id,
-        cardName: card.name,
-        rarity: card.rarity,
-        value: card.value,
-        emoji: card.emoji,
-        isFavorite: 0,
-        cardImageUrl: card.imageUrl || null,
-      };
-      await blink.db.inventory.create(newCard as any);
-    } catch (e) {
-      console.warn('Failed to award card:', e);
-    }
-  }
 }
 
 export const RARITY_COLORS: Record<string, string> = {

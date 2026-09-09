@@ -374,7 +374,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
         isOpen={cashOutOpen}
         onClose={() => setCashOutOpen(false)}
         userId={user?.id ?? ''}
-        username={stats?.username ?? stats?.displayName ?? 'Trainer'}
         userEmail={user?.email ?? ''}
       />
     </div>

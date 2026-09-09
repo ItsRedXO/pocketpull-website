@@ -1,7 +1,5 @@
 import { CashoutCard, GroupedCard, IndividualCard } from './CashoutTypes';
 
-export const PAGE_SIZE = 20;
-
 export function groupCards(cards: CashoutCard[]): GroupedCard[] {
   const map = new Map<string, GroupedCard>();
   for (const c of cards) {
@@ -23,13 +21,6 @@ export function groupCards(cards: CashoutCard[]): GroupedCard[] {
 
 export function parseCards(json: string): IndividualCard[] {
   try { return JSON.parse(json) || []; } catch { return []; }
-}
-
-export function extractIdImageUrl(notes?: string): string | null {
-  if (!notes) return null;
-  // Handle both "ID uploaded: URL" and "ID: URL" formats
-  const match = notes.match(/ID(?: uploaded)?:\s*(https?:\/\/\S+)/i);
-  return match ? match[1].replace(/\|$/, '') : null;
 }
 
 export function statusColor(s: string) {
@@ -56,10 +47,3 @@ export function fmtDate(s: string) {
   } catch { return s; }
 }
 
-export function getRarityColor(r: string): string {
-  const map: Record<string, string> = {
-    common: '#8892a4', uncommon: '#10b981', rare: '#00c8ff',
-    ultra: '#9b5cff', secret: '#ffd700', god: '#ff00ff',
-  };
-  return map[r?.toLowerCase()] ?? '#8892a4';
-}

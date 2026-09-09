@@ -25,8 +25,8 @@ export interface SupportChat {
 }
 
 export const SUPPORT_CHANNEL = 'support-chat';
-export const SUPPORT_CHATS_QUERY_KEY = ['support-chats'];
-export const SUPPORT_MESSAGES_QUERY_KEY = ['support-messages'];
+const SUPPORT_CHATS_QUERY_KEY = ['support-chats'];
+const SUPPORT_MESSAGES_QUERY_KEY = ['support-messages'];
 
 function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

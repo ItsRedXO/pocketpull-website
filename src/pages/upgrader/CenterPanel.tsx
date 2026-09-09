@@ -15,12 +15,7 @@ interface CenterPanelProps {
   outcome: 'win' | 'lose' | null;
   multiplierIdx: number;
   setMultiplierIdx: (i: number) => void;
-  selectedCardTotal: number;
-  effectiveAddedBalance: number;
-  totalUpgradeValue: number;
-  targetValue: number;
   perTargetChance: number;
-  selectedTargetsCount: number;
   isAuthenticated: boolean;
   stats: UserStats | null;
   useBalance: boolean;
@@ -51,12 +46,7 @@ export function CenterPanel({
   outcome,
   multiplierIdx,
   setMultiplierIdx,
-  selectedCardTotal,
-  effectiveAddedBalance,
-  totalUpgradeValue,
-  targetValue,
   perTargetChance,
-  selectedTargetsCount,
   isAuthenticated,
   stats,
   useBalance,

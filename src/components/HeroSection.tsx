@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Pack } from '../data/mockData';
 import { useLiveCounters } from '../hooks/useLiveCounters';
 
 // ── Animated counter via RAF ──────────────────────────────────────────────────
@@ -206,12 +205,7 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
 }
 
 // ── Hero Section ──────────────────────────────────────────────────────────────
-interface HeroSectionProps {
-  onPackOpen: (pack: Pack) => void;
-  onPageChange: (page: string) => void;
-}
-
-export const HeroSection: React.FC<HeroSectionProps> = ({ onPackOpen: _onPackOpen, onPageChange: _onPageChange }) => {
+export const HeroSection: React.FC = () => {
   const { packsOpened, cardsWonToday, biggestPull, livePlayers } = useLiveCounters();
 
   const liveStats = [

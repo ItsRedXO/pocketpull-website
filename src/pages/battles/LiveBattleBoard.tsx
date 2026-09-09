@@ -167,7 +167,6 @@ export const LiveBattleBoard: React.FC<Props> = ({ onCreateBattle, onJoinBattle,
             >
               <LiveTab
                 battles={pagedBattles}
-                allBattles={liveBattles}
                 loading={loading}
                 search={search} setSearch={(v) => { setSearch(v); setPage(1); }}
                 sortBy={sortBy} setSortBy={(v) => { setSortBy(v); setPage(1); }}
