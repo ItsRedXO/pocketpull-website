@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Package, Zap, Swords, ArrowLeftRight, Archive, Vault } from 'lucide-react';
+import { Package, Zap, Swords, ArrowLeftRight, Archive } from 'lucide-react';
 
 type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault';
 
@@ -8,9 +8,9 @@ interface MobileBottomNavProps { currentPage: Page; onPageChange: (page: Page) =
 
 const bottomNavTabs: { id: Page; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
   { id: 'home', label: 'Packs', icon: Package },
-  { id: 'vault', label: 'Vault', icon: Vault },
   { id: 'upgrader', label: 'Upgrader', icon: Zap },
   { id: 'battle', label: 'Battles', icon: Swords },
+  { id: 'exchanger', label: 'Exchanger', icon: ArrowLeftRight },
   { id: 'inventory', label: 'Collection', icon: Archive },
 ];
 
