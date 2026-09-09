@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LockKeyhole, Sparkles, GripHorizontal, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
@@ -72,7 +72,7 @@ function VaultPack({
   phase, color, dragX, onDragStart, onDrag, onDragEnd, disabled,
 }: {
   phase: RevealPhase; color: string; dragX: number;
-  onDragStart: () => void; onDrag: (dx: number) => void; onDragEnd: () => void; disabled: boolean;
+  onDragStart: () => void; onDrag: (dx: number) => void; onDragEnd: (dx: number) => void; disabled: boolean;
 }) {
   const active = phase !== 'idle';
   const flashing = phase === 'tearing';
@@ -117,32 +117,26 @@ function VaultPack({
 
     {flashing && <motion.div className="absolute top-[65px] h-10 w-[125%] border-y-2 border-dashed border-[#ffd700]" style={{ left: '50%', marginLeft: '-62.5%' }} initial={{ scaleX: 0, opacity: 0 }} animate={{ scaleX: 1, opacity: [0, 1, 0] }} transition={{ duration: 0.8 }} />}
 
-    {/* Draggable pull tab — drag right past the threshold to tear the seal; release early and it snaps back */}
+    {/* Draggable pull tab — drag right past the threshold to tear the seal; release early and it snaps back.
+        Uses framer-motion's own drag gesture (not a hand-rolled pointer listener) since it already
+        handles preventDefault/pointer-capture/touch-action correctly across browsers. */}
     {!active && (
-      <div
-        className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab touch-none items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
-        style={{ transform: `translateX(${dragX}px) scale(${1 + dragProgress * 0.15})`, touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
-        draggable={false}
-        onDragStart={e => e.preventDefault()}
-        onPointerDown={e => {
-          if (disabled) return;
-          e.preventDefault();
-          e.currentTarget.setPointerCapture(e.pointerId);
-          onDragStart();
-          const startX = e.clientX;
-          const handleMove = (ev: PointerEvent) => { ev.preventDefault(); onDrag(Math.min(DRAG_THRESHOLD + 24, Math.max(0, ev.clientX - startX))); };
-          const handleUp = () => {
-            window.removeEventListener('pointermove', handleMove);
-            window.removeEventListener('pointerup', handleUp);
-            onDragEnd();
-          };
-          window.addEventListener('pointermove', handleMove);
-          window.addEventListener('pointerup', handleUp);
-        }}
+      <motion.div
+        className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+        animate={{ scale: 1 + dragProgress * 0.15 }}
+        drag={disabled ? false : 'x'}
+        dragConstraints={{ left: 0, right: DRAG_THRESHOLD + 24 }}
+        dragElastic={0.12}
+        dragMomentum={false}
+        dragSnapToOrigin
+        onDragStart={() => onDragStart()}
+        onDrag={(_e, info) => onDrag(Math.max(0, info.offset.x))}
+        onDragEnd={(_e, info) => onDragEnd(Math.max(0, info.offset.x))}
         aria-label="Drag to tear the vault seal open"
       >
         <GripHorizontal size={20} />
-      </div>
+      </motion.div>
     )}
   </div>;
 }
@@ -156,14 +150,8 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const [error, setError] = useState<string | null>(null);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
-  // The pointerdown handler that wires up window-level move/up listeners only runs
-  // once per drag gesture, so it closes over whatever `dragX` existed at that
-  // instant. A ref keeps the release check reading the live value instead of that
-  // stale snapshot.
-  const dragXRef = useRef(0);
-  const setDrag = (v: number) => { dragXRef.current = v; setDragX(v); };
 
-  useEffect(() => { setPhase('idle'); setRevealed(null); setError(null); setDrag(0); }, [pack.id]);
+  useEffect(() => { setPhase('idle'); setRevealed(null); setError(null); setDragX(0); }, [pack.id]);
 
   const handleRip = async () => {
     if (phase !== 'idle' || isVaulted) return;
@@ -182,15 +170,15 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
       await wait(big ? 1150 : 800);
       setRevealed(won);
       setPhase('revealed');
-      setDrag(0);
+      setDragX(0);
       qc.invalidateQueries({ queryKey: ['inventory'] }); qc.invalidateQueries({ queryKey: ['pack-cards', pack.id] }); qc.invalidateQueries({ queryKey: ['packs-catalog'] });
-    } catch (err: any) { setError(err?.message || 'The vault could not be opened. Please try again.'); setPhase('idle'); setDrag(0); }
+    } catch (err: any) { setError(err?.message || 'The vault could not be opened. Please try again.'); setPhase('idle'); setDragX(0); }
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (offsetX: number) => {
     setDragging(false);
-    if (dragXRef.current >= DRAG_THRESHOLD) { handleRip(); return; }
-    setDrag(0);
+    if (offsetX >= DRAG_THRESHOLD) { handleRip(); return; }
+    setDragX(0);
   };
 
   const color = revealed ? RARITY_COLORS[revealed.rarity] || '#ffd700' : '#ffd700';
@@ -242,7 +230,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
               dragX={dragX}
               disabled={phase !== 'idle'}
               onDragStart={() => setDragging(true)}
-              onDrag={setDrag}
+              onDrag={setDragX}
               onDragEnd={handleDragEnd}
             />
           </motion.div>
