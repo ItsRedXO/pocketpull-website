@@ -68,18 +68,21 @@ export const ExchangerPage: React.FC = () => {
         orderBy: { createdAt: 'desc' },
         limit: 200,
       }) as any[];
-      const cards = rows.map((r: any) => ({
-        id: r.id,
-        cardId: r.cardId || r.card_id || '',
-        cardName: r.cardName || r.card_name || 'Unknown Card',
-        rarity: r.rarity || 'common',
-        value: Number(r.value) || 0,
-        emoji: r.emoji || '🃏',
-        isFavorite: Number(r.isFavorite ?? r.is_favorite) > 0,
-        isLocked: Number(r.isLocked ?? r.is_locked) > 0,
-        createdAt: r.createdAt || r.created_at || '',
-        cardImageUrl: r.cardImageUrl || r.card_image_url || null,
-      })).filter((c: any) => !c.isLocked);
+      const cards = rows
+        .filter((r: any) => Number(r.sold ?? r.isSold ?? 0) === 0)
+        .map((r: any) => ({
+          id: r.id,
+          cardId: r.cardId || r.card_id || '',
+          cardName: r.cardName || r.card_name || 'Unknown Card',
+          rarity: r.rarity || 'common',
+          value: Number(r.value) || 0,
+          emoji: r.emoji || '🃏',
+          isFavorite: Number(r.isFavorite ?? r.is_favorite) > 0,
+          isLocked: Number(r.isLocked ?? r.is_locked) > 0,
+          createdAt: r.createdAt || r.created_at || '',
+          cardImageUrl: r.cardImageUrl || r.card_image_url || null,
+        }))
+        .filter((c: any) => !c.isLocked);
       
       setInventory(cards);
     } catch (e) {
