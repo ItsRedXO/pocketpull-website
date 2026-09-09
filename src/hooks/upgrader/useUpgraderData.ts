@@ -35,9 +35,7 @@ export const useUpgraderData = (state: UpgraderState) => {
 
   const loadAllCards = useCallback(async () => {
     try {
-      const res = await fetch('/api/pack-cards', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load cards');
-      const rows = await res.json();
+      const rows = await blink.db.packCards.list({ limit: 1000 });
       const cards: TargetCard[] = (Array.isArray(rows) ? rows : []).map((r:any) => ({ cardId:r.id, name:r.cardName || r.card_name || 'Unknown', emoji:'star', rarity:r.rarity || 'common', value:Number(r.estimatedValue ?? r.value)||0, cardImageUrl:r.cardImageUrl || r.card_image_url || null })).filter(c=>c.value>0);
       const seen = new Set<string>(); setAllDbCards(cards.filter(c=>{const key=c.name+'_'+c.rarity;if(seen.has(key))return false;seen.add(key);return true;}));
     } catch { setAllDbCards([]); }
