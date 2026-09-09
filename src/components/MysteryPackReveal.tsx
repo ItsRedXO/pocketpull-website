@@ -126,8 +126,6 @@ function VaultPack({
         style={{ touchAction: 'none' }}
         animate={{ scale: 1 + dragProgress * 0.15 }}
         drag={disabled ? false : 'x'}
-        dragConstraints={{ left: 0, right: DRAG_THRESHOLD + 24 }}
-        dragElastic={0.12}
         dragMomentum={false}
         dragSnapToOrigin
         onDragStart={() => onDragStart()}
