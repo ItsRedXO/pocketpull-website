@@ -59,11 +59,16 @@ export async function getOrCreateSupabaseIdentity(email: string, password: strin
  * for this email already exists, returns its id instead of erroring (mirrors
  * getOrCreateSupabaseIdentity's dedupe behavior) without sending a duplicate
  * invite.
+ *
+ * Tags the identity with `pp_needs_password_backfill: true` in its
+ * user_metadata so a later normal login (see backfillPasswordIfNeeded) can
+ * recognize it never got a real password and safely set one, without ever
+ * touching a password on an identity that was created some other way.
  */
 export async function inviteSupabaseIdentity(email: string): Promise<string> {
   const admin = getAdminClient().auth.admin;
 
-  const invited = await admin.inviteUserByEmail(email);
+  const invited = await admin.inviteUserByEmail(email, { data: { pp_needs_password_backfill: true } });
   if (!invited.error) {
     if (!invited.data.user) throw new Error('Supabase admin inviteUserByEmail returned no user');
     return invited.data.user.id;
@@ -79,4 +84,37 @@ export async function inviteSupabaseIdentity(email: string): Promise<string> {
     if (data.users.length < 200) break;
   }
   throw new Error(`Supabase reports email already registered, but no matching user was found`);
+}
+
+/**
+ * Closes the gap the bulk-invite path leaves open: an account invited via
+ * inviteSupabaseIdentity has a Supabase identity but no password until the
+ * user clicks that email. Most real users just keep logging in normally via
+ * Blink instead, so this is called from /auth/silent-migrate on every login
+ * for an already-linked account -- if (and only if) that identity is still
+ * tagged `pp_needs_password_backfill`, sets its password to the one the user
+ * just typed (which just succeeded against Blink, so it's known-correct) and
+ * clears the tag. No-ops for every other identity, including ones created by
+ * getOrCreateSupabaseIdentity or manually (e.g. the Phase 1 pilot) -- those
+ * are never tagged, so their password is never touched.
+ *
+ * Best-effort: swallows its own errors and returns false rather than ever
+ * throwing, since this must not be allowed to block or fail a login.
+ */
+export async function backfillPasswordIfNeeded(authUserId: string, password: string): Promise<boolean> {
+  const admin = getAdminClient().auth.admin;
+  try {
+    const { data, error } = await admin.getUserById(authUserId);
+    if (error || !data.user) return false;
+    if (data.user.user_metadata?.pp_needs_password_backfill !== true) return false;
+
+    const { error: updateError } = await admin.updateUserById(authUserId, {
+      password,
+      user_metadata: { ...data.user.user_metadata, pp_needs_password_backfill: false },
+    });
+    return !updateError;
+  } catch (err: any) {
+    console.error('[backfillPasswordIfNeeded] error:', err?.message || err);
+    return false;
+  }
 }

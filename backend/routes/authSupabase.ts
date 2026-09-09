@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { verifySupabaseToken, extractSupabaseBearer } from '../lib/supabaseAuth';
-import { getOrCreateSupabaseIdentity, inviteSupabaseIdentity } from '../lib/supabaseAdmin';
+import { getOrCreateSupabaseIdentity, inviteSupabaseIdentity, backfillPasswordIfNeeded } from '../lib/supabaseAdmin';
 import { query } from '../lib/postgres';
 
 const app = new Hono();
@@ -91,6 +91,11 @@ app.post('/auth/link-supabase', async (c) => {
  * Always returns 200 except for auth/validation failures -- this must never
  * block or surface an error to a user who just successfully logged in via
  * Blink; migration is a best-effort side effect, not a login gate.
+ *
+ * Also closes the bulk-invite gap: if this account was already linked by the
+ * bulk-backfill (/admin/auth/bulk-migrate-next) and never had a password set,
+ * backfillPasswordIfNeeded sets one from the password just used to sign in.
+ * No-op for every other already-linked account (see its own doc comment).
  */
 app.post('/auth/silent-migrate', async (c) => {
   let userId: string;
@@ -112,7 +117,10 @@ app.post('/auth/silent-migrate', async (c) => {
   if (!existing) return c.json({ error: 'Account not found' }, 404);
 
   if (existing.auth_user_id) {
-    return c.json({ success: true, migrated: false, alreadyLinked: true });
+    const passwordBackfilled = password
+      ? await backfillPasswordIfNeeded(existing.auth_user_id, password)
+      : false;
+    return c.json({ success: true, migrated: false, alreadyLinked: true, passwordBackfilled });
   }
   if (!existing.email) {
     return c.json({ error: 'No email on file for this account' }, 400);
