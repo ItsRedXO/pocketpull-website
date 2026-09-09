@@ -37,9 +37,11 @@ export async function processWalletTransactionInClient(client: PoolClient, txn: 
 
   await client.query('UPDATE users SET balance=$1,matched_balance=$2,updated_at=now() WHERE id=$3',[balanceAfter,matchedAfter,txn.userId]);
   try{
+    await client.query('SAVEPOINT wallet_txn_insert');
     await client.query(`INSERT INTO wallet_transactions(id,user_id,type,amount,balance_before,balance_after,matched_before,matched_after,source_id,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[ledgerId,txn.userId,txn.type,txn.amount,balanceBefore,balanceAfter,matchedBefore,matchedAfter,txn.sourceId||null,JSON.stringify(txn.metadata||{})]);
   }catch(error:any){
     if(error?.code==='23505' && txn.sourceId){
+      await client.query('ROLLBACK TO SAVEPOINT wallet_txn_insert');
       const prior=await client.query('SELECT balance_before,balance_after,matched_before,matched_after FROM wallet_transactions WHERE user_id=$1 AND source_id=$2 AND type=$3 LIMIT 1',[txn.userId,txn.sourceId,txn.type]);
       if(prior.rowCount){const r=prior.rows[0];return{success:true,balanceBefore:Number(r.balance_before),balanceAfter:Number(r.balance_after),matchedBefore:Number(r.matched_before),matchedAfter:Number(r.matched_after)};}
     }
