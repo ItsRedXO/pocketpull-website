@@ -89,17 +89,6 @@ const PullTile: React.FC<{ entry: PullEntry; isNew?: boolean }> = React.memo(({ 
           : `0 0 16px -5px ${cfg.glow}, 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`,
       }}
     >
-      {/* ... existing code ... */}
-      {/* God animated rainbow border */}
-      {isGod && (
-        <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-          <div
-            className="absolute inset-0 opacity-20 animate-spin-slow"
-            style={{ background: 'conic-gradient(from 0deg, #ff0060, #ff7f00, #ffff00, #00ff80, #00c8ff, #9b5cff, #ff0060)' }}
-          />
-        </div>
-      )}
-
       {/* Rarity badge */}
       <div
         className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider whitespace-nowrap z-10"
@@ -117,7 +106,7 @@ const PullTile: React.FC<{ entry: PullEntry; isNew?: boolean }> = React.memo(({ 
 
       {/* Card image box */}
       <div
-        className="w-full rounded-xl overflow-hidden"
+        className="relative w-full rounded-xl overflow-hidden"
         style={{
           height: `${IMG_H}px`,
           background: 'rgba(255,255,255,0.03)',
@@ -140,6 +129,17 @@ const PullTile: React.FC<{ entry: PullEntry; isNew?: boolean }> = React.memo(({ 
             parent.innerHTML = `<span style="font-size:32px">🃏</span>`;
           }}
         />
+        {/* God holo sheen — a light band glides across the art, like a foil card catching light */}
+        {isGod && (
+          <div
+            className="absolute holo-sweep pointer-events-none"
+            style={{
+              inset: '-50%',
+              background: 'linear-gradient(115deg, transparent 42%, rgba(255,255,255,0.55) 48%, rgba(255,0,150,0.35) 50%, rgba(0,200,255,0.35) 52%, transparent 58%)',
+              mixBlendMode: 'screen',
+            }}
+          />
+        )}
       </div>
 
       {/* Card name */}
@@ -261,6 +261,13 @@ export const LiveTicker: React.FC = React.memo(() => {
           animation: ticker-scroll ${DURATION}s linear infinite;
           display: flex;
           width: max-content;
+        }
+        @keyframes holo-sweep {
+          0%, 100% { transform: translate(-30%, -30%) rotate(20deg); }
+          50% { transform: translate(30%, 30%) rotate(20deg); }
+        }
+        .holo-sweep {
+          animation: holo-sweep 4.5s ease-in-out infinite;
         }
       `}</style>
 
