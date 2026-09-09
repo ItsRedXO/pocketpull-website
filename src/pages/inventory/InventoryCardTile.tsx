@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, DollarSign, Lock, Unlock } from 'lucide-react';
 import { InventoryCard, RARITY_COLORS } from './inventoryTypes';
+import { RetryImage } from '../../components/RetryImage';
 
 interface InventoryCardTileProps {
   card: InventoryCard;
@@ -83,18 +84,14 @@ export const InventoryCardTile: React.FC<InventoryCardTileProps> = ({
         className="w-full flex items-center justify-center relative"
         style={{ height: '120px', background: 'rgba(0,0,0,0.3)' }}
       >
-        {card.cardImageUrl ? (
-          <img
-            src={card.cardImageUrl}
-            alt={card.cardName}
-            className={`h-full w-auto object-contain py-2 cursor-zoom-in transition-transform duration-200 hover:scale-105 ${isLocked ? 'opacity-60' : ''}`}
-            onClick={() => !isLocked && onSetLightbox({ src: card.cardImageUrl!, alt: card.cardName, rarityColor: color })}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            loading="lazy"
-          />
-        ) : (
-          <div className={`text-4xl ${isLocked ? 'opacity-60' : ''}`}>{card.emoji}</div>
-        )}
+        <RetryImage
+          src={card.cardImageUrl}
+          alt={card.cardName}
+          className={`h-full w-auto object-contain py-2 cursor-zoom-in transition-transform duration-200 hover:scale-105 ${isLocked ? 'opacity-60' : ''}`}
+          onClick={() => !isLocked && onSetLightbox({ src: card.cardImageUrl!, alt: card.cardName, rarityColor: color })}
+          loading="lazy"
+          fallback={<div className={`text-4xl ${isLocked ? 'opacity-60' : ''}`}>{card.emoji}</div>}
+        />
         {isLocked && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div

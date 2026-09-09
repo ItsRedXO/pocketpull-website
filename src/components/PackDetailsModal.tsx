@@ -7,6 +7,7 @@ import type { Pack } from '../data/mockData';
 import { useAuth, useUserStats } from '../hooks/useAuth';
 import { CardImageLightbox } from './CardImageLightbox';
 import { MysteryPackReveal } from './MysteryPackReveal';
+import { RetryImage } from './RetryImage';
 
 // ── Rarity config ──────────────────────────────────────────────────────────────
 const RARITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -337,18 +338,14 @@ export const PackDetailsModal: React.FC<Props> = ({ pack, onClose }) => {
                                 className="w-full flex items-center justify-center relative overflow-hidden"
                                 style={{ height: '200px', background: 'rgba(0,0,0,0.4)' }}
                               >
-                                {card.cardImageUrl ? (
-                                  <img
-                                    src={card.cardImageUrl}
-                                    alt={card.cardName}
-                                    loading="lazy"
-                                    className="h-full w-auto object-contain py-3 cursor-zoom-in transition-all duration-700 group-hover:scale-110 group-hover:rotate-1"
-                                    onClick={() => setLightbox({ src: card.cardImageUrl!, alt: card.cardName, rarityColor: cfg.color })}
-                                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                  />
-                                ) : (
-                                  <span className="text-6xl opacity-30">🃏</span>
-                                )}
+                                <RetryImage
+                                  src={card.cardImageUrl}
+                                  alt={card.cardName}
+                                  loading="lazy"
+                                  className="h-full w-auto object-contain py-3 cursor-zoom-in transition-all duration-700 group-hover:scale-110 group-hover:rotate-1"
+                                  onClick={() => setLightbox({ src: card.cardImageUrl!, alt: card.cardName, rarityColor: cfg.color })}
+                                  fallback={<span className="text-6xl opacity-30">🃏</span>}
+                                />
                               </div>
                               <div className="px-4 py-4 flex flex-col gap-2 bg-black/30">
                                 <p className="text-[14px] font-display text-white leading-tight truncate group-hover:text-clip">{card.cardName}</p>

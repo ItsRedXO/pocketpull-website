@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, CheckCircle2, ChevronDown } from 'lucide-react';
 import { CATEGORIES, RARITY_COLORS, type MarketCard, type SortOption } from './exchangerTypes';
+import { RetryImage } from '../../components/RetryImage';
 
 interface Props {
   marketCards: MarketCard[];
@@ -165,16 +166,12 @@ export const MarketPanel: React.FC<Props> = ({ marketCards, maxValue, selectedId
                           <CheckCircle2 size={13} style={{ color }} />
                         </motion.span>
                       )}
-                      {card.imageUrl ? (
-                        <img
-                          src={card.imageUrl}
-                          alt={card.name}
-                          className="w-full h-16 object-contain mb-1.5 rounded"
-                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <div className="text-2xl text-center mb-1.5 leading-none">{card.emoji}</div>
-                      )}
+                      <RetryImage
+                        src={card.imageUrl}
+                        alt={card.name}
+                        className="w-full h-16 object-contain mb-1.5 rounded"
+                        fallback={<div className="text-2xl text-center mb-1.5 leading-none">{card.emoji}</div>}
+                      />
                       <p className="text-[10px] font-bold text-center leading-tight line-clamp-2">{card.name}</p>
                       <div className="flex flex-col items-center">
                         <p className="text-[9px] font-bold text-center uppercase"

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, RefreshCw, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react';
 import { type InventoryCard, type SortOption, RARITY_COLORS, RARITY_ORDER } from './exchangerTypes';
+import { RetryImage } from '../../components/RetryImage';
 
 interface InventoryPanelProps {
   user: any;
@@ -172,16 +173,12 @@ export const InventoryPanel: React.FC<InventoryPanelProps> = ({
                           <CheckCircle2 size={13} style={{ color }} />
                         </motion.span>
                       )}
-                      {card.cardImageUrl ? (
-                        <img
-                          src={card.cardImageUrl}
-                          alt={card.cardName}
-                          className="w-full h-16 object-contain mb-1.5 rounded"
-                          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <div className="text-2xl text-center mb-1.5 leading-none">{card.emoji}</div>
-                      )}
+                      <RetryImage
+                        src={card.cardImageUrl}
+                        alt={card.cardName}
+                        className="w-full h-16 object-contain mb-1.5 rounded"
+                        fallback={<div className="text-2xl text-center mb-1.5 leading-none">{card.emoji}</div>}
+                      />
                       <p className="text-[10px] font-bold text-center leading-tight line-clamp-2">{card.cardName}</p>
                       <div className="flex items-center justify-center gap-1 mt-0.5">
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
