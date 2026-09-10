@@ -240,4 +240,51 @@ app.post('/admin/auth/bulk-migrate-next', async (c) => {
   return c.json({ done: false, migrated: next.email });
 });
 
+/**
+ * POST /admin/auth/bulk-link
+ *
+ * One-time, throwaway migration endpoint: links a batch of accounts to
+ * Supabase identities that were created out-of-band (a bulk bcrypt-hash
+ * carryover from Blink's own password_hash column, done directly against
+ * Supabase's auth.users via SQL -- not through this backend). This endpoint
+ * only ever sets auth_user_id when it is currently NULL, exactly like
+ * /auth/link-supabase and /auth/silent-migrate above. Never touches balance,
+ * inventory, transactions, or any other field. Protected by a dedicated,
+ * single-purpose secret (not the general admin secret or MIGRATION_TASK_SECRET)
+ * so it can be deleted independently once used.
+ */
+app.post('/admin/auth/bulk-link', async (c) => {
+  const secret = c.req.header('X-Bulk-Link-Secret');
+  if (!secret || secret !== process.env.BULK_LINK_SECRET) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const links = Array.isArray(body?.links) ? body.links : [];
+  if (!links.length) return c.json({ error: 'links array required' }, 400);
+
+  let linked = 0;
+  let skippedAlreadyLinked = 0;
+  const errors: Array<{ userId: string; error: string }> = [];
+
+  for (const link of links) {
+    const userId = String(link?.userId || '');
+    const authUserId = String(link?.authUserId || '');
+    if (!userId || !authUserId) { errors.push({ userId, error: 'missing userId or authUserId' }); continue; }
+    try {
+      const result = await query(
+        'UPDATE users SET auth_user_id=$1 WHERE id=$2 AND auth_user_id IS NULL RETURNING id',
+        [authUserId, userId]
+      );
+      if (Array.isArray(result) && result.length) linked++;
+      else skippedAlreadyLinked++;
+    } catch (err: any) {
+      if (err?.code === '23505') { skippedAlreadyLinked++; continue; }
+      errors.push({ userId, error: err?.message || String(err) });
+    }
+  }
+
+  return c.json({ success: true, total: links.length, linked, skippedAlreadyLinked, errors });
+});
+
 export default app;
