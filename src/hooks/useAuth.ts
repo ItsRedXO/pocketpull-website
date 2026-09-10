@@ -224,6 +224,26 @@ export function useAuth() {
     }
   };
 
+  const changePassword = async (email: string, currentPassword: string, newPassword: string) => {
+    if (supabase) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        // Supabase's updateUser() only requires a live session, not the old
+        // password -- re-verify it explicitly first so this still behaves
+        // like a real "change password" (proof of the current one), not a
+        // silent reset for anyone who walked up to an unlocked session.
+        const { error: verifyError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+        if (verifyError) throw new Error('INVALID_CURRENT_PASSWORD');
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+        if (updateError) throw updateError;
+        return;
+      }
+    }
+    // Not on a Supabase session (account hasn't migrated yet) -- Blink is
+    // still the only place this password lives.
+    return blink.auth.changePassword(currentPassword, newPassword);
+  };
+
   return {
     user,
     isLoading,
@@ -231,6 +251,7 @@ export function useAuth() {
     signIn,
     signUp,
     signOut: signOutAll,
+    changePassword,
     login: () => blink.auth.login(),
     logout: signOutAll,
     sendPasswordReset,

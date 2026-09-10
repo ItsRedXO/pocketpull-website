@@ -19,7 +19,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
-  const { user, signOut, isAuthenticated } = useAuth();
+  const { user, signOut, isAuthenticated, changePassword } = useAuth();
   const { stats, updateProfile } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified);
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -169,7 +169,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
       setAvatarPreview(publicUrl);
       // Auto-save to DB immediately so it's persistent
       await updateProfile({ avatarUrl: publicUrl });
-      await blink.auth.updateMe({ displayName });
       setProfileMsg({ type: 'success', text: 'Avatar updated!' });
       setTimeout(() => setProfileMsg(null), 3000);
     } catch (err: any) {
@@ -191,7 +190,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
     setProfileMsg(null);
     try {
       await updateProfile({ displayName, avatarUrl: avatarPreview });
-      await blink.auth.updateMe({ displayName });
       setProfileMsg({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => setProfileMsg(null), 3000);
     } catch {
@@ -215,12 +213,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
     setSavingPassword(true);
     setPasswordMsg(null);
     try {
-      await blink.auth.changePassword(currentPassword, newPassword);
+      await changePassword(user?.email || stats?.email || '', currentPassword, newPassword);
       setPasswordMsg({ type: 'success', text: 'Password changed successfully!' });
       setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword('');
       setTimeout(() => setPasswordMsg(null), 3000);
     } catch (err: any) {
-      setPasswordMsg({ type: 'error', text: err?.message || 'Failed to change password. Check your current password.' });
+      const message = err?.message === 'INVALID_CURRENT_PASSWORD' ? 'Current password is incorrect.' : (err?.message || 'Failed to change password. Check your current password.');
+      setPasswordMsg({ type: 'error', text: message });
     } finally {
       setSavingPassword(false);
     }
