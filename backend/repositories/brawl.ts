@@ -118,7 +118,8 @@ export interface InstanceRow {
 export async function listInstancesForUser(userId: string): Promise<(InstanceRow & SpeciesRow)[]> {
   return query(
     `SELECT i.*, s.name, s.primary_type, s.secondary_type, s.base_hp, s.base_attack, s.base_defense, s.base_sp_attack, s.base_sp_defense, s.base_speed,
-            s.overall_rating, s.evolution_stage, s.sprite_url, s.artwork_url
+            s.overall_rating, s.evolution_stage, s.is_legendary, s.is_mythical, s.sprite_url, s.artwork_url,
+            s.portrait_scale, s.portrait_offset_x, s.portrait_offset_y
      FROM brawl_pokemon_instances i JOIN brawl_pokemon_species s ON s.id = i.species_id
      WHERE i.user_id=$1 ORDER BY i.team_slot NULLS LAST, i.acquired_at`,
     [userId],

@@ -3,38 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Star, Users } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBrawlRoster, setBrawlTeam, type BrawlInstance } from '../../lib/brawlApi';
-import { typeColor } from './typeColors';
-import { PokemonPortrait } from './PokemonPortrait';
+import { PokemonStatCard } from './PokemonStatCard';
 
 function PokemonCard({ mon, selected, order, index, onClick }: { mon: BrawlInstance; selected: boolean; order: number | null; index: number; onClick: () => void }) {
-  const accent = typeColor(mon.primary_type);
-  return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, y: 10, scale: 0.92 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: Math.min(index, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
-      whileHover={{ y: -3, scale: 1.03 }}
-      whileTap={{ scale: 0.96 }}
-      onClick={onClick}
-      className="relative rounded-xl border p-2 flex flex-col items-center text-left"
-      style={{
-        borderColor: selected ? '#00c8ff' : `${accent}40`,
-        background: selected ? 'rgba(0,200,255,0.10)' : `${accent}0d`,
-        boxShadow: selected ? '0 0 16px rgba(0,200,255,0.25)' : 'none',
-      }}
-    >
-      {selected && <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-[#00c8ff] text-black text-[10px] font-bold flex items-center justify-center z-10">{order}</span>}
-      <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={mon.portrait_scale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
-        className="w-16 h-16 rounded-lg" />
-      <div className="text-[11px] font-bold text-white capitalize mt-1 truncate w-full text-center">{mon.nickname || mon.name}</div>
-      <div className="flex gap-1 mt-1 justify-center">
-        <span className="text-[8px] px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(mon.primary_type)}30`, color: typeColor(mon.primary_type) }}>{mon.primary_type}</span>
-        {mon.secondary_type && <span className="text-[8px] px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(mon.secondary_type)}30`, color: typeColor(mon.secondary_type) }}>{mon.secondary_type}</span>}
-      </div>
-      <div className="text-[10px] text-[#00c8ff] font-bold mt-1">OVR {mon.overall_rating}</div>
-    </motion.button>
-  );
+  return <PokemonStatCard mon={mon} nickname={mon.nickname} selected={selected} order={order} index={index} onClick={onClick} />;
 }
 
 export function TeamTab() {
