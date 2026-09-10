@@ -225,3 +225,44 @@ export async function getTrainerProfile(userId: string): Promise<TrainerProfile 
     team,
   };
 }
+
+// ---- Admin: cross-user visibility + manual adjustment -------------------
+
+export interface AdminUserSummary {
+  user_id: string; username: string | null; avatar_url: string | null;
+  league_rating: number; wins: number; losses: number; roster_count: string;
+}
+export async function searchBrawlUsers(search: string, limit = 30): Promise<AdminUserSummary[]> {
+  const params: unknown[] = [];
+  let where = '';
+  if (search.trim()) { params.push(`%${search.trim()}%`); where = `WHERE u.username ILIKE $${params.length} OR u.id = $${params.length}`; }
+  params.push(limit);
+  return query<AdminUserSummary>(
+    `SELECT p.user_id, u.username, u.avatar_url, p.league_rating, p.wins, p.losses,
+            (SELECT count(*)::text FROM brawl_pokemon_instances i WHERE i.user_id = p.user_id) roster_count
+     FROM brawl_profiles p JOIN users u ON u.id = p.user_id
+     ${where}
+     ORDER BY p.updated_at DESC LIMIT $${params.length}`,
+    params,
+  );
+}
+
+const PROFILE_ADMIN_EDITABLE_COLUMNS = new Set([
+  'has_completed_intro', 'league', 'league_rating', 'wins', 'losses',
+  'local_battles_played', 'local_tournament_wins', 'state_tournament_wins', 'regional_tournament_wins', 'elite_four_wins',
+]);
+/** Directly sets profile fields (not a delta like incrementProfileCounters) -- for admin manual correction. */
+export async function adminSetProfileFields(userId: string, fields: Record<string, unknown>): Promise<BrawlProfile> {
+  await getOrCreateProfile(userId);
+  const entries = Object.entries(fields).filter(([k]) => PROFILE_ADMIN_EDITABLE_COLUMNS.has(k));
+  if (!entries.length) return (await query<BrawlProfile>('SELECT * FROM brawl_profiles WHERE user_id=$1', [userId]))[0];
+  const sets = entries.map(([k], i) => `${k}=$${i + 1}`).join(',');
+  const params: unknown[] = entries.map(([, v]) => v);
+  params.push(userId);
+  return (await query<BrawlProfile>(`UPDATE brawl_profiles SET ${sets}, updated_at=now() WHERE user_id=$${params.length} RETURNING *`, params))[0];
+}
+
+export async function adminDeleteInstance(userId: string, instanceId: string): Promise<boolean> {
+  const rows = await query('DELETE FROM brawl_pokemon_instances WHERE id=$1 AND user_id=$2 RETURNING id', [instanceId, userId]);
+  return rows.length > 0;
+}
