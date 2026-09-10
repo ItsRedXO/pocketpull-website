@@ -1,18 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Swords, Trophy, ShoppingBag, Target } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { completeBrawlIntro, type BrawlInstance } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
 
-const RULES = [
-  { icon: Swords, title: 'Build a team', text: 'You start with 6 random Pokemon. Battle in the Safari Zone or the shop to grow your roster, then pick your active 6.' },
-  { icon: Trophy, title: 'Simulated battles', text: 'Every match is an AI-simulated 6v6 with real type matchups — fire beats grass, water beats fire, and so on.' },
-  { icon: Target, title: 'Climb the ladder', text: 'Win Local Battles and Tournaments to earn pokedollars, climb the league ladder, and unlock bigger tournaments.' },
-  { icon: ShoppingBag, title: 'Pokedollars only', text: 'Everything here uses pokedollars — a separate, earn-only currency. It never touches your real PocketPull balance.' },
-];
-
 export function IntroFlow({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<'rules' | 'opening' | 'reveal'>('rules');
+  const [step, setStep] = useState<'start' | 'opening' | 'reveal'>('start');
   const [roster, setRoster] = useState<BrawlInstance[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,34 +18,20 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
       setStep('reveal');
     } catch (e: any) {
       setError(e.message || 'Failed to open your starter pack');
-      setStep('rules');
+      setStep('start');
     }
   };
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
+    <div className="min-h-[50vh] flex items-center justify-center px-4 py-12">
       <AnimatePresence mode="wait">
-        {step === 'rules' && (
-          <motion.div key="rules" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} className="max-w-2xl w-full">
-            <div className="text-center mb-8">
-              <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tighter" style={{ textShadow: '0 0 40px rgba(155,92,255,0.6)' }}>Welcome to Poke Brawl</h1>
-              <p className="text-white/50 text-sm mt-3">A persistent team-management mini-game. Here's how it works.</p>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3 mb-8">
-              {RULES.map(r => (
-                <div key={r.title} className="flex gap-3 p-4 rounded-xl border border-white/10 bg-white/[0.03]">
-                  <r.icon size={18} className="text-[#9b5cff] shrink-0 mt-0.5" />
-                  <div><div className="font-bold text-sm text-white">{r.title}</div><div className="text-xs text-white/50 mt-1">{r.text}</div></div>
-                </div>
-              ))}
-            </div>
-            {error && <p className="text-center text-red-400 text-xs mb-4">{error}</p>}
-            <div className="text-center">
-              <button onClick={handleStart} className="px-8 py-3 rounded-xl font-display uppercase tracking-wider text-sm bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold">
-                Open Your Starter Pack
-              </button>
-              <p className="text-white/30 text-[11px] mt-2">6 random Pokemon, free, right now.</p>
-            </div>
+        {step === 'start' && (
+          <motion.div key="start" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} className="text-center">
+            {error && <p className="text-red-400 text-xs mb-4">{error}</p>}
+            <button onClick={handleStart} className="px-8 py-3 rounded-xl font-display uppercase tracking-wider text-sm bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold">
+              Open Starter Pack
+            </button>
+            <p className="text-white/30 text-[11px] mt-2">6 random Pokemon, free, right now.</p>
           </motion.div>
         )}
 

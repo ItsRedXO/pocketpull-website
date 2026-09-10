@@ -17,114 +17,189 @@ export interface BattleSpecies {
   artworkUrl: string | null;
 }
 
+type Side = 'user' | 'opponent';
+type Effectiveness = 'immune' | 'not-very-effective' | 'neutral' | 'super-effective';
+
 interface Fighter extends BattleSpecies {
-  slot: number;
+  id: string;
+  side: Side;
+  x: number;
+  y: number;
+  hp: number;
   maxHp: number;
-  currentHp: number;
+  fainted: boolean;
   moves: BrawlMove[];
+  cooldown: number;
+  targetId: string | null;
 }
 
-export type BattleEvent =
-  | { type: 'send_out'; side: 'user' | 'opponent'; slot: number; speciesId: number; name: string; maxHp: number; artworkUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null }
-  | { type: 'move'; side: 'user' | 'opponent'; attacker: string; defender: string; move: string; moveType: PokeType; vfx: string; damage: number; effectiveness: 'immune' | 'not-very-effective' | 'neutral' | 'super-effective'; defenderHpAfter: number; defenderMaxHp: number }
-  | { type: 'faint'; side: 'user' | 'opponent'; name: string; koCountForOpponent: number };
-
+export interface ArenaPokemonState {
+  id: string; side: Side; speciesId: number; name: string;
+  x: number; y: number; hp: number; maxHp: number; fainted: boolean;
+  artworkUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null;
+}
+export interface ArenaAttackEvent {
+  attackerId: string; defenderId: string; move: string; moveType: PokeType; vfx: string;
+  damage: number; effectiveness: Effectiveness; fromX: number; fromY: number; toX: number; toY: number;
+}
+export interface ArenaFaintEvent { pokemonId: string; side: Side; name: string; }
+export interface ArenaFrame {
+  tick: number;
+  pokemon: ArenaPokemonState[];
+  attacks: ArenaAttackEvent[];
+  faints: ArenaFaintEvent[];
+  koUser: number;
+  koOpponent: number;
+}
 export interface BattleOutcome {
-  winner: 'user' | 'opponent';
+  winner: Side;
   koCountUser: number;
   koCountOpponent: number;
-  log: BattleEvent[];
+  frames: ArenaFrame[];
 }
 
 const HP_SCALE = 2;
 const DAMAGE_SCALE = 0.4;
 const STAB_MULTIPLIER = 1.5;
 const ROUNDS_TO_WIN = 3;
+const ATTACK_RANGE = 16;
+const MOVE_STEP = 5;
+const MAX_TICKS = 120;
+const FIELD_MIN = 2;
+const FIELD_MAX = 98;
 
-function toFighter(species: BattleSpecies, slot: number): Fighter {
-  const maxHp = Math.max(20, Math.round(species.baseHp * HP_SCALE));
-  return { ...species, slot, maxHp, currentHp: maxHp, moves: buildMoveset(species.primaryType, species.secondaryType) };
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
-function pickMove(attacker: Fighter, defender: Fighter): BrawlMove {
-  const defenderTypes = [defender.primaryType, defender.secondaryType];
+function toFighter(species: BattleSpecies, side: Side, index: number): Fighter {
+  const maxHp = Math.max(20, Math.round(species.baseHp * HP_SCALE));
+  return {
+    ...species, id: `${side}-${index}`, side,
+    x: side === 'user' ? 12 : 88, y: 8 + index * 16.4,
+    hp: maxHp, maxHp, fainted: false, moves: buildMoveset(species.primaryType, species.secondaryType),
+    cooldown: 0, targetId: null,
+  };
+}
+
+function distance(a: Fighter, b: Fighter): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function cooldownTicksFor(speed: number): number {
+  return clamp(Math.round(9 - speed / 25), 2, 8);
+}
+
+/** Prefers moves that actually deal damage; only resorts to an immune move if every option is immune. */
+function pickMove(attacker: Fighter, defenderTypes: (PokeType | null)[]): BrawlMove {
   const scored = attacker.moves.map(move => {
     const mult = typeMultiplier(move.type, defenderTypes);
     const stab = move.type === attacker.primaryType || move.type === attacker.secondaryType ? STAB_MULTIPLIER : 1;
-    return { move, score: Math.max(0.05, move.power * mult * stab) };
+    return { move, mult, score: Math.max(0.05, move.power * mult * stab) };
   });
-  const total = scored.reduce((sum, s) => sum + s.score, 0);
+  const damaging = scored.filter(s => s.mult > 0);
+  const pool = damaging.length ? damaging : scored;
+  const total = pool.reduce((sum, s) => sum + s.score, 0);
   let roll = Math.random() * total;
-  for (const s of scored) { roll -= s.score; if (roll <= 0) return s.move; }
-  return scored[scored.length - 1].move;
+  for (const s of pool) { roll -= s.score; if (roll <= 0) return s.move; }
+  return pool[pool.length - 1].move;
 }
 
-function resolveAttack(attacker: Fighter, defender: Fighter, side: 'user' | 'opponent', log: BattleEvent[]) {
-  const move = pickMove(attacker, defender);
-  const defenderTypes = [defender.primaryType, defender.secondaryType];
-  const mult = typeMultiplier(move.type, defenderTypes);
-  const atkStat = move.category === 'physical' ? attacker.attack : attacker.spAttack;
-  const defStat = move.category === 'physical' ? defender.defense : defender.spDefense;
-  const stab = move.type === attacker.primaryType || move.type === attacker.secondaryType ? STAB_MULTIPLIER : 1;
-  const variance = 0.85 + Math.random() * 0.15;
-  const rawDamage = mult === 0 ? 0 : move.power * (atkStat / Math.max(1, defStat)) * stab * mult * DAMAGE_SCALE * variance;
-  const damage = mult === 0 ? 0 : Math.max(1, Math.round(rawDamage));
-  defender.currentHp = Math.max(0, defender.currentHp - damage);
-  log.push({
-    type: 'move', side, attacker: attacker.name, defender: defender.name, move: move.name, moveType: move.type, vfx: move.vfx,
-    damage, effectiveness: effectivenessLabel(mult), defenderHpAfter: defender.currentHp, defenderMaxHp: defender.maxHp,
-  });
+function snapshot(fighter: Fighter): ArenaPokemonState {
+  return {
+    id: fighter.id, side: fighter.side, speciesId: fighter.speciesId, name: fighter.name,
+    x: fighter.x, y: fighter.y, hp: Math.max(0, fighter.hp), maxHp: fighter.maxHp, fainted: fighter.fainted,
+    artworkUrl: fighter.artworkUrl, primaryType: fighter.primaryType, secondaryType: fighter.secondaryType,
+  };
+}
+
+function shuffled<T>(items: T[]): T[] {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 /**
- * Runs one Local Battle: two 6-slot teams duel one pair at a time (Stadium-style),
- * a fainted Pokemon is replaced by the next slot on its side, and the match ends
- * the instant either side has knocked out ROUNDS_TO_WIN of the other's team --
- * it does not require sweeping the full roster.
+ * Runs one Local Battle as a live 6v6 arena skirmish (CS2-team-manager style):
+ * both full teams spawn on opposite sides of the field simultaneously, each alive
+ * Pokemon paths toward its nearest living target and attacks once in range, and
+ * the match ends the instant either side has scored ROUNDS_TO_WIN knockouts -- it
+ * does not require wiping the opposing team. Returns a tick-by-tick frame log
+ * (positions + events) for the frontend to play back as a live top-down replay.
  */
 export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: BattleSpecies[]): BattleOutcome {
-  const userTeam = userSpecies.map(toFighter);
-  const opponentTeam = opponentSpecies.map(toFighter);
-  const log: BattleEvent[] = [];
-  let userIdx = 0, opponentIdx = 0, koUser = 0, koOpponent = 0;
+  const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i));
+  const opponentTeam = opponentSpecies.map((s, i) => toFighter(s, 'opponent', i));
+  const all = [...userTeam, ...opponentTeam];
+  const byId = new Map(all.map(f => [f.id, f]));
+  let koUser = 0, koOpponent = 0;
 
-  const sendOutEvent = (fighter: Fighter, side: 'user' | 'opponent'): BattleEvent => ({
-    type: 'send_out', side, slot: fighter.slot, speciesId: fighter.speciesId, name: fighter.name, maxHp: fighter.maxHp,
-    artworkUrl: fighter.artworkUrl, primaryType: fighter.primaryType, secondaryType: fighter.secondaryType,
-  });
-  log.push(sendOutEvent(userTeam[0], 'user'));
-  log.push(sendOutEvent(opponentTeam[0], 'opponent'));
+  const frames: ArenaFrame[] = [{ tick: 0, pokemon: all.map(snapshot), attacks: [], faints: [], koUser, koOpponent }];
 
-  let guard = 0;
-  while (koUser < ROUNDS_TO_WIN && koOpponent < ROUNDS_TO_WIN && guard++ < 500) {
-    const user = userTeam[userIdx];
-    const opponent = opponentTeam[opponentIdx];
-    const userFirst = user.speed === opponent.speed ? Math.random() < 0.5 : user.speed > opponent.speed;
-    const order: Array<{ fighter: Fighter; opp: Fighter; side: 'user' | 'opponent' }> = userFirst
-      ? [{ fighter: user, opp: opponent, side: 'user' }, { fighter: opponent, opp: user, side: 'opponent' }]
-      : [{ fighter: opponent, opp: user, side: 'opponent' }, { fighter: user, opp: opponent, side: 'user' }];
+  for (let tick = 1; tick <= MAX_TICKS && koUser < ROUNDS_TO_WIN && koOpponent < ROUNDS_TO_WIN; tick++) {
+    const attacks: ArenaAttackEvent[] = [];
+    const faints: ArenaFaintEvent[] = [];
 
-    for (const turn of order) {
-      if (turn.fighter.currentHp <= 0 || turn.opp.currentHp <= 0) continue;
-      resolveAttack(turn.fighter, turn.opp, turn.side, log);
-      if (turn.opp.currentHp <= 0) {
-        const defeatedSide = turn.side === 'user' ? 'opponent' : 'user';
-        if (defeatedSide === 'opponent') koUser++; else koOpponent++;
-        log.push({ type: 'faint', side: defeatedSide, name: turn.opp.name, koCountForOpponent: defeatedSide === 'opponent' ? koUser : koOpponent });
-        break;
+    for (const fighter of shuffled(all)) {
+      if (fighter.fainted) continue;
+      const enemyPool = (fighter.side === 'user' ? opponentTeam : userTeam).filter(f => !f.fainted);
+      if (!enemyPool.length) continue;
+
+      let target = fighter.targetId ? byId.get(fighter.targetId) : undefined;
+      if (!target || target.fainted) {
+        target = enemyPool.reduce((closest, candidate) => (distance(fighter, candidate) < distance(fighter, closest) ? candidate : closest), enemyPool[0]);
+        fighter.targetId = target.id;
+      }
+
+      const dist = distance(fighter, target);
+      if (dist > ATTACK_RANGE) {
+        const dx = target.x - fighter.x, dy = target.y - fighter.y;
+        const len = Math.hypot(dx, dy) || 1;
+        fighter.x = clamp(fighter.x + (dx / len) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
+        fighter.y = clamp(fighter.y + (dy / len) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
+        continue;
+      }
+      if (fighter.cooldown > 0) continue;
+
+      const defenderTypes = [target.primaryType, target.secondaryType];
+      const move = pickMove(fighter, defenderTypes);
+      const mult = typeMultiplier(move.type, defenderTypes);
+      const atkStat = move.category === 'physical' ? fighter.attack : fighter.spAttack;
+      const defStat = move.category === 'physical' ? target.defense : target.spDefense;
+      const stab = move.type === fighter.primaryType || move.type === fighter.secondaryType ? STAB_MULTIPLIER : 1;
+      const variance = 0.85 + Math.random() * 0.15;
+      const damage = mult === 0 ? 0 : Math.max(1, Math.round(move.power * (atkStat / Math.max(1, defStat)) * stab * mult * DAMAGE_SCALE * variance));
+      target.hp = Math.max(0, target.hp - damage);
+      fighter.cooldown = cooldownTicksFor(fighter.speed);
+      attacks.push({
+        attackerId: fighter.id, defenderId: target.id, move: move.name, moveType: move.type, vfx: move.vfx,
+        damage, effectiveness: effectivenessLabel(mult), fromX: fighter.x, fromY: fighter.y, toX: target.x, toY: target.y,
+      });
+
+      if (target.hp <= 0 && !target.fainted) {
+        target.fainted = true;
+        faints.push({ pokemonId: target.id, side: target.side, name: target.name });
+        if (target.side === 'opponent') koUser++; else koOpponent++;
       }
     }
 
-    if (koUser >= ROUNDS_TO_WIN || koOpponent >= ROUNDS_TO_WIN) break;
-    if (user.currentHp <= 0 && userIdx < userTeam.length - 1) {
-      userIdx++;
-      log.push(sendOutEvent(userTeam[userIdx], 'user'));
-    }
-    if (opponent.currentHp <= 0 && opponentIdx < opponentTeam.length - 1) {
-      opponentIdx++;
-      log.push(sendOutEvent(opponentTeam[opponentIdx], 'opponent'));
-    }
+    for (const f of all) if (f.cooldown > 0) f.cooldown--;
+    frames.push({ tick, pokemon: all.map(snapshot), attacks, faints, koUser, koOpponent });
   }
 
-  return { winner: koUser >= ROUNDS_TO_WIN ? 'user' : 'opponent', koCountUser: koUser, koCountOpponent: koOpponent, log };
+  let winner: Side;
+  if (koUser >= ROUNDS_TO_WIN || koOpponent >= ROUNDS_TO_WIN) {
+    winner = koUser >= ROUNDS_TO_WIN ? 'user' : 'opponent';
+  } else {
+    // MAX_TICKS safety valve (e.g. an all-immune matchup that never lands a hit):
+    // decide by KOs, then total remaining HP, so the match always terminates.
+    const userHpTotal = userTeam.reduce((sum, f) => sum + Math.max(0, f.hp), 0);
+    const opponentHpTotal = opponentTeam.reduce((sum, f) => sum + Math.max(0, f.hp), 0);
+    winner = koUser !== koOpponent ? (koUser > koOpponent ? 'user' : 'opponent') : (userHpTotal >= opponentHpTotal ? 'user' : 'opponent');
+  }
+
+  return { winner, koCountUser: koUser, koCountOpponent: koOpponent, frames };
 }

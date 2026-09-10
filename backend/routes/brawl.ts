@@ -2,15 +2,21 @@ import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, type BattleTierId } from '../lib/brawl/tiers';
-import { LEAGUES, TIER_RATING_DELTA } from '../lib/brawl/leagues';
+import { TIER_RATING_DELTA } from '../lib/brawl/leagues';
 import { simulateBattle } from '../lib/brawl/battleSim';
 import { rollSafariPull } from '../lib/brawl/safariZone';
 import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds,
   speciesRowToBattleSpecies, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, applyLeagueRatingChange, type BrawlProfile,
+  getLeaderboard, applyRatingChange, type BrawlProfile,
 } from '../repositories/brawl';
+
+// Starter packs are deliberately weaker than the general species pool (45-50
+// overall) so a first-time player's team is an "average" starting roster they
+// work up from, rather than getting lucky/unlucky into something wildly uneven.
+const STARTER_OVERALL_MIN = 45;
+const STARTER_OVERALL_MAX = 50;
 
 const app = new Hono();
 async function auth(c: any) { try { return await requireAuth(c); } catch (e: any) { if (e.message === 'ACCOUNT_DEACTIVATED') return c.json({ error: 'Account deactivated' }, 403); return c.json({ error: 'Authentication required' }, 401); } }
@@ -21,7 +27,7 @@ function tierUnlocked(profile: BrawlProfile, tierId: BattleTierId): boolean {
   return Number((profile as any)[rule.counter] || 0) >= rule.count;
 }
 
-app.get('/brawl/config', async c => c.json({ battleTiers: BATTLE_TIERS, safariTiers: SAFARI_TIERS, dailyBattleCap: DAILY_BATTLE_CAP, leagues: LEAGUES, tierRatingDeltas: TIER_RATING_DELTA }));
+app.get('/brawl/config', async c => c.json({ battleTiers: BATTLE_TIERS, safariTiers: SAFARI_TIERS, dailyBattleCap: DAILY_BATTLE_CAP, tierRatingDeltas: TIER_RATING_DELTA }));
 
 app.get('/brawl/profile', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;
@@ -52,7 +58,8 @@ app.post('/brawl/intro/complete', async c => {
   if (Number(profile.has_completed_intro)) return c.json({ success: true, alreadyCompleted: true });
   const existingCount = (await listInstancesForUser(userId)).length;
   if (existingCount > 0) { await completeIntro(userId); return c.json({ success: true, alreadyCompleted: true }); }
-  const starterIds = await pickRandomSpeciesIds(6, { evolutionStage: 1 });
+  let starterIds = await pickRandomSpeciesIds(6, { evolutionStage: 1, overallMin: STARTER_OVERALL_MIN, overallMax: STARTER_OVERALL_MAX });
+  if (starterIds.length < 6) starterIds = await pickRandomSpeciesIds(6, { evolutionStage: 1 });
   if (starterIds.length < 6) return c.json({ error: 'Starter pool unavailable, try again shortly' }, 503);
   const instanceIds = await insertInstances(userId, starterIds, 'starter');
   await setTeam(userId, instanceIds);
@@ -130,7 +137,7 @@ app.post('/brawl/battle/play', async c => {
   }
 
   const run = await createRun(userId, config.id, config.entryCost, config.matches);
-  const matches: Array<{ index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; log: unknown }> = [];
+  const matches: Array<{ index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: unknown }> = [];
   let matchesWon = 0;
   let ratingDelta = 0;
   const tierRatingDelta = TIER_RATING_DELTA[config.id];
@@ -142,8 +149,8 @@ app.post('/brawl/battle/play', async c => {
     const opponentBattleTeam = opponentRows.map(speciesRowToBattleSpecies);
     const outcome = simulateBattle(userBattleTeam, opponentBattleTeam);
     const result: 'win' | 'loss' = outcome.winner === 'user' ? 'win' : 'loss';
-    await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, outcome.log);
-    matches.push({ index: i, result, opponentSpeciesIds: opponentIds, log: outcome.log });
+    await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, outcome.frames);
+    matches.push({ index: i, result, opponentSpeciesIds: opponentIds, frames: outcome.frames });
     ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
     if (result === 'loss') break;
     matchesWon++;
@@ -164,10 +171,10 @@ app.post('/brawl/battle/play', async c => {
   if (config.id === 'local_battle') counterUpdates.local_battles_played = 1;
   else if (status === 'won') (counterUpdates as any)[config.winCounterField] = 1;
   await incrementProfileCounters(userId, counterUpdates);
-  const league = await applyLeagueRatingChange(userId, ratingDelta);
+  const rating = await applyRatingChange(userId, ratingDelta);
 
   const balance = await getWalletBalance(userId);
-  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, league });
+  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, rating });
 });
 
 export default app;

@@ -3,7 +3,6 @@ import { query, transaction } from '../lib/postgres';
 import { uid } from '../lib/auth';
 import type { BattleSpecies } from '../lib/brawl/battleSim';
 import type { PokeType } from '../lib/brawl/typeChart';
-import { leagueForRating, leagueRank, type LeagueId } from '../lib/brawl/leagues';
 
 export interface SpeciesRow {
   id: number; name: string; primary_type: string; secondary_type: string | null;
@@ -73,23 +72,19 @@ export async function incrementProfileCounters(userId: string, fields: Partial<R
   await runner(`UPDATE brawl_profiles SET ${sets}, updated_at=now() WHERE user_id=$${params.length}`, params);
 }
 
-export interface LeagueChangeResult {
-  previousRating: number; newRating: number;
-  previousLeague: LeagueId; newLeague: LeagueId;
-  promoted: boolean; demoted: boolean;
-}
-/** Applies a rating delta and re-derives league from the new rating, atomically. */
-export async function applyLeagueRatingChange(userId: string, ratingDelta: number): Promise<LeagueChangeResult> {
+export interface RatingChangeResult { previousRating: number; newRating: number; }
+/**
+ * Applies a rating delta to the player's global standing (league_rating).
+ * The Standard/Great/Ultra/Master league tiers are on hold for now -- this only
+ * moves the raw number the leaderboard ranks on, it does not touch `league`.
+ */
+export async function applyRatingChange(userId: string, ratingDelta: number): Promise<RatingChangeResult> {
   return transaction(async client => {
-    const row = (await client.query('SELECT league_rating, league FROM brawl_profiles WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
+    const row = (await client.query('SELECT league_rating FROM brawl_profiles WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
     const previousRating = Number(row?.league_rating ?? 1000);
-    const previousLeague = (row?.league ?? 'standard') as LeagueId;
     const newRating = Math.max(0, previousRating + ratingDelta);
-    const newLeagueTier = leagueForRating(newRating);
-    await client.query('UPDATE brawl_profiles SET league_rating=$1, league=$2, updated_at=now() WHERE user_id=$3', [newRating, newLeagueTier.id, userId]);
-    const previousRank = leagueRank(previousLeague);
-    const newRank = leagueRank(newLeagueTier.id);
-    return { previousRating, newRating, previousLeague, newLeague: newLeagueTier.id, promoted: newRank > previousRank, demoted: newRank < previousRank };
+    await client.query('UPDATE brawl_profiles SET league_rating=$1, updated_at=now() WHERE user_id=$2', [newRating, userId]);
+    return { previousRating, newRating };
   });
 }
 

@@ -1,146 +1,138 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, FastForward, X, Skull, Trophy, Coins, ArrowUp, ArrowDown } from 'lucide-react';
-import type { BattleEvent, BrawlMatchResult, LeagueChangeResult } from '../../lib/brawlApi';
+import type { ArenaFrame, BrawlMatchResult, RatingChangeResult } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
-import { LEAGUE_COLOR, LEAGUE_LABEL } from './leagueColors';
-
-interface ActiveMon { name: string; artworkUrl: string | null; maxHp: number; currentHp: number; primaryType: string; secondaryType: string | null; }
-
-function foldEvents(events: BattleEvent[]) {
-  let user: ActiveMon | null = null;
-  let opponent: ActiveMon | null = null;
-  let koUser = 0, koOpponent = 0;
-  const feed: string[] = [];
-  let lastMove: Extract<BattleEvent, { type: 'move' }> | null = null;
-
-  for (const ev of events) {
-    if (ev.type === 'send_out') {
-      const mon: ActiveMon = { name: ev.name, artworkUrl: ev.artworkUrl, maxHp: ev.maxHp, currentHp: ev.maxHp, primaryType: ev.primaryType, secondaryType: ev.secondaryType };
-      if (ev.side === 'user') user = mon; else opponent = mon;
-    } else if (ev.type === 'move') {
-      lastMove = ev;
-      const target = ev.side === 'user' ? opponent : user;
-      if (target) target.currentHp = ev.defenderHpAfter;
-    } else if (ev.type === 'faint') {
-      feed.push(`${ev.name} fainted!`);
-      if (ev.side === 'opponent') koUser++; else koOpponent++;
-    }
-  }
-  return { user, opponent, koUser, koOpponent, feed, lastMove };
-}
 
 const EFFECTIVENESS_LABEL: Record<string, string> = { immune: 'No effect', 'not-very-effective': 'Not very effective', neutral: '', 'super-effective': 'Super effective!' };
 const EFFECTIVENESS_COLOR: Record<string, string> = { immune: '#8892a4', 'not-very-effective': '#a8a878', neutral: '#ffffff', 'super-effective': '#f8d030' };
+const TICK_MS = 180;
 
-function HpBar({ current, max, side }: { current: number; max: number; side: 'user' | 'opponent' }) {
-  const pct = Math.max(0, Math.min(100, (current / max) * 100));
-  const color = pct > 50 ? '#4ade80' : pct > 20 ? '#facc15' : '#f87171';
+function PokemonIcon({ mon }: { mon: ArenaFrame['pokemon'][number] }) {
+  const accent = mon.side === 'user' ? '#00c8ff' : '#f87171';
+  const hpPct = Math.max(0, Math.min(100, (mon.hp / mon.maxHp) * 100));
+  const hpColor = hpPct > 50 ? '#4ade80' : hpPct > 20 ? '#facc15' : '#f87171';
   return (
-    <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-      <motion.div className="h-full rounded-full" animate={{ width: `${pct}%`, background: color }} transition={{ duration: 0.4 }}
-        style={{ marginLeft: side === 'opponent' ? 'auto' : 0 }} />
+    <motion.div
+      className="absolute flex flex-col items-center"
+      style={{ transform: 'translate(-50%, -50%)' }}
+      animate={{ left: `${mon.x}%`, top: `${mon.y}%`, opacity: mon.fainted ? 0.2 : 1 }}
+      transition={{ duration: TICK_MS / 1000, ease: 'linear' }}
+    >
+      <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center" style={{ background: '#0006', border: `1.5px solid ${accent}`, filter: mon.fainted ? 'grayscale(1)' : undefined }}>
+        {mon.artworkUrl ? <img src={mon.artworkUrl} alt={mon.name} className="w-full h-full object-contain scale-[2.2]" style={{ objectPosition: 'top' }} /> : null}
+      </div>
+      {!mon.fainted && (
+        <div className="w-6 h-[3px] rounded-full bg-white/15 mt-0.5 overflow-hidden">
+          <div className="h-full rounded-full" style={{ width: `${hpPct}%`, background: hpColor }} />
+        </div>
+      )}
+      <div className="text-[7px] font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: mon.fainted ? '#666' : accent }}>{mon.name}</div>
+    </motion.div>
+  );
+}
+
+function Arena({ frame }: { frame: ArenaFrame }) {
+  return (
+    <div className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border border-white/10"
+      style={{ background: 'linear-gradient(90deg, rgba(0,200,255,0.10) 0%, rgba(10,11,15,0.4) 48%, rgba(10,11,15,0.4) 52%, rgba(248,113,113,0.10) 100%)' }}>
+      <div className="absolute inset-y-0 left-1/2 w-px bg-white/5" />
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <AnimatePresence>
+          {frame.attacks.map(a => (
+            <motion.line key={`${frame.tick}-${a.attackerId}-${a.defenderId}`} x1={a.fromX} y1={a.fromY} x2={a.toX} y2={a.toY}
+              initial={{ opacity: 0.85 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }}
+              stroke={typeColor(a.moveType)} strokeWidth={0.8} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          ))}
+        </AnimatePresence>
+      </svg>
+      <AnimatePresence>
+        {frame.attacks.map(a => (
+          <motion.div key={`burst-${frame.tick}-${a.attackerId}-${a.defenderId}`}
+            className="absolute w-4 h-4 rounded-full pointer-events-none" style={{ left: `${a.toX}%`, top: `${a.toY}%`, transform: 'translate(-50%,-50%)', background: typeColor(a.moveType) }}
+            initial={{ opacity: 0.9, scale: 0.3 }} animate={{ opacity: 0, scale: 1.8 }} transition={{ duration: 0.45 }} />
+        ))}
+      </AnimatePresence>
+      {frame.pokemon.map(mon => <PokemonIcon key={mon.id} mon={mon} />)}
     </div>
   );
 }
 
-function MonPanel({ mon, side }: { mon: ActiveMon | null; side: 'user' | 'opponent' }) {
-  const accent = side === 'user' ? '#00c8ff' : '#f87171';
-  return (
-    <div className={`flex-1 flex flex-col items-center gap-2 ${side === 'opponent' ? 'items-end text-right' : 'items-start text-left'}`}>
-      <div className="flex items-center gap-2" style={{ flexDirection: side === 'opponent' ? 'row-reverse' : 'row' }}>
-        <span className="w-2 h-2 rounded-full" style={{ background: accent }} />
-        <span className="text-xs font-bold text-white capitalize">{mon?.name || '—'}</span>
-      </div>
-      <div className="w-full max-w-[160px]"><HpBar current={mon?.currentHp ?? 0} max={mon?.maxHp || 1} side={side} /></div>
-      <div className="text-[10px] text-white/40">{mon ? `${Math.max(0, mon.currentHp)}/${mon.maxHp} HP` : ''}</div>
-      <div className="w-24 h-24 rounded-xl overflow-hidden bg-black/20 flex items-center justify-center border" style={{ borderColor: `${accent}40` }}>
-        {mon?.artworkUrl ? <img src={mon.artworkUrl} alt={mon.name} className="w-full h-full object-contain scale-150" style={{ objectPosition: 'top', transform: side === 'opponent' ? 'scaleX(-1) scale(1.5)' : 'scale(1.5)' }} /> : null}
-      </div>
-    </div>
-  );
-}
-
-export function BattleReplay({ matches, tierLabel, status, reward, league, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; league: LeagueChangeResult; onClose: () => void }) {
+export function BattleReplay({ matches, tierLabel, status, reward, rating, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; rating: RatingChangeResult; onClose: () => void }) {
   const [matchIndex, setMatchIndex] = useState(0);
-  const [eventIndex, setEventIndex] = useState(0);
+  const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [finished, setFinished] = useState(false);
 
   const match = matches[matchIndex];
-  const visibleEvents = useMemo(() => match.log.slice(0, eventIndex + 1), [match, eventIndex]);
-  const state = useMemo(() => foldEvents(visibleEvents), [visibleEvents]);
-  const atMatchEnd = eventIndex >= match.log.length - 1;
+  const frames = match.frames;
+  const currentFrame = frames[frameIndex];
+  const atMatchEnd = frameIndex >= frames.length - 1;
+
+  const feed = useMemo(() => frames.slice(0, frameIndex + 1).flatMap(f => f.faints.map(ft => `${ft.name} fainted!`)), [frames, frameIndex]);
+  const lastAttack = useMemo(() => {
+    for (let i = frameIndex; i >= 0; i--) { const a = frames[i].attacks; if (a.length) return a[a.length - 1]; }
+    return null;
+  }, [frames, frameIndex]);
 
   useEffect(() => {
     if (!playing || atMatchEnd) return;
-    const t = setTimeout(() => setEventIndex(i => Math.min(match.log.length - 1, i + 1)), 900);
+    const t = setTimeout(() => setFrameIndex(i => Math.min(frames.length - 1, i + 1)), TICK_MS);
     return () => clearTimeout(t);
-  }, [playing, atMatchEnd, match.log.length, eventIndex]);
+  }, [playing, atMatchEnd, frames.length, frameIndex]);
 
-  const handleSkip = () => setEventIndex(match.log.length - 1);
+  const handleSkip = () => setFrameIndex(frames.length - 1);
   const handleNextMatch = () => {
-    if (matchIndex < matches.length - 1) { setMatchIndex(i => i + 1); setEventIndex(0); setPlaying(true); }
+    if (matchIndex < matches.length - 1) { setMatchIndex(i => i + 1); setFrameIndex(0); setPlaying(true); }
     else setFinished(true);
   };
 
-  const lastMove = state.lastMove;
-
   return (
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
-      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-3xl rounded-2xl border border-white/10 overflow-hidden" style={{ background: '#0d0e14' }}>
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 overflow-hidden" style={{ background: '#0d0e14' }}>
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
           <div className="text-xs font-bold uppercase tracking-widest text-white/60">{tierLabel} — Match {matchIndex + 1}/{matches.length}</div>
           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={16} /></button>
         </div>
 
         {!finished ? (
-          <div className="relative p-6 min-h-[340px]" style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(155,92,255,0.08) 0%, transparent 60%)' }}>
+          <div className="relative p-4">
+            <div className="flex items-center justify-center gap-4 mb-2">
+              <span className="text-[10px] uppercase tracking-widest text-white/30">KOs</span>
+              <span className="text-sm font-bold text-[#00c8ff]">{currentFrame.koUser}</span>
+              <span className="text-white/20 text-sm">—</span>
+              <span className="text-sm font-bold text-[#f87171]">{currentFrame.koOpponent}</span>
+            </div>
+
+            <Arena frame={currentFrame} />
+
             {/* kill feed, top-right */}
-            <div className="absolute top-3 right-3 flex flex-col gap-1 items-end max-w-[45%]">
+            <div className="absolute top-16 right-6 flex flex-col gap-1 items-end max-w-[45%]">
               <AnimatePresence>
-                {state.feed.slice(-4).map((f, i) => (
+                {feed.slice(-4).map((f, i) => (
                   <motion.div key={f + i} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
-                    className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-black/50 text-white/70">
+                    className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-black/60 text-white/70">
                     <Skull size={10} className="text-red-400" /> {f}
                   </motion.div>
                 ))}
               </AnimatePresence>
             </div>
 
-            <div className="flex items-start justify-between gap-4 mt-6">
-              <MonPanel mon={state.user} side="user" />
-              <div className="flex flex-col items-center justify-center gap-2 px-2 pt-4">
-                <div className="text-[10px] uppercase tracking-widest text-white/30">KOs</div>
-                <div className="text-sm font-bold text-white">{state.koUser} — {state.koOpponent}</div>
-                <AnimatePresence mode="wait">
-                  {lastMove && (
-                    <motion.div key={visibleEvents.length} initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                      className="mt-2 w-14 h-14 rounded-full flex items-center justify-center text-[9px] font-bold text-center uppercase"
-                      style={{ background: `${typeColor(lastMove.moveType)}25`, border: `2px solid ${typeColor(lastMove.moveType)}`, color: typeColor(lastMove.moveType) }}>
-                      {lastMove.moveType}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <MonPanel mon={state.opponent} side="opponent" />
-            </div>
-
             {/* move info box, bottom-right */}
-            <div className="absolute bottom-3 right-3 max-w-[70%] sm:max-w-[260px] rounded-lg border border-white/10 bg-black/60 px-3 py-2">
-              {lastMove ? (
+            <div className="absolute bottom-7 right-7 max-w-[70%] sm:max-w-[260px] rounded-lg border border-white/10 bg-black/70 px-3 py-2">
+              {lastAttack ? (
                 <>
-                  <div className="text-[11px] text-white"><span className="font-bold capitalize">{lastMove.attacker}</span> used <span className="font-bold">{lastMove.move}</span></div>
+                  <div className="text-[11px] text-white">used <span className="font-bold">{lastAttack.move}</span></div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(lastMove.moveType)}30`, color: typeColor(lastMove.moveType) }}>{lastMove.moveType}</span>
-                    <span className="text-[10px] text-white/50">{lastMove.damage} dmg</span>
-                    {EFFECTIVENESS_LABEL[lastMove.effectiveness] && <span className="text-[10px] font-bold" style={{ color: EFFECTIVENESS_COLOR[lastMove.effectiveness] }}>{EFFECTIVENESS_LABEL[lastMove.effectiveness]}</span>}
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(lastAttack.moveType)}30`, color: typeColor(lastAttack.moveType) }}>{lastAttack.moveType}</span>
+                    <span className="text-[10px] text-white/50">{lastAttack.damage} dmg</span>
+                    {EFFECTIVENESS_LABEL[lastAttack.effectiveness] && <span className="text-[10px] font-bold" style={{ color: EFFECTIVENESS_COLOR[lastAttack.effectiveness] }}>{EFFECTIVENESS_LABEL[lastAttack.effectiveness]}</span>}
                   </div>
                 </>
               ) : <div className="text-[11px] text-white/30">Battle starting…</div>}
             </div>
 
-            <div className="absolute bottom-3 left-3 flex items-center gap-2">
+            <div className="absolute bottom-7 left-7 flex items-center gap-2">
               <button onClick={() => setPlaying(p => !p)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white">
                 {playing ? <Pause size={13} /> : <Play size={13} />}
               </button>
@@ -164,18 +156,11 @@ export function BattleReplay({ matches, tierLabel, status, reward, league, onClo
                   <Coins size={14} /> +{reward} pokedollars
                 </div>
               )}
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: `${LEAGUE_COLOR[league.newLeague]}15`, border: `1px solid ${LEAGUE_COLOR[league.newLeague]}40`, color: LEAGUE_COLOR[league.newLeague] }}>
-                {league.newRating >= league.previousRating ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                {league.newRating - league.previousRating >= 0 ? '+' : ''}{league.newRating - league.previousRating} rating
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 border border-white/15 text-white/80 font-bold text-sm">
+                {rating.newRating >= rating.previousRating ? <ArrowUp size={14} className="text-green-400" /> : <ArrowDown size={14} className="text-red-400" />}
+                {rating.newRating - rating.previousRating >= 0 ? '+' : ''}{rating.newRating - rating.previousRating} rating
               </div>
             </div>
-            {(league.promoted || league.demoted) && (
-              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5 px-4 py-2 rounded-xl inline-block"
-                style={{ background: `${LEAGUE_COLOR[league.newLeague]}15`, border: `1px solid ${LEAGUE_COLOR[league.newLeague]}50` }}>
-                <div className="text-[11px] uppercase tracking-widest text-white/40">{league.promoted ? 'Promoted!' : 'Demoted'}</div>
-                <div className="text-sm font-bold" style={{ color: LEAGUE_COLOR[league.newLeague] }}>{LEAGUE_LABEL[league.previousLeague]} → {LEAGUE_LABEL[league.newLeague]} League</div>
-              </motion.div>
-            )}
             <div><button onClick={onClose} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold text-sm uppercase tracking-wider">Continue</button></div>
           </div>
         )}

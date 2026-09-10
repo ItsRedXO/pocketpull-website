@@ -40,11 +40,9 @@ export interface BattleTierConfig {
   unlockAfter: { counter: string; count: number } | null;
 }
 export interface SafariTierConfig { tier: number; cost: number; count: number; overallMin: number; overallMax: number; bonusChance: number; bonusOverallMin: number; bonusOverallMax: number; }
-export type LeagueId = 'standard' | 'great' | 'ultra' | 'master';
-export interface LeagueTier { id: LeagueId; label: string; minRating: number; color: string; }
 export interface BrawlConfig {
   battleTiers: Record<string, BattleTierConfig>; safariTiers: SafariTierConfig[]; dailyBattleCap: number;
-  leagues: LeagueTier[]; tierRatingDeltas: Record<string, { win: number; loss: number }>;
+  tierRatingDeltas: Record<string, { win: number; loss: number }>;
 }
 
 export interface BrawlProfileResponse {
@@ -60,16 +58,25 @@ export const setBrawlTeam = (instanceIds: string[]) => post<{ success: boolean; 
 export const getBrawlLeaderboard = () => get<{ leaderboard: Array<{ user_id: string; username: string | null; league: string; league_rating: number; wins: number; losses: number }> }>('/brawl/leaderboard');
 export const pullSafariZone = (tier: number) => post<{ success: boolean; pulled: BrawlSpecies[]; instanceIds: string[]; balance: number }>('/brawl/safari/pull', { tier });
 
-export type BattleEvent =
-  | { type: 'send_out'; side: 'user' | 'opponent'; slot: number; speciesId: number; name: string; maxHp: number; artworkUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null }
-  | { type: 'move'; side: 'user' | 'opponent'; attacker: string; defender: string; move: string; moveType: PokeType; vfx: string; damage: number; effectiveness: 'immune' | 'not-very-effective' | 'neutral' | 'super-effective'; defenderHpAfter: number; defenderMaxHp: number }
-  | { type: 'faint'; side: 'user' | 'opponent'; name: string; koCountForOpponent: number };
-export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; log: BattleEvent[]; }
-export interface LeagueChangeResult {
-  previousRating: number; newRating: number; previousLeague: LeagueId; newLeague: LeagueId; promoted: boolean; demoted: boolean;
+export type Effectiveness = 'immune' | 'not-very-effective' | 'neutral' | 'super-effective';
+export type ArenaSide = 'user' | 'opponent';
+export interface ArenaPokemonState {
+  id: string; side: ArenaSide; speciesId: number; name: string;
+  x: number; y: number; hp: number; maxHp: number; fainted: boolean;
+  artworkUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null;
 }
+export interface ArenaAttackEvent {
+  attackerId: string; defenderId: string; move: string; moveType: PokeType; vfx: string;
+  damage: number; effectiveness: Effectiveness; fromX: number; fromY: number; toX: number; toY: number;
+}
+export interface ArenaFaintEvent { pokemonId: string; side: ArenaSide; name: string; }
+export interface ArenaFrame {
+  tick: number; pokemon: ArenaPokemonState[]; attacks: ArenaAttackEvent[]; faints: ArenaFaintEvent[]; koUser: number; koOpponent: number;
+}
+export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: ArenaFrame[]; }
+export interface RatingChangeResult { previousRating: number; newRating: number; }
 export interface BrawlBattlePlayResult {
   success: boolean; tier: string; status: 'won' | 'eliminated'; matchesWon: number; matchesTotal: number; reward: number; balance: number; matches: BrawlMatchResult[];
-  league: LeagueChangeResult;
+  rating: RatingChangeResult;
 }
 export const playBrawlBattle = (tier: string) => post<BrawlBattlePlayResult>('/brawl/battle/play', { tier });

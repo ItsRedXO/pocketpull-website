@@ -90,7 +90,7 @@ export function PlayTab() {
       </div>
 
       {result && (
-        <BattleReplay matches={result.matches} tierLabel={config.battleTiers[result.tier]?.label || result.tier} status={result.status} reward={result.reward} league={result.league} onClose={handleCloseReplay} />
+        <BattleReplay matches={result.matches} tierLabel={config.battleTiers[result.tier]?.label || result.tier} status={result.status} reward={result.reward} rating={result.rating} onClose={handleCloseReplay} />
       )}
     </div>
   );
