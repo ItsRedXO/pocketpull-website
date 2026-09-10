@@ -4,6 +4,12 @@ import { X, Save } from 'lucide-react';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
+import { uploadFile } from '../lib/upload';
+
+function adminUploadHeaders(): Record<string, string> {
+  const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  return adminSecret ? { 'X-Admin-Secret': adminSecret } : {};
+}
 import { TcgDexSearchModal } from './tcgdex/TcgDexSearchModal';
 import type { ImportedCard } from './tcgdex/types';
 import { CardDraft, PackDraft, RARITIES, RARITY_COLOR, PackType } from './pack-form/types';
@@ -97,9 +103,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
     if (!file) return;
     setUploadingImage(true);
     try {
-      const ext = file.name.split('.').pop() ?? 'png';
-      const path = `packs/${Date.now()}.${ext}`;
-      const { publicUrl } = await blink.storage.upload(file, path, { upsert: true });
+      const publicUrl = await uploadFile('/admin/storage/pack-image', file, adminUploadHeaders());
       setPackDraft(p => ({ ...p, imageUrl: publicUrl }));
       setImagePreviewError(false);
     } catch (err) {
@@ -113,9 +117,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const ext = file.name.split('.').pop() ?? 'png';
-      const path = `cards/${Date.now()}_${i}.${ext}`;
-      const { publicUrl } = await blink.storage.upload(file, path);
+      const publicUrl = await uploadFile('/admin/storage/card-image', file, adminUploadHeaders());
       updateCard(i, { cardImageUrl: publicUrl });
     } catch (err) {
       console.error(err);

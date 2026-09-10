@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, User, Shield, History, PackageOpen, Users, Settings } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { uploadFile } from '../lib/upload';
 import { useAuth, useUserStats } from '../hooks/useAuth';
 import { CashOutModal } from '../components/CashOutModal';
 
@@ -164,11 +165,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
 
     setUploadingAvatar(true);
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `avatars/${user!.id}_${Date.now()}.${ext}`;
-      const { publicUrl } = await blink.storage.upload(file, path, {
-        onProgress: () => {},
-      });
+      const publicUrl = await uploadFile('/storage/avatar', file);
       setAvatarPreview(publicUrl);
       // Auto-save to DB immediately so it's persistent
       await updateProfile({ avatarUrl: publicUrl });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Package } from 'lucide-react';
 import { blink } from '../../lib/blink';
+import { uploadFile } from '../../lib/upload';
 import { InventoryItem, ShippingForm, CashOutModalProps } from './types';
 import { StepDot } from './shared';
 import { StepSelectCards } from './StepSelectCards';
@@ -102,9 +103,7 @@ export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose,
     setSubmitting(true);
     try {
       // 1. Upload ID (storage is fine client-side — not economy-sensitive)
-      const ext = idFile!.name.split('.').pop() ?? 'jpg';
-      const uploadResult = await blink.storage.upload(idFile!, `cashout-ids/${userId}_${Date.now()}.${ext}`);
-      const idImageUrl: string = typeof uploadResult === 'string' ? uploadResult : (uploadResult as { publicUrl: string }).publicUrl;
+      const idImageUrl = await uploadFile('/storage/cashout-id', idFile!);
 
       // 2. Call backend — server validates ownership, removes cards, creates record, sends email
       const result = await submitCashout({
