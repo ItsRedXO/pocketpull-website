@@ -18,30 +18,47 @@ async function requireAdmin(c: any) {
   if (user?.role !== 'admin' && user?.role !== 'owner' && Number(user?.is_admin || 0) !== 1) throw new Error('FORBIDDEN');
 }
 
+function valueOr<T>(result: PromiseSettledResult<T>, fallback: T, label: string): T {
+  if (result.status === 'fulfilled') return result.value;
+  console.error(`[admin/stats] ${label} query failed:`, result.reason?.message || result.reason);
+  return fallback;
+}
+
 app.get('/admin/stats', async c => {
   try {
     await requireAdmin(c);
-    const [users, pulls, revenue, balance, packs] = await Promise.all([
-      query<{ count: string }>('SELECT COUNT(*)::text AS count FROM users WHERE COALESCE(is_deleted,0)=0 AND COALESCE(is_bot,0)=0'),
-      query<{ count: string }>('SELECT COUNT(*)::text AS count FROM packs_opened'),
-      query<{ total: string }>(`SELECT COALESCE(SUM(amount),0)::text AS total FROM transactions WHERE LOWER(COALESCE(type,''))='deposit'`),
-      query<{ total: string }>('SELECT COALESCE(SUM(balance),0)::text AS total FROM users WHERE COALESCE(is_deleted,0)=0 AND COALESCE(is_bot,0)=0'),
-      query(`SELECT p.id,p.name,p.price,p.is_active,COUNT(po.id)::text AS opens FROM packs_catalog p LEFT JOIN packs_opened po ON po.pack_id=p.id GROUP BY p.id,p.name,p.price,p.is_active ORDER BY opens DESC`),
-    ]);
-    const packBreakdown = packs.map((row: any) => ({ id: row.id, name: row.name, price: Number(row.price || 0), opens: Number(row.opens || 0), active: Number(row.is_active || 0) > 0 }));
-    return c.json({
-      totalUsers: Number(users[0]?.count || 0),
-      totalPulls: Number(pulls[0]?.count || 0),
-      totalRevenue: Number(revenue[0]?.total || 0),
-      totalBalance: Number(balance[0]?.total || 0),
-      activePacks: packBreakdown.filter(p => p.active).length,
-      totalPacks: packBreakdown.length,
-      packBreakdown,
-    });
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500;
     return c.json({ error: error?.message || 'Failed to load admin stats' }, status);
   }
+
+  // Each metric is independent -- one query failing (a transient lock, a slow
+  // join, whatever) degrades to a fallback for just that number instead of
+  // blanking the whole dashboard.
+  const [usersResult, pullsResult, revenueResult, balanceResult, packsResult] = await Promise.allSettled([
+    query<{ count: string }>('SELECT COUNT(*)::text AS count FROM users WHERE COALESCE(is_deleted,0)=0 AND COALESCE(is_bot,0)=0'),
+    query<{ count: string }>('SELECT COUNT(*)::text AS count FROM packs_opened'),
+    query<{ total: string }>(`SELECT COALESCE(SUM(amount),0)::text AS total FROM transactions WHERE LOWER(COALESCE(type,''))='deposit'`),
+    query<{ total: string }>('SELECT COALESCE(SUM(balance),0)::text AS total FROM users WHERE COALESCE(is_deleted,0)=0 AND COALESCE(is_bot,0)=0'),
+    query(`SELECT p.id,p.name,p.price,p.is_active,COUNT(po.id)::text AS opens FROM packs_catalog p LEFT JOIN packs_opened po ON po.pack_id=p.id GROUP BY p.id,p.name,p.price,p.is_active ORDER BY opens DESC`),
+  ]);
+
+  const users = valueOr(usersResult, [{ count: '0' }], 'totalUsers');
+  const pulls = valueOr(pullsResult, [{ count: '0' }], 'totalPulls');
+  const revenue = valueOr(revenueResult, [{ total: '0' }], 'totalRevenue');
+  const balance = valueOr(balanceResult, [{ total: '0' }], 'totalBalance');
+  const packs = valueOr(packsResult, [] as any[], 'packBreakdown');
+
+  const packBreakdown = packs.map((row: any) => ({ id: row.id, name: row.name, price: Number(row.price || 0), opens: Number(row.opens || 0), active: Number(row.is_active || 0) > 0 }));
+  return c.json({
+    totalUsers: Number(users[0]?.count || 0),
+    totalPulls: Number(pulls[0]?.count || 0),
+    totalRevenue: Number(revenue[0]?.total || 0),
+    totalBalance: Number(balance[0]?.total || 0),
+    activePacks: packBreakdown.filter(p => p.active).length,
+    totalPacks: packBreakdown.length,
+    packBreakdown,
+  });
 });
 
 export default app;
