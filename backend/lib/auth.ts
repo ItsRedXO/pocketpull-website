@@ -6,25 +6,30 @@ import { verifySupabaseToken, extractSupabaseBearer } from './supabaseAuth';
 import { query } from './postgres';
 
 /**
- * Resolves the Authorization header to a usr_XXXX id, trying Blink first
- * (unchanged behavior for the ~70 accounts not yet migrated) and falling
- * back to a Supabase Auth token (via auth_user_id lookup) if Blink
- * verification fails. Phase 2 of the Blink -> Supabase Auth migration:
- * both paths are accepted side by side until the frontend cutover (Phase 3).
+ * Resolves the Authorization header to a usr_XXXX id. Phase 5: the frontend
+ * now sends a Supabase token whenever it has one (which is checked first --
+ * local JWKS verification, no third-party network call), falling back to
+ * Blink only for the shrinking tail of accounts that haven't migrated yet.
+ * This is the reverse of Phase 2's original order (Blink first): with most
+ * real accounts now linked, trying Blink first on every request meant every
+ * request paid for a real HTTP call to Blink's servers even when it wasn't
+ * needed, and would have added real latency across the whole site if
+ * Blink's API ever slowed down or went away.
  */
 export async function resolveUserId(c: Context): Promise<string | null> {
   const authHeader = c.req.header('Authorization');
-  const blink = getBlinkServer(c.env as any);
-  try {
-    const auth = await blink.auth.verifyToken(authHeader);
-    if (auth.valid && auth.userId) return auth.userId;
-  } catch {}
 
   try {
     const token = extractSupabaseBearer(authHeader);
     const claims = await verifySupabaseToken(token);
     const rows = await query<{ id: string }>('SELECT id FROM users WHERE auth_user_id=$1 LIMIT 1', [claims.authUserId]);
     if (rows[0]?.id) return rows[0].id;
+  } catch {}
+
+  try {
+    const blink = getBlinkServer(c.env as any);
+    const auth = await blink.auth.verifyToken(authHeader);
+    if (auth.valid && auth.userId) return auth.userId;
   } catch {}
 
   return null;

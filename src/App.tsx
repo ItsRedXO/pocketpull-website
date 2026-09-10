@@ -29,11 +29,13 @@ import { ExchangerPage } from './pages/ExchangerPage';
 import { Inventory } from './pages/Inventory';
 import { ProfilePage } from './pages/ProfilePage';
 import { VaultPage } from './pages/VaultPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault';
 
 export default function App() {
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) return <AdminApp />;
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/reset-password')) return <ResetPasswordPage />;
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'signup'>('login');

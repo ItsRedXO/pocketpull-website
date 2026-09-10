@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../lib/auth';
+import { requireAuth, uid } from '../lib/auth';
 import { verifySupabaseToken, extractSupabaseBearer } from '../lib/supabaseAuth';
 import { getOrCreateSupabaseIdentity, inviteSupabaseIdentity, backfillPasswordIfNeeded } from '../lib/supabaseAdmin';
 import { query } from '../lib/postgres';
@@ -238,6 +238,64 @@ app.post('/admin/auth/bulk-migrate-next', async (c) => {
   }
 
   return c.json({ done: false, migrated: next.email });
+});
+
+/**
+ * POST /auth/complete-supabase-signup
+ *
+ * Phase 5: creates the PocketPull account row for a brand-new,
+ * Supabase-native signup (one that never touched Blink at all). Takes no
+ * body -- username and referralCode were embedded in the Supabase user's
+ * own metadata at supabase.auth.signUp() time (options.data), so this
+ * works identically whether a session exists immediately (email
+ * confirmation off) or only later once the user clicks the confirmation
+ * link (the frontend calls this the first time it sees *any* verified
+ * Supabase session with no linked account -- see useSupabaseAuthUser in
+ * useAuth.ts). Idempotent: a second call for an already-linked identity
+ * just returns the existing account instead of erroring.
+ */
+app.post('/auth/complete-supabase-signup', async (c) => {
+  let claims;
+  try {
+    const token = extractSupabaseBearer(c.req.header('Authorization'));
+    claims = await verifySupabaseToken(token);
+  } catch (err: any) {
+    return c.json({ error: `Supabase token invalid: ${err.message}` }, 401);
+  }
+  if (!claims.email) return c.json({ error: 'Supabase account has no email on the token' }, 400);
+
+  const existingLink = await query<{ id: string }>('SELECT id FROM users WHERE auth_user_id=$1 LIMIT 1', [claims.authUserId]);
+  if (existingLink[0]) return c.json({ success: true, userId: existingLink[0].id, alreadyExists: true });
+
+  const meta = (claims.raw?.user_metadata as Record<string, unknown>) || {};
+  let username = String(meta.username || '').trim();
+  const referralCodeInput = String(meta.referralCode || '').trim().toUpperCase();
+
+  if (username && (username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username))) username = '';
+  if (username) {
+    const taken = await query('SELECT 1 FROM users WHERE lower(username)=lower($1) LIMIT 1', [username]);
+    if (taken.length) username = '';
+  }
+  const userId = `usr_${uid()}`;
+  if (!username) username = `Trainer_${userId.slice(-4)}`;
+
+  const emailTaken = await query('SELECT 1 FROM users WHERE lower(email)=lower($1) LIMIT 1', [claims.email]);
+  if (emailTaken.length) return c.json({ error: 'EMAIL_ALREADY_EXISTS' }, 409);
+
+  let referredById: string | null = null;
+  if (referralCodeInput) {
+    const referrer = await query<{ id: string }>('SELECT id FROM users WHERE referral_code=$1 LIMIT 1', [referralCodeInput]);
+    referredById = referrer[0]?.id || null;
+  }
+
+  const referralCode = Math.random().toString(36).slice(2, 10).toUpperCase();
+  await query(
+    `INSERT INTO users (id, email, username, display_name, avatar_url, balance, matched_balance, email_verified, role, is_banned, is_deleted, referral_code, referred_by_id, referral_reward_paid, auth_user_id)
+     VALUES ($1,$2,$3,$3,'',0,0,1,'',0,0,$4,$5,0,$6)`,
+    [userId, claims.email, username, referralCode, referredById, claims.authUserId]
+  );
+
+  return c.json({ success: true, userId, alreadyExists: false });
 });
 
 export default app;

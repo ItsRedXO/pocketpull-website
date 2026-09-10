@@ -65,24 +65,98 @@ async function establishSupabaseSession(email: string, password: string): Promis
   }
 }
 
+/**
+ * Resolves a live Supabase session (if any) to this app's AuthUser shape by
+ * asking the backend (GET /auth/whoami-supabase, which verifies the token
+ * and looks up the linked usr_XXXX row) rather than trusting anything
+ * client-side. Phase 5: this is now the primary identity source -- Blink's
+ * onAuthStateChanged (below, in useAuth) is only consulted once this hook
+ * has finished its own check and found nothing.
+ *
+ * Also completes brand-new Supabase-native signups: if a verified session
+ * exists but no account is linked yet (a fresh signUp(), or the delayed
+ * moment right after an email-confirmation click), it calls
+ * POST /auth/complete-supabase-signup once to create the row -- the
+ * username/referralCode signUp() embedded in the Supabase user's own
+ * metadata -- then re-resolves. Idempotent, so a re-render or reload never
+ * creates a duplicate account.
+ */
+function useSupabaseAuthUser(): { user: AuthUser | null; resolved: boolean } {
+  const [state, setState] = useState<{ user: AuthUser | null; resolved: boolean }>({ user: null, resolved: !supabase });
+
+  useEffect(() => {
+    if (!supabase) return;
+    let cancelled = false;
+
+    async function resolveFromToken(token: string, allowSignupCompletion: boolean) {
+      try {
+        const res = await fetch(`${BACKEND_BASE}/auth/whoami-supabase`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const payload = await res.json();
+          const a = payload?.account;
+          if (a && !cancelled) {
+            setState({ user: { id: a.id, email: a.email, displayName: a.display_name || a.username, emailVerified: true }, resolved: true });
+            return;
+          }
+        }
+        if (res.status === 404 && allowSignupCompletion) {
+          const completeRes = await fetch(`${BACKEND_BASE}/auth/complete-supabase-signup`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (completeRes.ok) { await resolveFromToken(token, false); return; }
+        }
+        if (!cancelled) setState({ user: null, resolved: true });
+      } catch {
+        if (!cancelled) setState({ user: null, resolved: true });
+      }
+    }
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') return; // handled by the /reset-password page, not a real sign-in
+      const token = session?.access_token;
+      if (!token) { if (!cancelled) setState({ user: null, resolved: true }); return; }
+      void resolveFromToken(token, true);
+    });
+
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+  }, []);
+
+  return state;
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: supabaseUser, resolved: supabaseResolved } = useSupabaseAuthUser();
+  const [blinkState, setBlinkState] = useState<{ user: AuthUser | null; isLoading: boolean }>({ user: null, isLoading: true });
 
   useEffect(() => {
     const unsubscribe = blink.auth.onAuthStateChanged((state: { user: AuthUser | null; isLoading: boolean }) => {
-      if (state.isLoading) return;
-      setUser(state.user);
-      setIsLoading(false);
+      setBlinkState(state);
     });
-    const fallback = window.setTimeout(() => setIsLoading(false), 5000);
+    const fallback = window.setTimeout(() => setBlinkState(s => ({ ...s, isLoading: false })), 5000);
     return () => { window.clearTimeout(fallback); unsubscribe(); };
   }, []);
+
+  // Supabase is checked first: once it resolves (fast, local-session read),
+  // a found user wins outright and Blink is never even waited on. Only
+  // when Supabase has nothing do we fall through to Blink's own state --
+  // covering accounts that haven't migrated yet.
+  const user = supabaseUser || (supabaseResolved ? blinkState.user : null);
+  const isLoading = !supabaseResolved || (!supabaseUser && blinkState.isLoading);
 
   const signIn = async (emailOrUsername: string, password: string) => {
     const identifier = emailOrUsername.trim();
     if (!identifier || !password) throw new Error('INVALID_CREDENTIALS');
     const email = await resolveLoginEmail(identifier);
+
+    if (supabase) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (!error) return; // onAuthStateChange picks this up
+    }
+
+    // Falls through for: accounts not yet migrated, or whose Blink password
+    // changed more recently than their Supabase identity was last synced
+    // (password resets remain Blink-only for now -- see sendPasswordReset).
     const result = await blink.auth.signInWithEmail(email, password);
     void establishSupabaseSession(email, password);
     return result;
@@ -91,8 +165,36 @@ export function useAuth() {
   const signUp = async (email: string, password: string, username: string, referralCode?: string) => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedUsername = username.trim();
-    if (referralCode) localStorage.setItem('pending_referral_code', referralCode.trim().toUpperCase());
-    return blink.auth.signUp({ email: trimmedEmail, password, displayName: trimmedUsername });
+    const trimmedReferral = referralCode?.trim().toUpperCase() || '';
+    if (trimmedReferral) localStorage.setItem('pending_referral_code', trimmedReferral);
+
+    if (!supabase) {
+      return blink.auth.signUp({ email: trimmedEmail, password, displayName: trimmedUsername });
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: trimmedEmail,
+      password,
+      options: { data: { username: trimmedUsername, referralCode: trimmedReferral } },
+    });
+    if (error) {
+      if (error.message?.toLowerCase().includes('already registered')) throw new Error('EMAIL_ALREADY_EXISTS');
+      throw error;
+    }
+    if (!data.session) {
+      // Email confirmation is required before a session exists. The account
+      // row itself gets created the moment a session first appears -- see
+      // useSupabaseAuthUser above -- whether that's now or after they click
+      // the confirmation link.
+      throw new Error('CONFIRM_EMAIL_SENT');
+    }
+    const res = await fetch(`${BACKEND_BASE}/auth/complete-supabase-signup`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${data.session.access_token}` },
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Sign up failed');
+    return payload;
   };
 
   // A stale Supabase session must never outlive a Blink sign-out -- getPreferredAuthToken()
@@ -100,6 +202,23 @@ export function useAuth() {
   const signOutAll = async () => {
     if (supabase) await supabase.auth.signOut().catch(() => {});
     return blink.auth.signOut();
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    // Supabase's reset is sent opportunistically alongside Blink's -- Blink's
+    // is the one guaranteed to work today for every account regardless of
+    // migration status, so it alone decides success/failure here. Once
+    // real-world Supabase email deliverability is confirmed this can become
+    // the only path for already-linked accounts.
+    const results = await Promise.allSettled([
+      supabase ? supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` }) : Promise.resolve(),
+      blink.auth.sendPasswordResetEmail(email),
+    ]);
+    const blinkResult = results[1];
+    if (blinkResult.status === 'rejected') {
+      const supabaseResult = results[0];
+      if (supabaseResult.status === 'rejected') throw blinkResult.reason;
+    }
   };
 
   return {
@@ -111,7 +230,7 @@ export function useAuth() {
     signOut: signOutAll,
     login: () => blink.auth.login(),
     logout: signOutAll,
-    sendPasswordReset: (email: string) => blink.auth.sendPasswordResetEmail(email),
+    sendPasswordReset,
   };
 }
 

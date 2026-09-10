@@ -86,6 +86,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
       setTimeout(() => { switchTab('login'); onClose(); }, 2000);
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
+      if (message === 'CONFIRM_EMAIL_SENT') {
+        setSuccess('Almost there! Check your email to confirm your account, then log in.');
+        setTimeout(() => { switchTab('login'); onClose(); }, 3000);
+        return;
+      }
       if (message === 'EMAIL_BANNED' || message.includes('EMAIL_BANNED')) {
         setError('This email address has been banned and cannot be used to create a new account.');
       } else if (message.includes('USERNAME_TAKEN')) {
