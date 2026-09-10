@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trees, Coins, Sparkles, X } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBrawlConfig, getBrawlProfile, pullSafariZone, type BrawlSpecies } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
+import { PokemonPortrait } from './PokemonPortrait';
+
+const TIER_COLORS = ['#8892a4', '#6890f0', '#9b5cff', '#f97316', '#facc15'];
 
 export function SafariZoneTab() {
   const qc = useQueryClient();
@@ -38,19 +41,26 @@ export function SafariZoneTab() {
       </div>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {config.safariTiers.map(t => {
+        {config.safariTiers.map((t, i) => {
           const affordable = profile.balance >= t.cost;
+          const color = TIER_COLORS[i % TIER_COLORS.length];
           return (
-            <div key={t.tier} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex flex-col gap-2">
-              <h4 className="font-display text-sm uppercase tracking-wider text-white">Tier {t.tier}</h4>
+            <motion.div key={t.tier} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              whileHover={{ y: -3 }}
+              className="relative rounded-xl border p-4 flex flex-col gap-2 overflow-hidden"
+              style={{ borderColor: `${color}45`, background: `linear-gradient(160deg, ${color}14 0%, rgba(255,255,255,0.02) 60%)` }}>
+              <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl opacity-30" style={{ background: color }} />
+              <h4 className="font-display text-sm uppercase tracking-wider" style={{ color }}>Tier {t.tier}</h4>
               <div className="text-[11px] text-white/50">Guarantees {t.count} Pokemon, overall {t.overallMin}-{t.overallMax}</div>
               <div className="text-[10px] text-white/30">Small chance ({Math.round(t.bonusChance * 100)}%) of {t.bonusOverallMin}-{t.bonusOverallMax} overall</div>
               <div className="flex items-center gap-1.5 text-[#facc15] text-sm font-bold mt-1"><Coins size={14} /> {t.cost.toLocaleString()}</div>
-              <button onClick={() => handlePull(t.tier)} disabled={!affordable || pulling === t.tier}
-                className={`mt-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider ${affordable ? 'bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black' : 'bg-white/5 text-white/25'}`}>
+              <motion.button onClick={() => handlePull(t.tier)} disabled={!affordable || pulling === t.tier}
+                whileHover={affordable ? { scale: 1.03 } : undefined} whileTap={affordable ? { scale: 0.96 } : undefined}
+                className="mt-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
+                style={affordable ? { background: `linear-gradient(90deg, ${color}, #00c8ff)`, color: '#000' } : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }}>
                 <Sparkles size={13} /> {pulling === t.tier ? 'Pulling…' : affordable ? 'Enter Safari Zone' : 'Not enough pokedollars'}
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           );
         })}
       </div>
@@ -64,11 +74,10 @@ export function SafariZoneTab() {
               <h3 className="font-display text-lg uppercase tracking-widest text-white mb-4">Safari Zone Catch!</h3>
               <div className="flex justify-center gap-4">
                 {pulled.map((p, i) => (
-                  <motion.div key={p.id + i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.25, type: 'spring' }}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] p-3 flex flex-col items-center w-28">
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center">
-                      {p.artwork_url ? <img src={p.artwork_url} alt={p.name} className="w-full h-full object-contain scale-150" style={{ objectPosition: 'top' }} /> : null}
-                    </div>
+                  <motion.div key={p.id + i} initial={{ opacity: 0, y: 20, rotate: -6 }} animate={{ opacity: 1, y: 0, rotate: 0 }} transition={{ delay: i * 0.25, type: 'spring' }}
+                    className="rounded-xl border p-3 flex flex-col items-center w-28"
+                    style={{ borderColor: `${typeColor(p.primary_type)}50`, background: `${typeColor(p.primary_type)}14`, boxShadow: `0 0 20px ${typeColor(p.primary_type)}30` }}>
+                    <PokemonPortrait artworkUrl={p.artwork_url} alt={p.name} scale={p.portrait_scale} offsetX={p.portrait_offset_x} offsetY={p.portrait_offset_y} className="w-20 h-20 rounded-lg" />
                     <div className="text-xs font-bold text-white capitalize mt-1 truncate w-full">{p.name}</div>
                     <span className="text-[8px] px-1.5 py-0.5 rounded-full uppercase font-bold mt-1" style={{ background: `${typeColor(p.primary_type)}30`, color: typeColor(p.primary_type) }}>{p.primary_type}</span>
                     <div className="text-[11px] text-[#00c8ff] font-bold mt-1">OVR {p.overall_rating}</div>

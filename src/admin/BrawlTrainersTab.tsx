@@ -7,6 +7,7 @@ import {
   type AdminBrawlProfile, type AdminBrawlInstance,
 } from './brawlAdminApi';
 import { typeColor } from '../pages/brawl/typeColors';
+import { PokemonPortrait } from '../pages/brawl/PokemonPortrait';
 
 const PROFILE_FIELDS: { key: keyof AdminBrawlProfile; label: string }[] = [
   { key: 'league_rating', label: 'Global Rating' },
@@ -21,11 +22,11 @@ const PROFILE_FIELDS: { key: keyof AdminBrawlProfile; label: string }[] = [
 
 function PokemonCard({ mon, selected, order, onToggle, onDelete }: { mon: AdminBrawlInstance; selected: boolean; order: number | null; onToggle: () => void; onDelete: () => void }) {
   return (
-    <div className={`relative rounded-lg border p-2 flex flex-col items-center ${selected ? 'border-[#00c8ff] bg-[#00c8ff]/10' : 'border-white/10 bg-white/[0.03]'}`}>
+    <div className={`relative rounded-lg border p-2 flex flex-col items-center transition-colors ${selected ? 'border-[#00c8ff] bg-[#00c8ff]/10' : 'border-white/10 bg-white/[0.03] hover:border-white/20'}`}>
       {selected && <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-[#00c8ff] text-black text-[9px] font-bold flex items-center justify-center">{order}</span>}
       <button onClick={onDelete} className="absolute top-1 right-1 text-white/20 hover:text-red-400" title="Remove from roster"><Trash2 size={11} /></button>
-      <button onClick={onToggle} className="w-12 h-12 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center">
-        {mon.artwork_url ? <img src={mon.artwork_url} alt={mon.name} className="w-full h-full object-contain scale-150" style={{ objectPosition: 'top' }} /> : null}
+      <button onClick={onToggle}>
+        <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={mon.portrait_scale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y} className="w-12 h-12 rounded-lg bg-black/20" />
       </button>
       <div className="text-[9px] font-bold text-white capitalize mt-1 truncate w-full text-center">{mon.name}</div>
       <span className="text-[7px] px-1 py-0.5 rounded-full uppercase font-bold mt-0.5" style={{ background: `${typeColor(mon.primary_type)}30`, color: typeColor(mon.primary_type) }}>{mon.primary_type}</span>

@@ -62,26 +62,33 @@ export function PokeBrawlPage() {
                 {SUB_TABS.map(t => (
                   <button key={t.id} disabled={t.disabled} onClick={() => !t.disabled && setSubTab(t.id)}
                     className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap rounded-lg ${
-                      t.disabled ? 'text-white/20 cursor-default' : subTab === t.id ? 'text-black bg-gradient-to-r from-[#9b5cff] to-[#00c8ff]' : 'text-white/50 hover:text-white hover:bg-white/5'
+                      t.disabled ? 'text-white/20 cursor-default' : subTab === t.id ? 'text-black' : 'text-white/50 hover:text-white hover:bg-white/5'
                     }`}>
-                    <t.icon size={13} /> {t.label}
-                    {t.disabled && <span className="ml-1 text-[8px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/40 normal-case tracking-normal">Coming Soon</span>}
+                    {!t.disabled && subTab === t.id && (
+                      <motion.span layoutId="brawl-subtab-pill" className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#9b5cff] to-[#00c8ff]"
+                        transition={{ type: 'spring', stiffness: 400, damping: 32 }} />
+                    )}
+                    <span className="relative flex items-center gap-1.5"><t.icon size={13} /> {t.label}</span>
+                    {t.disabled && <span className="relative ml-1 text-[8px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/40 normal-case tracking-normal">Coming Soon</span>}
                   </button>
                 ))}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {profileData?.profile && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#9b5cff]/10 border border-[#9b5cff]/25 text-[#9b5cff] text-xs font-bold">
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#9b5cff]/10 border border-[#9b5cff]/25 text-[#9b5cff] text-xs font-bold">
                     <TrendingUp size={13} /> Global Rating: {profileData.profile.league_rating}
-                  </div>
+                  </motion.div>
                 )}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15] text-xs font-bold">
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.04 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15] text-xs font-bold">
                   <Coins size={13} /> {(profileData?.balance ?? 0).toLocaleString()}
-                </div>
+                </motion.div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-6 relative overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#9b5cff]/50 to-transparent" />
               <AnimatePresence mode="wait">
                 <motion.div key={subTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
                   {subTab === 'team' && <TeamTab />}

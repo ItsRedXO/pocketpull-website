@@ -53,7 +53,15 @@ app.patch('/admin/brawl/species/:id', async c => {
     const value = Number(body.overall_rating);
     if (!Number.isFinite(value) || value < 0) return c.json({ error: 'Invalid overall_rating' }, 400);
     fields.overall_rating = Math.round(value);
-  } else if (statsChanged) {
+  }
+  for (const key of ['portrait_scale', 'portrait_offset_x', 'portrait_offset_y'] as const) {
+    if (body[key] !== undefined) {
+      const value = Number(body[key]);
+      if (!Number.isFinite(value)) return c.json({ error: `Invalid value for ${key}` }, 400);
+      fields[key] = value;
+    }
+  }
+  if (body.overall_rating === undefined && statsChanged) {
     const current = (await listAllSpecies()).find(s => s.id === id);
     if (current) {
       const merged = { ...current, ...fields } as any;

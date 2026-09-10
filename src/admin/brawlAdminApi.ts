@@ -28,6 +28,7 @@ export interface AdminBrawlSpecies {
   id: number; name: string; primary_type: string; secondary_type: string | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
   overall_rating: number; evolution_stage: number; sprite_url: string | null; artwork_url: string | null;
+  portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 export interface AdminBrawlUserSummary {
   user_id: string; username: string | null; avatar_url: string | null; league_rating: number; wins: number; losses: number; roster_count: string;

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { completeBrawlIntro, type BrawlInstance } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
+import { PokemonPortrait } from './PokemonPortrait';
 
 export function IntroFlow({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<'start' | 'opening' | 'reveal'>('start');
@@ -28,9 +29,12 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
         {step === 'start' && (
           <motion.div key="start" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} className="text-center">
             {error && <p className="text-red-400 text-xs mb-4">{error}</p>}
-            <button onClick={handleStart} className="px-8 py-3 rounded-xl font-display uppercase tracking-wider text-sm bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold">
+            <motion.button onClick={handleStart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.96 }}
+              animate={{ boxShadow: ['0 0 20px rgba(0,200,255,0.25)', '0 0 34px rgba(155,92,255,0.4)', '0 0 20px rgba(0,200,255,0.25)'] }}
+              transition={{ boxShadow: { repeat: Infinity, duration: 2.2 } }}
+              className="px-8 py-3 rounded-xl font-display uppercase tracking-wider text-sm bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold">
               Open Starter Pack
-            </button>
+            </motion.button>
             <p className="text-white/30 text-[11px] mt-2">6 random Pokemon, free, right now.</p>
           </motion.div>
         )}
@@ -51,10 +55,10 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
               {roster.map((p, i) => (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.12, type: 'spring' }}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] p-2 flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-black/20 flex items-center justify-center">
-                    {p.artwork_url ? <img src={p.artwork_url} alt={p.name} className="w-full h-full object-contain scale-150" style={{ objectPosition: 'top' }} /> : null}
-                  </div>
+                  whileHover={{ y: -4, scale: 1.04 }}
+                  className="rounded-xl border p-2 flex flex-col items-center"
+                  style={{ borderColor: `${typeColor(p.primary_type)}50`, background: `${typeColor(p.primary_type)}12`, boxShadow: `0 0 18px ${typeColor(p.primary_type)}25` }}>
+                  <PokemonPortrait artworkUrl={p.artwork_url} alt={p.name} scale={p.portrait_scale} offsetX={p.portrait_offset_x} offsetY={p.portrait_offset_y} className="w-16 h-16 rounded-lg" />
                   <div className="text-[11px] font-bold text-white capitalize mt-1 truncate w-full">{p.name}</div>
                   <div className="flex gap-1 mt-1">
                     <span className="text-[8px] px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(p.primary_type)}30`, color: typeColor(p.primary_type) }}>{p.primary_type}</span>

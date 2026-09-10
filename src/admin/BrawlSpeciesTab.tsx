@@ -3,16 +3,22 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Search, Swords } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
+import { PokemonPortrait } from '../pages/brawl/PokemonPortrait';
 
 interface BrawlSpecies {
   id: number; name: string; primary_type: string; secondary_type: string | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
   overall_rating: number; evolution_stage: number; sprite_url: string | null; artwork_url: string | null;
+  portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 
 const STAT_KEYS = ['base_hp', 'base_attack', 'base_defense', 'base_sp_attack', 'base_sp_defense', 'base_speed'] as const;
 const STAT_LABELS: Record<typeof STAT_KEYS[number], string> = {
   base_hp: 'HP', base_attack: 'ATK', base_defense: 'DEF', base_sp_attack: 'SpA', base_sp_defense: 'SpD', base_speed: 'SPD',
+};
+const PORTRAIT_KEYS = ['portrait_scale', 'portrait_offset_x', 'portrait_offset_y'] as const;
+const PORTRAIT_LABELS: Record<typeof PORTRAIT_KEYS[number], string> = {
+  portrait_scale: 'Zoom', portrait_offset_x: 'Pan X', portrait_offset_y: 'Pan Y',
 };
 
 async function adminHeaders(): Promise<Record<string, string>> {
@@ -56,6 +62,7 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
   const setEdit = (id: number, key: string, value: string) => setEdits(prev => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
   const rowEdits = (id: number) => edits[id] || {};
   const valueFor = (row: BrawlSpecies, key: string) => rowEdits(row.id)[key] ?? String((row as any)[key] ?? '');
+  const numberFor = (row: BrawlSpecies, key: string) => { const v = rowEdits(row.id)[key]; return v !== undefined ? Number(v) : Number((row as any)[key]); };
   const isDirty = (id: number) => Object.keys(edits[id] || {}).length > 0;
 
   const handleSave = async (row: BrawlSpecies) => {
@@ -63,8 +70,9 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
     if (!Object.keys(changes).length) return;
     setSavingId(row.id);
     try {
+      const numericKeys = new Set<string>([...STAT_KEYS, ...PORTRAIT_KEYS, 'overall_rating']);
       const fields: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(changes)) fields[key] = STAT_KEYS.includes(key as any) || key === 'overall_rating' ? Number(value) : value;
+      for (const [key, value] of Object.entries(changes)) fields[key] = numericKeys.has(key) ? Number(value) : value;
       const updated = await saveSpecies(row.id, fields);
       qc.setQueryData<BrawlSpecies[]>(['admin-brawl-species'], (prev = []) => prev.map(s => (s.id === updated.id ? updated : s)));
       setEdits(prev => { const next = { ...prev }; delete next[row.id]; return next; });
@@ -103,12 +111,13 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
             <thead className="bg-white/5 text-white/40 uppercase tracking-wider">
               <tr>
                 <th className="px-2 py-2 text-left">#</th>
-                <th className="px-2 py-2 text-left">Art</th>
+                <th className="px-2 py-2 text-left">Portrait</th>
                 <th className="px-2 py-2 text-left">Name</th>
                 <th className="px-2 py-2 text-left">Type</th>
                 {STAT_KEYS.map(k => <th key={k} className="px-2 py-2 text-center">{STAT_LABELS[k]}</th>)}
                 <th className="px-2 py-2 text-center">Overall</th>
                 <th className="px-2 py-2 text-center">Stage</th>
+                {PORTRAIT_KEYS.map(k => <th key={k} className="px-2 py-2 text-center text-[#00c8ff]/70">{PORTRAIT_LABELS[k]}</th>)}
                 <th className="px-2 py-2 text-center">Save</th>
               </tr>
             </thead>
@@ -117,7 +126,9 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
                 <tr key={row.id} className={`border-t border-white/5 ${isDirty(row.id) ? 'bg-[#9b5cff]/5' : ''}`}>
                   <td className="px-2 py-1.5 text-white/40">{row.id}</td>
                   <td className="px-2 py-1.5">
-                    {row.artwork_url ? <img src={row.artwork_url} alt={row.name} className="w-8 h-8 object-contain" style={{ objectPosition: 'top' }} /> : <div className="w-8 h-8 bg-white/5 rounded" />}
+                    <PokemonPortrait artworkUrl={row.artwork_url} alt={row.name}
+                      scale={numberFor(row, 'portrait_scale')} offsetX={numberFor(row, 'portrait_offset_x')} offsetY={numberFor(row, 'portrait_offset_y')}
+                      className="w-11 h-11 rounded-md bg-white/5" />
                   </td>
                   <td className="px-2 py-1.5">
                     <input value={valueFor(row, 'name')} onChange={e => setEdit(row.id, 'name', e.target.value)}
@@ -135,6 +146,12 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
                       className="w-14 bg-transparent border-b border-white/10 focus:border-[#00c8ff] text-[#00c8ff] font-bold text-center outline-none" />
                   </td>
                   <td className="px-2 py-1.5 text-center text-white/40">{row.evolution_stage}</td>
+                  {PORTRAIT_KEYS.map(k => (
+                    <td key={k} className="px-2 py-1.5">
+                      <input type="number" step="0.1" value={valueFor(row, k)} onChange={e => setEdit(row.id, k, e.target.value)}
+                        className="w-14 bg-transparent border-b border-white/10 focus:border-[#00c8ff] text-white text-center outline-none" />
+                    </td>
+                  ))}
                   <td className="px-2 py-1.5 text-center">
                     <button disabled={!isDirty(row.id) || savingId === row.id} onClick={() => handleSave(row)}
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase ${isDirty(row.id) ? 'bg-[#9b5cff]/20 text-[#9b5cff] hover:bg-[#9b5cff]/30' : 'text-white/15 cursor-default'}`}>

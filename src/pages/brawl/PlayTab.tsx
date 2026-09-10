@@ -5,6 +5,8 @@ import { Lock, Clock, Coins, Trophy, Swords } from 'lucide-react';
 import { getBrawlConfig, getBrawlProfile, playBrawlBattle, type BrawlBattlePlayResult } from '../../lib/brawlApi';
 import { BattleReplay } from './BattleReplay';
 
+const TIER_COLORS = ['#8892a4', '#6890f0', '#9b5cff', '#f97316', '#facc15'];
+
 function useCooldownLabel(cooldownEndsAt: string | null) {
   const [, setTick] = useState(0);
   React.useEffect(() => { if (!cooldownEndsAt) return; const t = setInterval(() => setTick(n => n + 1), 1000); return () => clearInterval(t); }, [cooldownEndsAt]);
@@ -15,34 +17,45 @@ function useCooldownLabel(cooldownEndsAt: string | null) {
   return mins > 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m ${secs}s`;
 }
 
-function TierCard({ tierId, config, status, onPlay, playing }: { tierId: string; config: any; status: { unlocked: boolean; cooldownEndsAt: string | null } | undefined; onPlay: () => void; playing: boolean }) {
+function TierRow({ index, color, config, status, onPlay, playing }: { index: number; color: string; config: any; status: { unlocked: boolean; cooldownEndsAt: string | null } | undefined; onPlay: () => void; playing: boolean }) {
   const cooldownLabel = useCooldownLabel(status?.cooldownEndsAt || null);
   const locked = !status?.unlocked;
   const onCooldown = !!cooldownLabel;
   const disabled = locked || onCooldown || playing;
 
   return (
-    <div className={`rounded-xl border p-4 flex flex-col gap-3 ${locked ? 'border-white/5 bg-white/[0.015] opacity-60' : 'border-white/10 bg-white/[0.03]'}`}>
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-sm uppercase tracking-wider text-white">{config.label}</h3>
-        {locked && <Lock size={14} className="text-white/30" />}
+    <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }} className="relative flex gap-4">
+      <div className="relative z-10 shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-display text-sm font-bold"
+        style={{ background: locked ? 'rgba(255,255,255,0.05)' : `${color}20`, border: `2px solid ${locked ? 'rgba(255,255,255,0.1)' : color}`, color: locked ? 'rgba(255,255,255,0.3)' : color }}>
+        {locked ? <Lock size={14} /> : index}
       </div>
-      <div className="flex flex-wrap gap-3 text-[11px] text-white/50">
-        <span>{config.matches} match{config.matches > 1 ? 'es' : ''}</span>
-        <span>Entry: {config.entryCost > 0 ? `${config.entryCost} pokedollars` : 'Free'}</span>
-        {config.cooldownMs > 0 && <span>Cooldown: {config.cooldownMs >= 3600000 ? `${config.cooldownMs / 3600000}h` : `${config.cooldownMs / 60000}m`}</span>}
-      </div>
-      <div className="flex items-center gap-1.5 text-[#facc15] text-xs font-bold">
-        <Coins size={13} />
-        {config.totalReward ? `${config.totalReward} pokedollars` : `${config.winReward} win / ${config.lossReward} loss`}
-      </div>
-      {locked && config.unlockAfter && (
-        <p className="text-[10px] text-white/30">Unlocks after {config.unlockAfter.count} {config.unlockAfter.counter.replace(/_/g, ' ')}</p>
-      )}
-      <button onClick={onPlay} disabled={disabled} className={`mt-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider ${disabled ? 'bg-white/5 text-white/25' : 'bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black'}`}>
-        {onCooldown ? <><Clock size={13} /> {cooldownLabel}</> : <><Swords size={13} /> Battle</>}
-      </button>
-    </div>
+
+      <motion.div whileHover={!locked ? { y: -2 } : undefined}
+        className="flex-1 rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5"
+        style={{ borderColor: locked ? 'rgba(255,255,255,0.06)' : `${color}35`, background: locked ? 'rgba(255,255,255,0.015)' : `linear-gradient(120deg, ${color}12 0%, rgba(255,255,255,0.02) 70%)`, opacity: locked ? 0.65 : 1 }}>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display text-sm uppercase tracking-wider text-white">{config.label}</h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/50 mt-1">
+            <span>{config.matches} match{config.matches > 1 ? 'es' : ''}</span>
+            <span>Entry: {config.entryCost > 0 ? `${config.entryCost} pokedollars` : 'Free'}</span>
+            {config.cooldownMs > 0 && <span>Cooldown: {config.cooldownMs >= 3600000 ? `${config.cooldownMs / 3600000}h` : `${config.cooldownMs / 60000}m`}</span>}
+          </div>
+          {locked && config.unlockAfter ? (
+            <p className="text-[10px] text-white/30 mt-1">Unlocks after {config.unlockAfter.count} {config.unlockAfter.counter.replace(/_/g, ' ')}</p>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[#facc15] text-xs font-bold mt-1.5">
+              <Coins size={13} />
+              {config.totalReward ? `${config.totalReward} pokedollars` : `${config.winReward} win / ${config.lossReward} loss`}
+            </div>
+          )}
+        </div>
+        <motion.button onClick={onPlay} disabled={disabled} whileHover={!disabled ? { scale: 1.04 } : undefined} whileTap={!disabled ? { scale: 0.96 } : undefined}
+          className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
+          style={disabled ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' } : { background: `linear-gradient(90deg, ${color}, #00c8ff)`, color: '#000' }}>
+          {onCooldown ? <><Clock size={13} /> {cooldownLabel}</> : <><Swords size={13} /> Battle</>}
+        </motion.button>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -78,15 +91,18 @@ export function PlayTab() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
         <div className="flex items-center gap-2"><Trophy size={16} className="text-[#9b5cff]" /><h3 className="font-display text-sm uppercase tracking-widest text-white/70">Battle Tiers</h3></div>
         <div className="text-[11px] text-white/40">{profile.dailyBattlesUsed}/{profile.dailyBattleCap} battles today</div>
       </div>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {order.map(id => (
-          <TierCard key={id} tierId={id} config={config.battleTiers[id]} status={profile.tierStatus[id]} playing={playingTier === id} onPlay={() => handlePlay(id)} />
-        ))}
+      <div className="relative">
+        <div className="absolute left-5 top-5 bottom-5 w-px" style={{ background: 'linear-gradient(180deg, rgba(136,146,164,0.3), rgba(250,204,21,0.3))' }} />
+        <div className="space-y-3">
+          {order.map((id, i) => (
+            <TierRow key={id} index={i + 1} color={TIER_COLORS[i]} config={config.battleTiers[id]} status={profile.tierStatus[id]} playing={playingTier === id} onPlay={() => handlePlay(id)} />
+          ))}
+        </div>
       </div>
 
       {result && (

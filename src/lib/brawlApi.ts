@@ -25,6 +25,7 @@ export interface BrawlSpecies {
   id: number; name: string; primary_type: PokeType; secondary_type: PokeType | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
   overall_rating: number; evolution_stage: number; sprite_url: string | null; artwork_url: string | null;
+  portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 export interface BrawlInstance extends Omit<BrawlSpecies, 'id'> {
   id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; acquired_at: string;

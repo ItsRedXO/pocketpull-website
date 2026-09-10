@@ -9,6 +9,7 @@ export interface SpeciesRow {
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
   overall_rating: number; evolution_stage: number; evolution_chain_id: number;
   is_legendary: number; is_mythical: number; sprite_url: string | null; artwork_url: string | null;
+  portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 
 export function speciesRowToBattleSpecies(row: SpeciesRow): BattleSpecies {
@@ -40,7 +41,7 @@ export async function pickRandomSpeciesIds(count: number, opts: { overallMin?: n
   return rows.map(r => r.id);
 }
 
-const SPECIES_EDITABLE_COLUMNS = new Set(['name', 'primary_type', 'secondary_type', 'base_hp', 'base_attack', 'base_defense', 'base_sp_attack', 'base_sp_defense', 'base_speed', 'overall_rating', 'sprite_url', 'artwork_url']);
+const SPECIES_EDITABLE_COLUMNS = new Set(['name', 'primary_type', 'secondary_type', 'base_hp', 'base_attack', 'base_defense', 'base_sp_attack', 'base_sp_defense', 'base_speed', 'overall_rating', 'sprite_url', 'artwork_url', 'portrait_scale', 'portrait_offset_x', 'portrait_offset_y']);
 export async function updateSpecies(id: number, fields: Record<string, unknown>): Promise<SpeciesRow | null> {
   const entries = Object.entries(fields).filter(([k]) => SPECIES_EDITABLE_COLUMNS.has(k));
   if (!entries.length) return (await query<SpeciesRow>('SELECT * FROM brawl_pokemon_species WHERE id=$1', [id]))[0] || null;
