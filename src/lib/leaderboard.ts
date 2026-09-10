@@ -42,19 +42,16 @@ async function loadLeaderboardData(type: 'pulls' | 'packs' | 'upgrades', userId?
   try {
     if (type === 'pulls') {
       realRows = await blink.db.leaderboardStats.list({
-        where: { isDeleted: 0 },
         orderBy: { biggestPull: 'desc' },
         limit: 100
       });
     } else if (type === 'packs') {
       realRows = await blink.db.leaderboardStats.list({
-        where: { isDeleted: 0 },
         orderBy: { packsOpened: 'desc' },
         limit: 100
       });
     } else if (type === 'upgrades') {
       realRows = await blink.db.leaderboardStats.list({
-        where: { isDeleted: 0 },
         orderBy: { upgradesAttempted: 'desc' },
         limit: 100
       });
