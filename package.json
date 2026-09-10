@@ -15,7 +15,8 @@
     "db:migrate": "tsx backend/db/migrate.ts",
     "db:validate": "tsx backend/db/validateMigration.ts",
     "db:export": "tsx backend/db/import/exportBlinkData.ts",
-    "db:import": "tsx backend/db/import/importBlinkExport.ts"
+    "db:import": "tsx backend/db/import/importBlinkExport.ts",
+    "brawl:import-species": "tsx backend/db/import/importPokeBrawlSpecies.ts"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Package, Zap, Swords, ArrowLeftRight, Archive } from 'lucide-react';
+import { Package, Zap, Swords, ArrowLeftRight, Archive, Gamepad2 } from 'lucide-react';
 
-type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault';
+type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault' | 'brawl';
 
 interface MobileBottomNavProps { currentPage: Page; onPageChange: (page: Page) => void; }
 
@@ -10,6 +10,7 @@ const bottomNavTabs: { id: Page; label: string; icon: React.FC<{ size?: number; 
   { id: 'home', label: 'Packs', icon: Package },
   { id: 'upgrader', label: 'Upgrader', icon: Zap },
   { id: 'battle', label: 'Battles', icon: Swords },
+  { id: 'brawl', label: 'Brawl', icon: Gamepad2 },
   { id: 'exchanger', label: 'Exchanger', icon: ArrowLeftRight },
   { id: 'inventory', label: 'Collection', icon: Archive },
 ];
@@ -20,10 +21,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = React.memo(({ cur
       {bottomNavTabs.map(tab => {
         const isActive = currentPage === tab.id;
         const Icon = tab.icon;
-        return <button key={tab.id} onClick={() => onPageChange(tab.id)} className="relative flex-1 flex flex-col items-center justify-center gap-0.5 transition-all duration-150 active:scale-95">
+        return <button key={tab.id} onClick={() => onPageChange(tab.id)} className="relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-0.5 transition-all duration-150 active:scale-95">
           {isActive && <motion.div layoutId="bottom-nav-active" className="absolute top-0 inset-x-2 h-0.5 rounded-b-full" style={{ background: '#00c8ff', boxShadow: '0 0 8px #00c8ff' }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} />}
           <Icon size={20} className={isActive ? 'text-[#00c8ff]' : 'text-gray-500'} />
-          <span className={isActive ? 'text-[10px] font-bold uppercase tracking-wider text-[#00c8ff]' : 'text-[10px] font-bold uppercase tracking-wider text-gray-600'}>{tab.label}</span>
+          <span className={`w-full truncate text-center font-bold uppercase tracking-tight text-[9px] ${isActive ? 'text-[#00c8ff]' : 'text-gray-600'}`}>{tab.label}</span>
         </button>;
       })}
     </div>

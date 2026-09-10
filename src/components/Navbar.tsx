@@ -4,10 +4,10 @@ import { ChevronDown, Plus, Shield } from 'lucide-react';
 import { useAuth, useUserStats } from '../hooks/useAuth';
 import { useBalance } from '../hooks/useBalance';
 
-type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault';
+type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault' | 'brawl';
 interface NavbarProps { currentPage: Page; onPageChange: (page: Page) => void; openAuthModal: (tab: 'login' | 'signup') => void; onProfileOpen: () => void; onDepositOpen: () => void; }
 const navTabs: { id: Page; label: string }[] = [
-  { id: 'home', label: 'Packs' }, { id: 'upgrader', label: 'Upgrader' }, { id: 'battle', label: 'Pack Battle' }, { id: 'exchanger', label: 'Exchanger' }, { id: 'inventory', label: 'My Collection' },
+  { id: 'home', label: 'Packs' }, { id: 'upgrader', label: 'Upgrader' }, { id: 'battle', label: 'Pack Battle' }, { id: 'brawl', label: 'Poke Brawl' }, { id: 'exchanger', label: 'Exchanger' }, { id: 'inventory', label: 'My Collection' },
 ];
 export const Navbar: React.FC<NavbarProps> = React.memo(({ currentPage, onPageChange, openAuthModal, onProfileOpen, onDepositOpen }) => {
  const { user, isAuthenticated, isLoading: authLoading } = useAuth(); const { stats } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified); const { balance: liveBalance, isLoading: balanceLoading } = useBalance(user?.id); const isAdminUser = stats?.role === 'admin';
