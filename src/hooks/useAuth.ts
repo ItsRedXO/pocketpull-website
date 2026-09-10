@@ -168,33 +168,36 @@ export function useAuth() {
     const trimmedReferral = referralCode?.trim().toUpperCase() || '';
     if (trimmedReferral) localStorage.setItem('pending_referral_code', trimmedReferral);
 
-    if (!supabase) {
-      return blink.auth.signUp({ email: trimmedEmail, password, displayName: trimmedUsername });
+    if (supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: { data: { username: trimmedUsername, referralCode: trimmedReferral } },
+      });
+      if (!error) {
+        if (!data.session) {
+          // Email confirmation is required before a session exists. The
+          // account row itself gets created the moment a session first
+          // appears -- see useSupabaseAuthUser above -- whether that's now
+          // or after they click the confirmation link.
+          throw new Error('CONFIRM_EMAIL_SENT');
+        }
+        const res = await fetch(`${BACKEND_BASE}/auth/complete-supabase-signup`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload?.error || 'Sign up failed');
+        return payload;
+      }
+      if (error.message?.toLowerCase().includes('already registered')) throw new Error('EMAIL_ALREADY_EXISTS');
+      // Any other Supabase failure (e.g. its transactional email service
+      // being down, confirmed to happen in practice -- "Error sending
+      // confirmation email") falls through to Blink below instead of
+      // blocking signup outright. Same resilience principle as signIn.
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email: trimmedEmail,
-      password,
-      options: { data: { username: trimmedUsername, referralCode: trimmedReferral } },
-    });
-    if (error) {
-      if (error.message?.toLowerCase().includes('already registered')) throw new Error('EMAIL_ALREADY_EXISTS');
-      throw error;
-    }
-    if (!data.session) {
-      // Email confirmation is required before a session exists. The account
-      // row itself gets created the moment a session first appears -- see
-      // useSupabaseAuthUser above -- whether that's now or after they click
-      // the confirmation link.
-      throw new Error('CONFIRM_EMAIL_SENT');
-    }
-    const res = await fetch(`${BACKEND_BASE}/auth/complete-supabase-signup`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${data.session.access_token}` },
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(payload?.error || 'Sign up failed');
-    return payload;
+    return blink.auth.signUp({ email: trimmedEmail, password, displayName: trimmedUsername });
   };
 
   // A stale Supabase session must never outlive a Blink sign-out -- getPreferredAuthToken()
