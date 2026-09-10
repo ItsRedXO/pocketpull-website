@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Coins, Save, Trash2, Plus, Star, User } from 'lucide-react';
+import { Search, Coins, Save, Trash2, Plus, Star, User, ChevronDown } from 'lucide-react';
 import {
   searchAdminBrawlUsers, getAdminBrawlUser, patchAdminBrawlProfile, adjustAdminBrawlWallet,
   grantAdminBrawlInstance, deleteAdminBrawlInstance, setAdminBrawlTeam, getAdminBrawlSpecies,
-  type AdminBrawlProfile, type AdminBrawlInstance,
+  type AdminBrawlProfile, type AdminBrawlInstance, type AdminBrawlSpecies,
 } from './brawlAdminApi';
 import { typeColor } from '../pages/brawl/typeColors';
 import { PokemonPortrait } from '../pages/brawl/PokemonPortrait';
@@ -31,6 +31,54 @@ function PokemonCard({ mon, selected, order, onToggle, onDelete }: { mon: AdminB
       <div className="text-[9px] font-bold text-white capitalize mt-1 truncate w-full text-center">{mon.name}</div>
       <span className="text-[7px] px-1 py-0.5 rounded-full uppercase font-bold mt-0.5" style={{ background: `${typeColor(mon.primary_type)}30`, color: typeColor(mon.primary_type) }}>{mon.primary_type}</span>
       <div className="text-[8px] text-[#00c8ff] font-bold mt-0.5">OVR {mon.overall_rating}</div>
+    </div>
+  );
+}
+
+function SpeciesPicker({ species, value, onChange }: { species: AdminBrawlSpecies[]; value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selected = species.find(s => String(s.id) === value);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return species;
+    return species.filter(s => s.name.toLowerCase().includes(q));
+  }, [species, query]);
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs min-w-[220px] hover:border-white/20 transition-colors">
+        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (OVR ${selected.overall_rating})` : 'Grant a Pokemon…'}</span>
+        <ChevronDown size={13} className="text-white/40 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-72 rounded-lg border border-white/10 shadow-2xl overflow-hidden" style={{ background: '#14151f' }}>
+          <div className="p-2 border-b border-white/10">
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search species…"
+              className="w-full px-2 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#9b5cff]" />
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-xs text-white/30 text-center">No species match "{query}"</div>
+            ) : filtered.map(s => (
+              <button key={s.id} type="button" onClick={() => { onChange(String(s.id)); setOpen(false); setQuery(''); }}
+                className={`w-full flex items-center justify-between text-left px-3 py-1.5 text-xs capitalize ${String(s.id) === value ? 'bg-[#9b5cff]/20 text-[#9b5cff] font-bold' : 'text-white/80 hover:bg-white/5'}`}>
+                <span>{s.name}</span>
+                <span className="text-[10px] text-[#00c8ff] font-bold">OVR {s.overall_rating}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -247,11 +295,7 @@ export function BrawlTrainersTab({ showToast }: { showToast: (m: string, ok?: bo
                 </div>
               )}
               <div className="flex gap-2 mt-3 flex-wrap items-center">
-                <select value={grantSpeciesId} onChange={e => setGrantSpeciesId(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white max-w-[220px]">
-                  <option value="">Grant a Pokemon…</option>
-                  {allSpecies.map(s => <option key={s.id} value={s.id}>{s.name} (OVR {s.overall_rating})</option>)}
-                </select>
+                <SpeciesPicker species={allSpecies} value={grantSpeciesId} onChange={setGrantSpeciesId} />
                 <button onClick={handleGrant} disabled={!grantSpeciesId || saving} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold disabled:opacity-30">
                   <Plus size={12} /> Grant
                 </button>

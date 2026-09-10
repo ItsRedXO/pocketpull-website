@@ -69,9 +69,9 @@ export function TeamTab() {
         </motion.button>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-8 min-h-[6rem]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8 min-h-[6rem]">
         <AnimatePresence>
-          {selected.length === 0 && <div className="col-span-6 text-white/30 text-xs py-6 text-center border border-dashed border-white/10 rounded-xl">Tap Pokemon below to add them to your active team.</div>}
+          {selected.length === 0 && <div className="col-span-2 sm:col-span-3 lg:col-span-6 text-white/30 text-xs py-6 text-center border border-dashed border-white/10 rounded-xl">Tap Pokemon below to add them to your active team.</div>}
           {selected.map((id, i) => { const mon = roster.find(m => m.id === id); if (!mon) return null; return <PokemonCard key={id} mon={mon} selected order={i + 1} index={i} onClick={() => toggle(id)} />; })}
         </AnimatePresence>
       </div>
@@ -83,7 +83,7 @@ export function TeamTab() {
       {bench.length === 0 ? (
         <p className="text-white/30 text-xs">Everything you own is on your active team. Safari Zone and the shop will grow your bench.</p>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <AnimatePresence>
             {bench.map((mon, i) => <PokemonCard key={mon.id} mon={mon} selected={false} order={null} index={i} onClick={() => toggle(mon.id)} />)}
           </AnimatePresence>
