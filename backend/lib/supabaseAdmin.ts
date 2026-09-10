@@ -87,6 +87,65 @@ export async function inviteSupabaseIdentity(email: string): Promise<string> {
 }
 
 /**
+ * Silently creates a passwordless, pre-confirmed Supabase identity for this
+ * email if one doesn't already exist -- unlike inviteSupabaseIdentity, this
+ * never sends Supabase's own "invite" email. Used only as a fallback inside
+ * generatePasswordResetToken, for accounts that request a password reset
+ * before ever having logged in since the Supabase migration started (so
+ * they have no linked identity yet to generate a recovery link against).
+ */
+async function ensureSupabaseIdentity(email: string): Promise<string> {
+  const admin = getAdminClient().auth.admin;
+
+  const created = await admin.createUser({ email, email_confirm: true });
+  if (!created.error) {
+    if (!created.data.user) throw new Error('Supabase admin createUser returned no user');
+    return created.data.user.id;
+  }
+  if (created.error.code !== 'email_exists') throw created.error;
+
+  const normalizedEmail = email.trim().toLowerCase();
+  for (let page = 1; page <= 5; page++) {
+    const { data, error } = await admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const match = data.users.find((u) => (u.email || '').trim().toLowerCase() === normalizedEmail);
+    if (match) return match.id;
+    if (data.users.length < 200) break;
+  }
+  throw new Error(`Supabase reports email already registered, but no matching user was found`);
+}
+
+/**
+ * Generates a password-recovery token via the Admin API without sending
+ * Supabase's own email -- the caller (POST /auth/password-reset) sends its
+ * own branded email via Resend instead, embedding a link to our own
+ * /reset-password page in the form `?token_hash=...&type=recovery`, which
+ * that page resolves itself via `supabase.auth.verifyOtp()`. This sidesteps
+ * both halves of the previous double-email bug: Blink's own reset email
+ * (which the reset page can never recognize, since it only understands
+ * Supabase sessions) and Supabase's own built-in mailer/redirect flow
+ * (`resetPasswordForEmail` + its hosted `/auth/v1/verify` redirect, which
+ * depends on the project's configured Redirect URL allow-list).
+ */
+export async function generatePasswordResetToken(email: string): Promise<{ tokenHash: string; authUserId: string }> {
+  const admin = getAdminClient().auth.admin;
+
+  let generated = await admin.generateLink({ type: 'recovery', email });
+  if (generated.error) {
+    // No Supabase identity for this email yet (account never migrated) --
+    // create one silently and retry.
+    await ensureSupabaseIdentity(email);
+    generated = await admin.generateLink({ type: 'recovery', email });
+    if (generated.error) throw generated.error;
+  }
+
+  const hashedToken = generated.data?.properties?.hashed_token;
+  const authUserId = generated.data?.user?.id;
+  if (!hashedToken || !authUserId) throw new Error('Supabase did not return a recovery token');
+  return { tokenHash: hashedToken, authUserId };
+}
+
+/**
  * Closes the gap the bulk-invite path leaves open: an account invited via
  * inviteSupabaseIdentity has a Supabase identity but no password until the
  * user clicks that email. Most real users just keep logging in normally via

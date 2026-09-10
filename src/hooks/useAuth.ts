@@ -208,19 +208,20 @@ export function useAuth() {
   };
 
   const sendPasswordReset = async (email: string) => {
-    // Supabase's reset is sent opportunistically alongside Blink's -- Blink's
-    // is the one guaranteed to work today for every account regardless of
-    // migration status, so it alone decides success/failure here. Once
-    // real-world Supabase email deliverability is confirmed this can become
-    // the only path for already-linked accounts.
-    const results = await Promise.allSettled([
-      supabase ? supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` }) : Promise.resolve(),
-      blink.auth.sendPasswordResetEmail(email),
-    ]);
-    const blinkResult = results[1];
-    if (blinkResult.status === 'rejected') {
-      const supabaseResult = results[0];
-      if (supabaseResult.status === 'rejected') throw blinkResult.reason;
+    // Single source of truth: the backend generates a Supabase recovery
+    // token server-side and emails it via Resend from our own domain (see
+    // backend/routes/passwordReset.ts). Replaces the old dual-send (Blink's
+    // own reset email, which /reset-password could never recognize, plus
+    // Supabase's built-in mailer) that produced two confusing emails and
+    // neither link reliably worked.
+    const res = await fetch(`${BACKEND_BASE}/auth/password-reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), origin: window.location.origin }),
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload?.error || 'Failed to send password reset email');
     }
   };
 

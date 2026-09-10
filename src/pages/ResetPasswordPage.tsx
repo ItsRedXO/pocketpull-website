@@ -13,10 +13,26 @@ export const ResetPasswordPage: React.FC = () => {
 
   useEffect(() => {
     if (!supabase) { setError('Password reset is not available right now.'); return; }
+
+    // Our own emailed link (see backend/routes/passwordReset.ts) carries a
+    // `token_hash` we resolve directly via verifyOtp -- no dependency on
+    // Supabase's hosted verify redirect or its Redirect URL allow-list.
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    if (tokenHash && params.get('type') === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error: verifyError }) => {
+        if (verifyError) setError('This reset link is invalid or has expired. Please request a new one.');
+        else setReady(true);
+      });
+      return;
+    }
+
+    // Fallback for the old-style link (a Supabase-hosted redirect that lands
+    // here with a session already in the URL hash) -- kept for any such
+    // email still sitting unread in someone's inbox.
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setReady(true);
     });
-    // If the recovery link already established a session before this listener attached.
     supabase.auth.getSession().then(({ data }) => { if (data.session) setReady(true); });
     return () => sub.subscription.unsubscribe();
   }, []);
