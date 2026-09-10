@@ -26,7 +26,7 @@ app.post('/open-pack', async (c) => {
     const { packId } = await c.req.json<any>().catch(() => ({}));
     if (!packId) return c.json({ error: 'packId required' }, 400);
 
-    const { seed: serverSeed, seedHash } = await getOrCreateServerSeed((c.env as any).BLINK_SERVER_SEED);
+    const { seed: serverSeed, seedHash } = await getOrCreateServerSeed();
 
     const clientSeed = `cs_${uid()}`;
     const result = await transaction(async (client) => {

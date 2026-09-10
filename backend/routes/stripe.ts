@@ -6,8 +6,13 @@ import { processFirstDepositBonus, processReferralReward } from '../lib/payments
 import { processWalletTransactionInClient } from '../repositories/wallet';
 
 const app = new Hono();
-const getStripe = (env: any): Stripe => {
-  const key = env.STRIPE_SECRET_KEY || env.VITE_STRIPE_SECRET_KEY;
+// NOTE: reads from process.env, not c.env -- under @hono/node-server (this
+// app's runtime on Railway) c.env is { incoming, outgoing } (the raw Node
+// request/response objects), never an environment variable map. That's a
+// Cloudflare Workers-only convention. Railway variables always land in
+// process.env regardless of runtime.
+const getStripe = (): Stripe => {
+  const key = process.env.STRIPE_SECRET_KEY || process.env.VITE_STRIPE_SECRET_KEY;
   if (!key) throw new Error('STRIPE_SECRET_KEY is not set in environment');
   return new Stripe(key, { apiVersion: '2023-10-16' as any });
 };
@@ -19,7 +24,7 @@ app.post('/create-payment-intent', async c => {
     let { username, email } = body;
     if (!amountUsd || parseFloat(amountUsd) < 5) return c.json({ error: 'Minimum deposit is $5.00' }, 400);
     if (!userId) return c.json({ error: 'User ID is required' }, 400);
-    const stripe = getStripe(c.env);
+    const stripe = getStripe();
     const amountCents = Math.round(parseFloat(amountUsd) * 100);
     if (!username || !email) {
       try {
@@ -52,9 +57,9 @@ app.post('/create-payment-intent', async c => {
 });
 
 app.post('/webhook/stripe', async c => {
-  const stripe = getStripe(c.env);
+  const stripe = getStripe();
   const signature = c.req.header('stripe-signature');
-  const secret = (c.env as any).STRIPE_WEBHOOK_SECRET;
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!signature || !secret) return c.text('Missing signature or secret', 400);
   let event: Stripe.Event;
   try { event = await stripe.webhooks.constructEventAsync(await c.req.text(), signature, secret); }
@@ -67,7 +72,7 @@ app.post('/webhook/stripe', async c => {
 });
 
 app.post('/verify-deposit', async c => {
-  const stripe = getStripe(c.env);
+  const stripe = getStripe();
   try {
     const { paymentIntentId } = await c.req.json();
     if (!paymentIntentId) return c.json({ error: 'paymentIntentId required' }, 400);

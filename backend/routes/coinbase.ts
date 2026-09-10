@@ -27,8 +27,9 @@ app.post('/create-coinbase-charge', async c => {
     const { amountUsd, userId, username: bodyUsername } = body;
     if (!amountUsd || parseFloat(amountUsd) < 5) return c.json({ error: 'Minimum deposit is $5.00' }, 400);
     if (!userId) return c.json({ error: 'User ID is required' }, 400);
-    const keyId = (c.env as any).COINBASE_CDP_KEY_ID;
-    const secret = (c.env as any).COINBASE_CDP_KEY_SECRET;
+    // process.env, not c.env -- see stripe.ts for why.
+    const keyId = process.env.COINBASE_CDP_KEY_ID;
+    const secret = process.env.COINBASE_CDP_KEY_SECRET;
     if (!keyId || !secret) return c.json({ error: 'Coinbase CDP keys not configured.' }, 500);
     const userRows = await query<any>('SELECT username, display_name FROM users WHERE id=$1 LIMIT 1', [userId]);
     const username = bodyUsername || userRows[0]?.username || userRows[0]?.display_name || 'Trainer';
@@ -68,7 +69,7 @@ app.get('/coinbase-charge-status', async c => {
 app.post('/webhook/coinbase', async c => {
   const raw = await c.req.text();
   const sig = c.req.header('X-CC-Webhook-Signature');
-  const secret = (c.env as any).COINBASE_WEBHOOK_SECRET;
+  const secret = process.env.COINBASE_WEBHOOK_SECRET;
   if (!sig || !secret) return c.text('Missing signature or secret', 400);
   try {
     const enc = new TextEncoder();

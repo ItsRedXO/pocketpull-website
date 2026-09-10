@@ -43,7 +43,7 @@ app.post('/upgrader/spin', async (c) => {
     if (new Set(targetCardIds).size !== targetCardIds.length) return c.json({ error: 'Duplicate target cards are not allowed' }, 400);
     if (!Number.isFinite(multiplier) || multiplier <= 0) return c.json({ error: 'Invalid multiplier' }, 400);
 
-    const { seed: serverSeed, seedHash: actualSeedHash } = await getOrCreateServerSeed((c.env as any).BLINK_SERVER_SEED);
+    const { seed: serverSeed, seedHash: actualSeedHash } = await getOrCreateServerSeed();
 
     const clientSeed = `cs_${uid()}`;
     const result = await transaction(async (client) => {

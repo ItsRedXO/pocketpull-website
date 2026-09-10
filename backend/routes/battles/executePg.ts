@@ -18,7 +18,7 @@ app.post('/execute', async (c) => {
   const battleId = String(body?.battleId || '');
   if (!battleId) return c.json({ error: 'battleId required' }, 400);
   try {
-    const seed = await getOrCreateServerSeed((c.env as any).BLINK_SERVER_SEED);
+    const seed = await getOrCreateServerSeed();
     const result = await transaction(async (client) => {
       const battleRows = await client.query('SELECT * FROM battles WHERE id=$1 FOR UPDATE', [battleId]);
       const battle: any = battleRows.rows[0];
