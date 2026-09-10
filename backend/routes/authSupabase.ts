@@ -266,25 +266,29 @@ app.post('/admin/auth/bulk-link', async (c) => {
   let linked = 0;
   let skippedAlreadyLinked = 0;
   const errors: Array<{ userId: string; error: string }> = [];
+  const alreadyLinkedDetail: Array<{ userId: string; currentAuthUserId: string | null; matchesTarget: boolean }> = [];
 
   for (const link of links) {
     const userId = String(link?.userId || '');
     const authUserId = String(link?.authUserId || '');
     if (!userId || !authUserId) { errors.push({ userId, error: 'missing userId or authUserId' }); continue; }
     try {
-      const result = await query(
+      const result = await query<{ id: string }>(
         'UPDATE users SET auth_user_id=$1 WHERE id=$2 AND auth_user_id IS NULL RETURNING id',
         [authUserId, userId]
       );
-      if (Array.isArray(result) && result.length) linked++;
-      else skippedAlreadyLinked++;
+      if (Array.isArray(result) && result.length) { linked++; continue; }
+      skippedAlreadyLinked++;
+      const existing = await query<{ auth_user_id: string | null }>('SELECT auth_user_id FROM users WHERE id=$1', [userId]);
+      const currentAuthUserId = existing[0]?.auth_user_id ?? null;
+      alreadyLinkedDetail.push({ userId, currentAuthUserId, matchesTarget: currentAuthUserId === authUserId });
     } catch (err: any) {
       if (err?.code === '23505') { skippedAlreadyLinked++; continue; }
       errors.push({ userId, error: err?.message || String(err) });
     }
   }
 
-  return c.json({ success: true, total: links.length, linked, skippedAlreadyLinked, errors });
+  return c.json({ success: true, total: links.length, linked, skippedAlreadyLinked, errors, alreadyLinkedDetail });
 });
 
 export default app;
