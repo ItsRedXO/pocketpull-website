@@ -81,7 +81,7 @@ app.post('/brawl/team', async c => {
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
 });
 
-app.get('/brawl/leaderboard', async c => c.json({ leaderboard: await getLeaderboard(50) }));
+app.get('/brawl/leaderboard', async c => c.json({ leaderboard: await getLeaderboard(100) }));
 
 app.get('/brawl/trainer/:userId', async c => {
   const trainer = await getTrainerProfile(c.req.param('userId'));
