@@ -19,6 +19,7 @@ export interface BattleSpecies {
 
 type Side = 'user' | 'opponent';
 type Effectiveness = 'immune' | 'not-very-effective' | 'neutral' | 'super-effective';
+interface Point { x: number; y: number; }
 
 interface Fighter extends BattleSpecies {
   id: string;
@@ -31,6 +32,7 @@ interface Fighter extends BattleSpecies {
   moves: BrawlMove[];
   cooldown: number;
   targetId: string | null;
+  routeCorner: Point | null;
 }
 
 export interface ArenaObstacle { x1: number; y1: number; x2: number; y2: number; }
@@ -58,29 +60,30 @@ export interface BattleOutcome {
   koCountOpponent: number;
   frames: ArenaFrame[];
   obstacles: ArenaObstacle[];
+  maxTicks: number;
 }
 
 const HP_SCALE = 2;
 const DAMAGE_SCALE = 0.4;
 const STAB_MULTIPLIER = 1.5;
-const ROUNDS_TO_WIN = 3;
 const ATTACK_RANGE = 16;
 const MOVE_STEP = 5;
-const MAX_TICKS = 160;
+// 300 ticks is also the simulation's real-time "budget": the frontend runs one
+// tick every 300ms at 1x, so a full-length match is a ~90 second round, same
+// ballpark as a CS2 round timer. Most matches end well before this via a wipe.
+export const MAX_TICKS = 300;
 const FIELD_MIN = 2;
 const FIELD_MAX = 98;
 
-// Three wall segments with two gaps between them, splitting the field into lanes.
-// Pokemon route around them (see nextWaypoint) and can't attack through them
-// (see lineOfSightBlocked) -- no more cross-map insta-kills through solid cover.
+// Four small, staggered cover pieces (not one wall down the middle) so both
+// routing and sightlines vary across the field instead of funneling everyone
+// through the same two gaps. Pokemon steer around whichever piece blocks their
+// path (see nextWaypoint) and can't attack through one (see lineOfSightBlocked).
 const OBSTACLES: ArenaObstacle[] = [
-  { x1: 44, y1: 0, x2: 56, y2: 27 },
-  { x1: 44, y1: 41, x2: 56, y2: 59 },
-  { x1: 44, y1: 73, x2: 56, y2: 100 },
-];
-const PASSAGES: { x: number; y: number }[] = [
-  { x: 50, y: 34 },
-  { x: 50, y: 66 },
+  { x1: 18, y1: 18, x2: 26, y2: 30 },
+  { x1: 74, y1: 70, x2: 82, y2: 82 },
+  { x1: 46, y1: 8, x2: 54, y2: 18 },
+  { x1: 46, y1: 82, x2: 54, y2: 92 },
 ];
 
 function clamp(value: number, min: number, max: number): number {
@@ -93,7 +96,7 @@ function toFighter(species: BattleSpecies, side: Side, index: number): Fighter {
     ...species, id: `${side}-${index}`, side,
     x: side === 'user' ? 12 : 88, y: 8 + index * 16.4,
     hp: maxHp, maxHp, fainted: false, moves: buildMoveset(species.primaryType, species.secondaryType),
-    cooldown: 0, targetId: null,
+    cooldown: 0, targetId: null, routeCorner: null,
   };
 }
 
@@ -127,24 +130,47 @@ function segmentBlockedByObstacle(x1: number, y1: number, x2: number, y2: number
     segmentsIntersect(x1, y1, x2, y2, o.x1, o.y2, o.x1, o.y1)
   );
 }
-function lineOfSightBlocked(x1: number, y1: number, x2: number, y2: number): boolean {
-  return OBSTACLES.some(o => segmentBlockedByObstacle(x1, y1, x2, y2, o));
+function blockingObstacle(x1: number, y1: number, x2: number, y2: number): ArenaObstacle | null {
+  return OBSTACLES.find(o => segmentBlockedByObstacle(x1, y1, x2, y2, o)) ?? null;
 }
 function insideAnyObstacle(x: number, y: number): boolean {
   return OBSTACLES.some(o => pointInObstacle(x, y, o));
 }
 
+/** Nearest-total-detour corner of the blocking obstacle, padded just outside its
+ * edge -- restricted to corners actually reachable in a straight line from the
+ * fighter's current spot (not back through the same obstacle). Picking a corner
+ * on the far side of the obstacle would make the very next step clip straight
+ * through it, freezing the fighter in place forever. */
+function pickBestCorner(fighter: Fighter, target: Fighter, obstacle: ArenaObstacle): Point {
+  const pad = 3;
+  const corners: Point[] = [
+    { x: obstacle.x1 - pad, y: obstacle.y1 - pad },
+    { x: obstacle.x2 + pad, y: obstacle.y1 - pad },
+    { x: obstacle.x1 - pad, y: obstacle.y2 + pad },
+    { x: obstacle.x2 + pad, y: obstacle.y2 + pad },
+  ].map(c => ({ x: clamp(c.x, FIELD_MIN, FIELD_MAX), y: clamp(c.y, FIELD_MIN, FIELD_MAX) }));
+  const reachable = corners.filter(c => !segmentBlockedByObstacle(fighter.x, fighter.y, c.x, c.y, obstacle));
+  const pool = reachable.length ? reachable : corners;
+  let best = pool[0], bestScore = Infinity;
+  for (const c of pool) {
+    const score = distance(fighter.x, fighter.y, c.x, c.y) + distance(c.x, c.y, target.x, target.y);
+    if (score < bestScore) { bestScore = score; best = c; }
+  }
+  return best;
+}
+
 /** Where a fighter should step toward this tick: straight at the target if the
- * path is clear, otherwise the nearer passage gap until it's through, so
- * movement routes around cover instead of clipping through it. */
+ * path is clear, otherwise around whichever obstacle is in the way. Sticks with
+ * the chosen corner until reached (rather than recomputing every tick) so a
+ * fighter doesn't dither between two equally-good routes. */
 function nextWaypoint(fighter: Fighter, target: Fighter): { x: number; y: number; blocked: boolean } {
-  const blocked = lineOfSightBlocked(fighter.x, fighter.y, target.x, target.y);
-  if (!blocked) return { x: target.x, y: target.y, blocked };
-  const p1 = distance(fighter.x, fighter.y, PASSAGES[0].x, PASSAGES[0].y);
-  const p2 = distance(fighter.x, fighter.y, PASSAGES[1].x, PASSAGES[1].y);
-  const passage = p1 <= p2 ? PASSAGES[0] : PASSAGES[1];
-  if (distance(fighter.x, fighter.y, passage.x, passage.y) < 3) return { x: target.x, y: target.y, blocked };
-  return { x: passage.x, y: passage.y, blocked };
+  const blocker = blockingObstacle(fighter.x, fighter.y, target.x, target.y);
+  if (!blocker) { fighter.routeCorner = null; return { x: target.x, y: target.y, blocked: false }; }
+  if (!fighter.routeCorner || distance(fighter.x, fighter.y, fighter.routeCorner.x, fighter.routeCorner.y) < 2.5) {
+    fighter.routeCorner = pickBestCorner(fighter, target, blocker);
+  }
+  return { x: fighter.routeCorner.x, y: fighter.routeCorner.y, blocked: true };
 }
 
 /** Prefers moves that actually deal damage; only resorts to an immune move if every option is immune. */
@@ -181,12 +207,12 @@ function shuffled<T>(items: T[]): T[] {
 
 /**
  * Runs one Local Battle as a live 6v6 arena skirmish (CS2-team-manager style):
- * both full teams spawn on opposite sides of a field split into lanes by cover,
- * each alive Pokemon routes around that cover toward its nearest living target
- * and can only attack once in range AND with a clear line of sight, and the
- * match ends the instant either side has scored ROUNDS_TO_WIN knockouts -- it
- * does not require wiping the opposing team. Returns a tick-by-tick frame log
- * (positions + events) for the frontend to play back as a live top-down replay.
+ * both full teams spawn on opposite sides of a field scattered with small cover
+ * pieces, each alive Pokemon routes around that cover toward its nearest living
+ * target and can only attack once in range AND with a clear line of sight, and
+ * the match runs until one side is fully wiped (or the MAX_TICKS shot-clock
+ * expires, decided by whichever side is ahead on KOs/HP). Returns a tick-by-tick
+ * frame log (positions + events) for the frontend to play back as a live replay.
  */
 export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: BattleSpecies[]): BattleOutcome {
   const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i));
@@ -197,7 +223,8 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
 
   const frames: ArenaFrame[] = [{ tick: 0, pokemon: all.map(snapshot), attacks: [], faints: [], koUser, koOpponent }];
 
-  for (let tick = 1; tick <= MAX_TICKS && koUser < ROUNDS_TO_WIN && koOpponent < ROUNDS_TO_WIN; tick++) {
+  const bothSidesAlive = () => userTeam.some(f => !f.fainted) && opponentTeam.some(f => !f.fainted);
+  for (let tick = 1; tick <= MAX_TICKS && bothSidesAlive(); tick++) {
     const attacks: ArenaAttackEvent[] = [];
     const faints: ArenaFaintEvent[] = [];
 
@@ -206,10 +233,24 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
       const enemyPool = (fighter.side === 'user' ? opponentTeam : userTeam).filter(f => !f.fainted);
       if (!enemyPool.length) continue;
 
+      const nearestEnemy = enemyPool.reduce((closest, candidate) => (distance(fighter.x, fighter.y, candidate.x, candidate.y) < distance(fighter.x, fighter.y, closest.x, closest.y) ? candidate : closest), enemyPool[0]);
       let target = fighter.targetId ? byId.get(fighter.targetId) : undefined;
       if (!target || target.fainted) {
-        target = enemyPool.reduce((closest, candidate) => (distance(fighter.x, fighter.y, candidate.x, candidate.y) < distance(fighter.x, fighter.y, closest.x, closest.y) ? candidate : closest), enemyPool[0]);
+        target = nearestEnemy;
         fighter.targetId = target.id;
+        fighter.routeCorner = null;
+      } else if (nearestEnemy.id !== target.id) {
+        // Re-target if a meaningfully closer enemy has shown up -- without this a
+        // fighter can lock onto its first target and get stranded chasing it
+        // across the whole map (through repeated obstacle detours) while ignoring
+        // enemies right next to it, stalling the match out.
+        const distCurrent = distance(fighter.x, fighter.y, target.x, target.y);
+        const distNearest = distance(fighter.x, fighter.y, nearestEnemy.x, nearestEnemy.y);
+        if (distNearest < distCurrent * 0.7) {
+          target = nearestEnemy;
+          fighter.targetId = target.id;
+          fighter.routeCorner = null;
+        }
       }
 
       const dist = distance(fighter.x, fighter.y, target.x, target.y);
@@ -251,15 +292,16 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
   }
 
   let winner: Side;
-  if (koUser >= ROUNDS_TO_WIN || koOpponent >= ROUNDS_TO_WIN) {
-    winner = koUser >= ROUNDS_TO_WIN ? 'user' : 'opponent';
-  } else {
-    // MAX_TICKS safety valve (e.g. an all-immune matchup that never lands a hit):
-    // decide by KOs, then total remaining HP, so the match always terminates.
+  const userWiped = userTeam.every(f => f.fainted), opponentWiped = opponentTeam.every(f => f.fainted);
+  if (opponentWiped && !userWiped) winner = 'user';
+  else if (userWiped && !opponentWiped) winner = 'opponent';
+  else {
+    // MAX_TICKS shot-clock expired (or an extremely rare double-wipe on the same
+    // tick): decide by KOs, then total remaining HP, so the match always terminates.
     const userHpTotal = userTeam.reduce((sum, f) => sum + Math.max(0, f.hp), 0);
     const opponentHpTotal = opponentTeam.reduce((sum, f) => sum + Math.max(0, f.hp), 0);
     winner = koUser !== koOpponent ? (koUser > koOpponent ? 'user' : 'opponent') : (userHpTotal >= opponentHpTotal ? 'user' : 'opponent');
   }
 
-  return { winner, koCountUser: koUser, koCountOpponent: koOpponent, frames, obstacles: OBSTACLES };
+  return { winner, koCountUser: koUser, koCountOpponent: koOpponent, frames, obstacles: OBSTACLES, maxTicks: MAX_TICKS };
 }

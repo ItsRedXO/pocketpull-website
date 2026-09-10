@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, FastForward, X, Skull, Trophy, Coins, ArrowUp, ArrowDown } from 'lucide-react';
+import { Play, Pause, FastForward, X, Skull, Trophy, Coins, ArrowUp, ArrowDown, Clock } from 'lucide-react';
 import type { ArenaFrame, ArenaObstacle, BrawlMatchResult, RatingChangeResult } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
 
 const EFFECTIVENESS_LABEL: Record<string, string> = { immune: 'No effect', 'not-very-effective': 'Not very effective', neutral: '', 'super-effective': 'Super effective!' };
 const EFFECTIVENESS_COLOR: Record<string, string> = { immune: '#8892a4', 'not-very-effective': '#a8a878', neutral: '#ffffff', 'super-effective': '#f8d030' };
-const BASE_TICK_MS = 180;
+const BASE_TICK_MS = 300;
+
+function formatClock(totalSeconds: number): string {
+  const s = Math.max(0, Math.ceil(totalSeconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 const SPEED_OPTIONS = [1, 2, 5, 10, 16] as const;
 
 function PokemonIcon({ mon, tickSeconds }: { mon: ArenaFrame['pokemon'][number]; tickSeconds: number }) {
@@ -78,6 +83,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, rating, onClo
   const currentFrame = frames[frameIndex];
   const atMatchEnd = frameIndex >= frames.length - 1;
   const tickDelayMs = Math.max(16, BASE_TICK_MS / speed);
+  const remainingSeconds = Math.max(0, (match.maxTicks - frameIndex) * BASE_TICK_MS / speed / 1000);
 
   const feed = useMemo(() => frames.slice(0, frameIndex + 1).flatMap(f => f.faints.map(ft => `${ft.name} fainted!`)), [frames, frameIndex]);
   const lastAttack = useMemo(() => {
@@ -112,6 +118,9 @@ export function BattleReplay({ matches, tierLabel, status, reward, rating, onClo
               <span className="text-sm font-bold text-[#00c8ff]">{currentFrame.koUser}</span>
               <span className="text-white/20 text-sm">—</span>
               <span className="text-sm font-bold text-[#f87171]">{currentFrame.koOpponent}</span>
+              <span className="text-white/15 text-sm mx-1">|</span>
+              <Clock size={11} className="text-white/30" />
+              <span className="text-sm font-bold text-white/60 tabular-nums">{formatClock(remainingSeconds)}</span>
             </div>
 
             <div className="relative">

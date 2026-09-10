@@ -74,7 +74,7 @@ export interface ArenaFrame {
   tick: number; pokemon: ArenaPokemonState[]; attacks: ArenaAttackEvent[]; faints: ArenaFaintEvent[]; koUser: number; koOpponent: number;
 }
 export interface ArenaObstacle { x1: number; y1: number; x2: number; y2: number; }
-export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: ArenaFrame[]; obstacles: ArenaObstacle[]; }
+export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: ArenaFrame[]; obstacles: ArenaObstacle[]; maxTicks: number; }
 export interface RatingChangeResult { previousRating: number; newRating: number; }
 export interface BrawlBattlePlayResult {
   success: boolean; tier: string; status: 'won' | 'eliminated'; matchesWon: number; matchesTotal: number; reward: number; balance: number; matches: BrawlMatchResult[];

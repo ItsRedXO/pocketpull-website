@@ -137,7 +137,7 @@ app.post('/brawl/battle/play', async c => {
   }
 
   const run = await createRun(userId, config.id, config.entryCost, config.matches);
-  const matches: Array<{ index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: unknown; obstacles: unknown }> = [];
+  const matches: Array<{ index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: unknown; obstacles: unknown; maxTicks: number }> = [];
   let matchesWon = 0;
   let ratingDelta = 0;
   const tierRatingDelta = TIER_RATING_DELTA[config.id];
@@ -150,7 +150,7 @@ app.post('/brawl/battle/play', async c => {
     const outcome = simulateBattle(userBattleTeam, opponentBattleTeam);
     const result: 'win' | 'loss' = outcome.winner === 'user' ? 'win' : 'loss';
     await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, outcome.frames);
-    matches.push({ index: i, result, opponentSpeciesIds: opponentIds, frames: outcome.frames, obstacles: outcome.obstacles });
+    matches.push({ index: i, result, opponentSpeciesIds: opponentIds, frames: outcome.frames, obstacles: outcome.obstacles, maxTicks: outcome.maxTicks });
     ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
     if (result === 'loss') break;
     matchesWon++;
