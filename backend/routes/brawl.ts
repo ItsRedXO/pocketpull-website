@@ -9,7 +9,7 @@ import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds,
   speciesRowToBattleSpecies, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, applyRatingChange, type BrawlProfile,
+  getLeaderboard, applyRatingChange, getTrainerProfile, type BrawlProfile,
 } from '../repositories/brawl';
 
 // Starter packs are deliberately weaker than the general species pool (45-50
@@ -82,6 +82,12 @@ app.post('/brawl/team', async c => {
 });
 
 app.get('/brawl/leaderboard', async c => c.json({ leaderboard: await getLeaderboard(50) }));
+
+app.get('/brawl/trainer/:userId', async c => {
+  const trainer = await getTrainerProfile(c.req.param('userId'));
+  if (!trainer) return c.json({ error: 'Trainer not found' }, 404);
+  return c.json({ trainer });
+});
 
 app.post('/brawl/safari/pull', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;

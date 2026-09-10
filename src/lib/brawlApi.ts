@@ -55,7 +55,15 @@ export const getBrawlProfile = () => get<BrawlProfileResponse>('/brawl/profile')
 export const completeBrawlIntro = () => post<{ success: boolean; alreadyCompleted?: boolean; roster?: BrawlInstance[] }>('/brawl/intro/complete');
 export const getBrawlRoster = () => get<{ roster: BrawlInstance[] }>('/brawl/roster');
 export const setBrawlTeam = (instanceIds: string[]) => post<{ success: boolean; roster: BrawlInstance[] }>('/brawl/team', { instanceIds });
-export const getBrawlLeaderboard = () => get<{ leaderboard: Array<{ user_id: string; username: string | null; league: string; league_rating: number; wins: number; losses: number }> }>('/brawl/leaderboard');
+export interface LeaderboardEntry { user_id: string; username: string | null; avatar_url: string | null; league: string; league_rating: number; wins: number; losses: number; }
+export const getBrawlLeaderboard = () => get<{ leaderboard: LeaderboardEntry[] }>('/brawl/leaderboard');
+export interface TrainerProfile {
+  userId: string; username: string | null; avatarUrl: string | null;
+  leagueRating: number; wins: number; losses: number;
+  regionalTournamentWins: number; eliteFourWins: number; challengesCompleted: number;
+  team: BrawlSpecies[];
+}
+export const getBrawlTrainer = (userId: string) => get<{ trainer: TrainerProfile }>(`/brawl/trainer/${encodeURIComponent(userId)}`);
 export const pullSafariZone = (tier: number) => post<{ success: boolean; pulled: BrawlSpecies[]; instanceIds: string[]; balance: number }>('/brawl/safari/pull', { tier });
 
 export type Effectiveness = 'immune' | 'not-very-effective' | 'neutral' | 'super-effective';

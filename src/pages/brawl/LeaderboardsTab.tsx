@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Trophy } from 'lucide-react';
 import { getBrawlLeaderboard } from '../../lib/brawlApi';
+import { TrainerDetailModal } from './TrainerDetailModal';
 
 export function LeaderboardsTab() {
   const { data, isLoading } = useQuery({ queryKey: ['brawl-leaderboard'], queryFn: getBrawlLeaderboard, refetchInterval: 15_000 });
   const rows = data?.leaderboard || [];
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   return (
     <div>
@@ -24,9 +26,17 @@ export function LeaderboardsTab() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.user_id} className="border-t border-white/5">
+                <tr key={r.user_id} onClick={() => setSelectedUserId(r.user_id)}
+                  className="border-t border-white/5 cursor-pointer hover:bg-white/[0.04] transition-colors">
                   <td className="px-3 py-2 text-white/40">{i < 3 ? <Trophy size={13} className="text-[#facc15] inline" /> : i + 1}</td>
-                  <td className="px-3 py-2 text-white font-bold">{r.username || 'Trainer'}</td>
+                  <td className="px-3 py-2 text-white font-bold">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#1b1d2a] text-[9px] font-bold text-[#00c8ff]">
+                        {r.avatar_url ? <img src={r.avatar_url} alt={r.username || 'Trainer'} className="h-full w-full object-cover" onError={e => { e.currentTarget.style.display = 'none'; }} /> : (r.username || 'T').trim().slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="hover:text-[#00c8ff] transition-colors">{r.username || 'Trainer'}</span>
+                    </div>
+                  </td>
                   <td className="px-3 py-2 text-right text-[#00c8ff] font-bold">{r.league_rating}</td>
                   <td className="px-3 py-2 text-right text-white/50">{r.wins}-{r.losses}</td>
                 </tr>
@@ -35,6 +45,7 @@ export function LeaderboardsTab() {
           </table>
         </div>
       )}
+      {selectedUserId && <TrainerDetailModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} />}
     </div>
   );
 }

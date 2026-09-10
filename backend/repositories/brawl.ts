@@ -187,12 +187,41 @@ export async function getActiveTeamSpecies(userId: string): Promise<SpeciesRow[]
   );
 }
 
-export interface LeaderboardRow { user_id: string; username: string | null; league: string; league_rating: number; wins: number; losses: number; }
+export interface LeaderboardRow { user_id: string; username: string | null; avatar_url: string | null; league: string; league_rating: number; wins: number; losses: number; }
 export async function getLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
   return query<LeaderboardRow>(
-    `SELECT p.user_id, u.username, p.league, p.league_rating, p.wins, p.losses
+    `SELECT p.user_id, u.username, u.avatar_url, p.league, p.league_rating, p.wins, p.losses
      FROM brawl_profiles p JOIN users u ON u.id = p.user_id
      ORDER BY p.league_rating DESC, p.wins DESC LIMIT $1`,
     [limit],
   );
+}
+
+export interface TrainerProfile {
+  userId: string; username: string | null; avatarUrl: string | null;
+  leagueRating: number; wins: number; losses: number;
+  regionalTournamentWins: number; eliteFourWins: number; challengesCompleted: number;
+  team: SpeciesRow[];
+}
+export async function getTrainerProfile(userId: string): Promise<TrainerProfile | null> {
+  const rows = await query<{
+    user_id: string; username: string | null; avatar_url: string | null; league_rating: number; wins: number; losses: number;
+    regional_tournament_wins: number; elite_four_wins: number;
+  }>(
+    `SELECT p.user_id, u.username, u.avatar_url, p.league_rating, p.wins, p.losses, p.regional_tournament_wins, p.elite_four_wins
+     FROM brawl_profiles p JOIN users u ON u.id = p.user_id
+     WHERE p.user_id=$1`,
+    [userId],
+  );
+  if (!rows[0]) return null;
+  const team = await getActiveTeamSpecies(userId);
+  return {
+    userId: rows[0].user_id, username: rows[0].username, avatarUrl: rows[0].avatar_url,
+    leagueRating: rows[0].league_rating, wins: rows[0].wins, losses: rows[0].losses,
+    regionalTournamentWins: rows[0].regional_tournament_wins, eliteFourWins: rows[0].elite_four_wins,
+    // Challenges/objectives haven't shipped yet (see ChallengesTab's "coming soon"
+    // state) -- always 0 until that system exists, not a placeholder for real data.
+    challengesCompleted: 0,
+    team,
+  };
 }
