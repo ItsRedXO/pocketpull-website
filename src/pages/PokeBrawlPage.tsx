@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users, Swords, Trees, ShoppingBag, Target, BarChart3, Coins, Lock } from 'lucide-react';
-import { getBrawlProfile } from '../lib/brawlApi';
+import { Users, Swords, Trees, ShoppingBag, Target, BarChart3, Coins, Lock, Shield } from 'lucide-react';
+import { getBrawlProfile, type LeagueId } from '../lib/brawlApi';
 import { useAuth } from '../hooks/useAuth';
 import { IntroFlow } from './brawl/IntroFlow';
 import { TeamTab } from './brawl/TeamTab';
@@ -10,6 +10,7 @@ import { PlayTab } from './brawl/PlayTab';
 import { SafariZoneTab } from './brawl/SafariZoneTab';
 import { ChallengesTab } from './brawl/ChallengesTab';
 import { LeaderboardsTab } from './brawl/LeaderboardsTab';
+import { LEAGUE_COLOR, LEAGUE_LABEL } from './brawl/leagueColors';
 
 type SubTab = 'team' | 'play' | 'safari' | 'items' | 'challenges' | 'leaderboards';
 
@@ -69,8 +70,16 @@ export function PokeBrawlPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15] text-xs font-bold shrink-0">
-                <Coins size={13} /> {(profileData?.balance ?? 0).toLocaleString()}
+              <div className="flex items-center gap-2 shrink-0">
+                {profileData?.profile && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                    style={{ background: `${LEAGUE_COLOR[profileData.profile.league as LeagueId] || '#8892a4'}15`, border: `1px solid ${LEAGUE_COLOR[profileData.profile.league as LeagueId] || '#8892a4'}40`, color: LEAGUE_COLOR[profileData.profile.league as LeagueId] || '#8892a4' }}>
+                    <Shield size={13} /> {LEAGUE_LABEL[profileData.profile.league as LeagueId] || profileData.profile.league} · {profileData.profile.league_rating}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15] text-xs font-bold">
+                  <Coins size={13} /> {(profileData?.balance ?? 0).toLocaleString()}
+                </div>
               </div>
             </div>
 

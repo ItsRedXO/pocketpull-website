@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, FastForward, X, Skull, Trophy, Coins } from 'lucide-react';
-import type { BattleEvent, BrawlMatchResult } from '../../lib/brawlApi';
+import { Play, Pause, FastForward, X, Skull, Trophy, Coins, ArrowUp, ArrowDown } from 'lucide-react';
+import type { BattleEvent, BrawlMatchResult, LeagueChangeResult } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
+import { LEAGUE_COLOR, LEAGUE_LABEL } from './leagueColors';
 
 interface ActiveMon { name: string; artworkUrl: string | null; maxHp: number; currentHp: number; primaryType: string; secondaryType: string | null; }
 
@@ -60,7 +61,7 @@ function MonPanel({ mon, side }: { mon: ActiveMon | null; side: 'user' | 'oppone
   );
 }
 
-export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; onClose: () => void }) {
+export function BattleReplay({ matches, tierLabel, status, reward, league, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; league: LeagueChangeResult; onClose: () => void }) {
   const [matchIndex, setMatchIndex] = useState(0);
   const [eventIndex, setEventIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -157,10 +158,23 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
             {status === 'won' ? <Trophy size={40} className="text-[#facc15] mx-auto mb-3" /> : <Skull size={40} className="text-white/30 mx-auto mb-3" />}
             <h3 className="font-display text-2xl uppercase tracking-widest text-white mb-1">{status === 'won' ? 'Victory' : 'Eliminated'}</h3>
             <p className="text-white/40 text-xs mb-4">{tierLabel} — {matches.filter(m => m.result === 'win').length}/{matches.length} matches won</p>
-            {reward > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#facc15]/10 border border-[#facc15]/30 text-[#facc15] font-bold text-sm mb-5">
-                <Coins size={14} /> +{reward} pokedollars
+            <div className="flex items-center justify-center gap-2 flex-wrap mb-5">
+              {reward > 0 && (
+                <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#facc15]/10 border border-[#facc15]/30 text-[#facc15] font-bold text-sm">
+                  <Coins size={14} /> +{reward} pokedollars
+                </div>
+              )}
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: `${LEAGUE_COLOR[league.newLeague]}15`, border: `1px solid ${LEAGUE_COLOR[league.newLeague]}40`, color: LEAGUE_COLOR[league.newLeague] }}>
+                {league.newRating >= league.previousRating ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                {league.newRating - league.previousRating >= 0 ? '+' : ''}{league.newRating - league.previousRating} rating
               </div>
+            </div>
+            {(league.promoted || league.demoted) && (
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5 px-4 py-2 rounded-xl inline-block"
+                style={{ background: `${LEAGUE_COLOR[league.newLeague]}15`, border: `1px solid ${LEAGUE_COLOR[league.newLeague]}50` }}>
+                <div className="text-[11px] uppercase tracking-widest text-white/40">{league.promoted ? 'Promoted!' : 'Demoted'}</div>
+                <div className="text-sm font-bold" style={{ color: LEAGUE_COLOR[league.newLeague] }}>{LEAGUE_LABEL[league.previousLeague]} → {LEAGUE_LABEL[league.newLeague]} League</div>
+              </motion.div>
             )}
             <div><button onClick={onClose} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold text-sm uppercase tracking-wider">Continue</button></div>
           </div>

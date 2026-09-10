@@ -40,7 +40,12 @@ export interface BattleTierConfig {
   unlockAfter: { counter: string; count: number } | null;
 }
 export interface SafariTierConfig { tier: number; cost: number; count: number; overallMin: number; overallMax: number; bonusChance: number; bonusOverallMin: number; bonusOverallMax: number; }
-export interface BrawlConfig { battleTiers: Record<string, BattleTierConfig>; safariTiers: SafariTierConfig[]; dailyBattleCap: number; }
+export type LeagueId = 'standard' | 'great' | 'ultra' | 'master';
+export interface LeagueTier { id: LeagueId; label: string; minRating: number; color: string; }
+export interface BrawlConfig {
+  battleTiers: Record<string, BattleTierConfig>; safariTiers: SafariTierConfig[]; dailyBattleCap: number;
+  leagues: LeagueTier[]; tierRatingDeltas: Record<string, { win: number; loss: number }>;
+}
 
 export interface BrawlProfileResponse {
   profile: BrawlProfile; balance: number; rosterCount: number; dailyBattlesUsed: number; dailyBattleCap: number;
@@ -60,7 +65,11 @@ export type BattleEvent =
   | { type: 'move'; side: 'user' | 'opponent'; attacker: string; defender: string; move: string; moveType: PokeType; vfx: string; damage: number; effectiveness: 'immune' | 'not-very-effective' | 'neutral' | 'super-effective'; defenderHpAfter: number; defenderMaxHp: number }
   | { type: 'faint'; side: 'user' | 'opponent'; name: string; koCountForOpponent: number };
 export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; log: BattleEvent[]; }
+export interface LeagueChangeResult {
+  previousRating: number; newRating: number; previousLeague: LeagueId; newLeague: LeagueId; promoted: boolean; demoted: boolean;
+}
 export interface BrawlBattlePlayResult {
   success: boolean; tier: string; status: 'won' | 'eliminated'; matchesWon: number; matchesTotal: number; reward: number; balance: number; matches: BrawlMatchResult[];
+  league: LeagueChangeResult;
 }
 export const playBrawlBattle = (tier: string) => post<BrawlBattlePlayResult>('/brawl/battle/play', { tier });

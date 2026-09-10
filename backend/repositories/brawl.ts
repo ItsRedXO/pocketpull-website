@@ -3,6 +3,7 @@ import { query, transaction } from '../lib/postgres';
 import { uid } from '../lib/auth';
 import type { BattleSpecies } from '../lib/brawl/battleSim';
 import type { PokeType } from '../lib/brawl/typeChart';
+import { leagueForRating, leagueRank, type LeagueId } from '../lib/brawl/leagues';
 
 export interface SpeciesRow {
   id: number; name: string; primary_type: string; secondary_type: string | null;
@@ -70,6 +71,26 @@ export async function incrementProfileCounters(userId: string, fields: Partial<R
   params.push(userId);
   const runner = client ? (sql: string, p: unknown[]) => client.query(sql, p) : (sql: string, p: unknown[]) => query(sql, p);
   await runner(`UPDATE brawl_profiles SET ${sets}, updated_at=now() WHERE user_id=$${params.length}`, params);
+}
+
+export interface LeagueChangeResult {
+  previousRating: number; newRating: number;
+  previousLeague: LeagueId; newLeague: LeagueId;
+  promoted: boolean; demoted: boolean;
+}
+/** Applies a rating delta and re-derives league from the new rating, atomically. */
+export async function applyLeagueRatingChange(userId: string, ratingDelta: number): Promise<LeagueChangeResult> {
+  return transaction(async client => {
+    const row = (await client.query('SELECT league_rating, league FROM brawl_profiles WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
+    const previousRating = Number(row?.league_rating ?? 1000);
+    const previousLeague = (row?.league ?? 'standard') as LeagueId;
+    const newRating = Math.max(0, previousRating + ratingDelta);
+    const newLeagueTier = leagueForRating(newRating);
+    await client.query('UPDATE brawl_profiles SET league_rating=$1, league=$2, updated_at=now() WHERE user_id=$3', [newRating, newLeagueTier.id, userId]);
+    const previousRank = leagueRank(previousLeague);
+    const newRank = leagueRank(newLeagueTier.id);
+    return { previousRating, newRating, previousLeague, newLeague: newLeagueTier.id, promoted: newRank > previousRank, demoted: newRank < previousRank };
+  });
 }
 
 export async function getWalletBalance(userId: string): Promise<number> {

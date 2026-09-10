@@ -2,13 +2,14 @@ import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, type BattleTierId } from '../lib/brawl/tiers';
+import { LEAGUES, TIER_RATING_DELTA } from '../lib/brawl/leagues';
 import { simulateBattle } from '../lib/brawl/battleSim';
 import { rollSafariPull } from '../lib/brawl/safariZone';
 import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds,
   speciesRowToBattleSpecies, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, type BrawlProfile,
+  getLeaderboard, applyLeagueRatingChange, type BrawlProfile,
 } from '../repositories/brawl';
 
 const app = new Hono();
@@ -20,7 +21,7 @@ function tierUnlocked(profile: BrawlProfile, tierId: BattleTierId): boolean {
   return Number((profile as any)[rule.counter] || 0) >= rule.count;
 }
 
-app.get('/brawl/config', async c => c.json({ battleTiers: BATTLE_TIERS, safariTiers: SAFARI_TIERS, dailyBattleCap: DAILY_BATTLE_CAP }));
+app.get('/brawl/config', async c => c.json({ battleTiers: BATTLE_TIERS, safariTiers: SAFARI_TIERS, dailyBattleCap: DAILY_BATTLE_CAP, leagues: LEAGUES, tierRatingDeltas: TIER_RATING_DELTA }));
 
 app.get('/brawl/profile', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;
@@ -131,6 +132,8 @@ app.post('/brawl/battle/play', async c => {
   const run = await createRun(userId, config.id, config.entryCost, config.matches);
   const matches: Array<{ index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; log: unknown }> = [];
   let matchesWon = 0;
+  let ratingDelta = 0;
+  const tierRatingDelta = TIER_RATING_DELTA[config.id];
 
   for (let i = 0; i < config.matches; i++) {
     let opponentIds = await pickRandomSpeciesIds(6, { overallMin: config.opponentOverallMin, overallMax: config.opponentOverallMax });
@@ -141,6 +144,7 @@ app.post('/brawl/battle/play', async c => {
     const result: 'win' | 'loss' = outcome.winner === 'user' ? 'win' : 'loss';
     await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, outcome.log);
     matches.push({ index: i, result, opponentSpeciesIds: opponentIds, log: outcome.log });
+    ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
     if (result === 'loss') break;
     matchesWon++;
   }
@@ -160,9 +164,10 @@ app.post('/brawl/battle/play', async c => {
   if (config.id === 'local_battle') counterUpdates.local_battles_played = 1;
   else if (status === 'won') (counterUpdates as any)[config.winCounterField] = 1;
   await incrementProfileCounters(userId, counterUpdates);
+  const league = await applyLeagueRatingChange(userId, ratingDelta);
 
   const balance = await getWalletBalance(userId);
-  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches });
+  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, league });
 });
 
 export default app;
