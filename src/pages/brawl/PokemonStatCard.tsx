@@ -34,6 +34,10 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
   const tier = getCardTier(mon);
   const style = TIER_STYLE[tier];
   const isLegendary = tier === 'legendary';
+  // Trimmed down from the raw per-species crop so the full sprite clears the
+  // card's edges at this size -- the untrimmed scale was tuned for smaller
+  // thumbnails elsewhere and clips heads/feet when blown up this large.
+  const portraitScale = Math.max(1, (mon.portrait_scale ?? 1.5) * 0.8);
 
   return (
     <motion.button
@@ -68,10 +72,10 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         </span>
       </div>
 
-      <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={mon.portrait_scale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
-        className="w-24 h-24 mt-0.5" />
+      <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
+        className="w-20 h-24 mt-1.5" />
 
-      <div className="text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight" style={{ color: style.text }}>
+      <div className="text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1" style={{ color: style.text }}>
         {nickname || mon.name}
       </div>
       <div className="text-[9px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: style.subtext }}>
