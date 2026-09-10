@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { blink } from '../lib/blink';
+import { supabase } from '../lib/supabase';
 import { BACKEND_BASE } from '../lib/backend';
 
 const ADMIN_SESSION_KEY = 'pp_admin_session';
@@ -34,7 +35,10 @@ export function useAdminAuth() {
         return true;
       }
 
-      // Path 2: real Blink auth + PostgreSQL role check for promoted users.
+      // Path 2: real account auth + PostgreSQL role check, for promoted
+      // users without dedicated admin credentials. Tries Supabase first,
+      // falling back to Blink -- same priority as the main site's signIn
+      // (see useAuth.ts) -- rather than being hard-wired to Blink alone.
       let emailToUse = trimmed;
       if (!trimmed.includes('@')) {
         const userRows = await blink.db.users.list({ where: { username: trimmed }, limit: 1 });
@@ -49,17 +53,33 @@ export function useAdminAuth() {
         }
       }
 
-      await blink.auth.signInWithEmail(emailToUse, password);
-      const userRows = await blink.db.users.list({ where: { email: emailToUse }, limit: 1 });
-      if (!userRows || userRows.length === 0) {
-        await blink.auth.signOut();
-        setError('Account not found.');
-        return false;
+      let account: any = null;
+      if (supabase) {
+        const { error: supabaseError } = await supabase.auth.signInWithPassword({ email: emailToUse, password });
+        if (!supabaseError) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (token) {
+            const whoami = await fetch(`${BACKEND_BASE}/auth/whoami-supabase`, { headers: { Authorization: `Bearer ${token}` } });
+            if (whoami.ok) account = (await whoami.json())?.account || null;
+          }
+        }
       }
 
-      const userRow = userRows[0] as any;
-      if (userRow.role !== 'admin') {
-        await blink.auth.signOut();
+      if (!account) {
+        await blink.auth.signInWithEmail(emailToUse, password);
+        const userRows = await blink.db.users.list({ where: { email: emailToUse }, limit: 1 });
+        account = userRows?.[0] || null;
+        if (!account) {
+          await blink.auth.signOut();
+          setError('Account not found.');
+          return false;
+        }
+      }
+
+      if (account.role !== 'admin') {
+        if (supabase) await supabase.auth.signOut().catch(() => {});
+        await blink.auth.signOut().catch(() => {});
         setError('Access denied. This account does not have admin privileges.');
         return false;
       }
@@ -85,6 +105,7 @@ export function useAdminAuth() {
     setIsAdmin(false);
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
     localStorage.removeItem('pocketpull_admin_pass');
+    if (supabase) await supabase.auth.signOut().catch(() => {});
     try { await blink.auth.signOut(); } catch { /* ignore */ }
   };
 
