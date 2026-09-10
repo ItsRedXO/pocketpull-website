@@ -241,41 +241,6 @@ app.post('/admin/auth/bulk-migrate-next', async (c) => {
 });
 
 /**
- * GET /admin/auth/debug-link/:userId
- *
- * Temporary, throwaway diagnostic (same pattern as the earlier
- * /admin/auth/bulk-link -- protected by the same single-purpose
- * BULK_LINK_SECRET, to be removed once used). Reports whether a specific
- * usr_XXXX row has an auth_user_id set, to resolve a one-off discrepancy
- * from the earlier bulk hash-migration script.
- */
-app.get('/admin/auth/debug-link/:userId', async (c) => {
-  const secret = c.req.header('X-Bulk-Link-Secret');
-  if (!secret || secret !== process.env.BULK_LINK_SECRET) return c.json({ error: 'Unauthorized' }, 401);
-  const userId = c.req.param('userId');
-  const rows = await query<{ id: string; email: string; auth_user_id: string | null }>('SELECT id, email, auth_user_id FROM users WHERE id=$1', [userId]);
-  return c.json({ found: rows.length > 0, row: rows[0] || null });
-});
-
-/**
- * POST /admin/auth/debug-link/:userId
- *
- * Same secret/lifetime as the GET above -- links this one account if it
- * isn't already (idempotent, only sets auth_user_id when currently NULL).
- * Body: { authUserId: string }.
- */
-app.post('/admin/auth/debug-link/:userId', async (c) => {
-  const secret = c.req.header('X-Bulk-Link-Secret');
-  if (!secret || secret !== process.env.BULK_LINK_SECRET) return c.json({ error: 'Unauthorized' }, 401);
-  const userId = c.req.param('userId');
-  const body = await c.req.json().catch(() => ({}));
-  const authUserId = String(body?.authUserId || '');
-  if (!authUserId) return c.json({ error: 'authUserId required' }, 400);
-  const rows = await query<{ id: string }>('UPDATE users SET auth_user_id=$1 WHERE id=$2 AND auth_user_id IS NULL RETURNING id', [authUserId, userId]);
-  return c.json({ linked: rows.length > 0 });
-});
-
-/**
  * POST /auth/complete-supabase-signup
  *
  * Phase 5: creates the PocketPull account row for a brand-new,
