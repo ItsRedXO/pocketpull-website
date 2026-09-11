@@ -13,7 +13,7 @@ import {
   getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus,
   evolveInstances, starUpgradeInstance, type BrawlProfile,
 } from '../repositories/brawl';
-import { getChallengeStatus, selectChallenge, advanceChallenge } from '../repositories/brawlChallenges';
+import { getChallengeStatus, selectChallenge, advanceChallenge, claimChallenge } from '../repositories/brawlChallenges';
 
 // Starter packs are deliberately weaker than the general species pool (28-38
 // overall -- real basic-stage Pokemon top out around 36-37 post-rescale, see
@@ -175,6 +175,21 @@ app.post('/brawl/challenges/select', async c => {
       INVALID_CHALLENGE: 'That challenge is no longer available',
     };
     return c.json({ error: messages[e.message] || 'Failed to select challenge' }, 400);
+  }
+});
+
+app.post('/brawl/challenges/claim', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  try {
+    const result = await claimChallenge(userId);
+    const balance = await getWalletBalance(userId);
+    return c.json({ success: true, label: result.label, reward: result.reward, pokemon: result.pokemon, balance });
+  } catch (e: any) {
+    const messages: Record<string, string> = {
+      NO_ACTIVE_CHALLENGE: 'No challenge locked in',
+      NOT_READY: "That challenge isn't complete yet",
+    };
+    return c.json({ error: messages[e.message] || 'Failed to claim challenge' }, 400);
   }
 });
 

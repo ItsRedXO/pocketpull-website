@@ -79,11 +79,10 @@ export async function selectChallenge(userId: string, challengeId: string): Prom
 }
 
 export interface ChallengeAdvanceResult {
-  completed: boolean;
+  readyToClaim: boolean;
   progress: number;
   target: number;
   label: string;
-  reward?: ChallengeInstance['reward'];
 }
 
 /**
@@ -91,10 +90,9 @@ export interface ChallengeAdvanceResult {
  * win_mono_type, the team's shared type) matches it. No-ops silently if the
  * player has no active challenge or it's a different type -- callers fire
  * this off after every win/evolve/safari-pull without needing to know
- * whether it was relevant. On hitting target, grants the reward and starts
- * the 15 minute cooldown for the next set of 3 offers, all in one
- * transaction so the reward can never be granted without the challenge
- * actually clearing (or vice versa).
+ * whether it was relevant. Progress caps at the target but does NOT grant
+ * the reward itself -- the player has to visit the Challenges tab and hit
+ * Claim (see claimChallenge) so completion actually feels like something.
  */
 export async function advanceChallenge(userId: string, type: ChallengeType, opts: { teamType?: PokeType } = {}): Promise<ChallengeAdvanceResult | null> {
   return transaction(async client => {
@@ -106,10 +104,31 @@ export async function advanceChallenge(userId: string, type: ChallengeType, opts
     if (type === 'win_mono_type' && challenge.meta?.type && challenge.meta.type !== opts.teamType) return null;
 
     const progress = Math.min(challenge.target, Number(row.progress) + 1);
-    if (progress < challenge.target) {
-      await client.query('UPDATE brawl_challenge_state SET progress=$1, updated_at=now() WHERE user_id=$2', [progress, userId]);
-      return { completed: false, progress, target: challenge.target, label: challenge.label };
-    }
+    await client.query('UPDATE brawl_challenge_state SET progress=$1, updated_at=now() WHERE user_id=$2', [progress, userId]);
+    return { readyToClaim: progress >= challenge.target, progress, target: challenge.target, label: challenge.label };
+  });
+}
+
+export interface ChallengeClaimResult {
+  label: string;
+  reward: ChallengeInstance['reward'];
+  pokemon?: LastCompletedChallenge['pokemon'];
+}
+
+/**
+ * Grants the reward for the player's locked-in challenge and starts the 15
+ * minute cooldown for the next set of 3 offers. Only succeeds once progress
+ * has actually hit the target (set by advanceChallenge) -- this is the only
+ * place a reward is ever granted, and it only runs when the player
+ * explicitly clicks Claim.
+ */
+export async function claimChallenge(userId: string): Promise<ChallengeClaimResult> {
+  return transaction(async client => {
+    const rows = (await client.query('SELECT * FROM brawl_challenge_state WHERE user_id=$1 FOR UPDATE', [userId])).rows;
+    const row = rows[0];
+    if (!row || !row.selected) throw new Error('NO_ACTIVE_CHALLENGE');
+    const challenge: ChallengeInstance = row.selected;
+    if (Number(row.progress) < challenge.target) throw new Error('NOT_READY');
 
     let lastCompleted: LastCompletedChallenge = { label: challenge.label, reward: challenge.reward, completedAt: new Date().toISOString() };
     if (challenge.reward.kind === 'pokedollars') {
@@ -140,6 +159,6 @@ export async function advanceChallenge(userId: string, type: ChallengeType, opts
       'UPDATE brawl_challenge_state SET selected=NULL, offered=$1, progress=0, next_available_at=$2, last_completed=$3, updated_at=now() WHERE user_id=$4',
       [JSON.stringify([]), nextAvailableAt, JSON.stringify(lastCompleted), userId],
     );
-    return { completed: true, progress, target: challenge.target, label: challenge.label, reward: challenge.reward };
+    return { label: challenge.label, reward: challenge.reward, pokemon: lastCompleted.pokemon };
   });
 }

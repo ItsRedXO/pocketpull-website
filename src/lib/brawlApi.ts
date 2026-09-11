@@ -136,3 +136,9 @@ export interface ChallengeStatus {
 }
 export const getBrawlChallenges = () => get<ChallengeStatus>('/brawl/challenges');
 export const selectBrawlChallenge = (challengeId: string) => post<{ success: boolean; active: ChallengeInstance & { progress: number } }>('/brawl/challenges/select', { challengeId });
+export interface ChallengeClaimResult {
+  success: boolean; label: string; reward: ChallengeReward;
+  pokemon?: { id: number; name: string; artworkUrl: string | null; overallRating: number };
+  balance: number;
+}
+export const claimBrawlChallenge = () => post<ChallengeClaimResult>('/brawl/challenges/claim');
