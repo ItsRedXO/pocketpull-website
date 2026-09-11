@@ -322,7 +322,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, rating, onClo
               </div>
 
               {/* move info box, bottom-right */}
-              <div className="absolute bottom-3 right-3 max-w-[70%] sm:max-w-[260px] rounded-lg border border-white/10 bg-black/70 px-3 py-2">
+              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 max-w-[48%] sm:max-w-[260px] rounded-lg border border-white/10 bg-black/70 px-2 py-1.5 sm:px-3 sm:py-2">
                 {lastAttack ? (
                   <>
                     <div className="text-[11px] text-white">used <span className="font-bold">{lastAttack.move}</span></div>

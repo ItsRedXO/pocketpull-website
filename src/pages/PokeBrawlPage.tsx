@@ -59,11 +59,11 @@ export function PokeBrawlPage() {
           <IntroFlow onComplete={handleIntroComplete} />
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
               <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1" role="tablist">
                 {SUB_TABS.map(t => (
                   <button key={t.id} disabled={t.disabled} onClick={() => !t.disabled && setSubTab(t.id)}
-                    className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap rounded-lg ${
+                    className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap rounded-lg shrink-0 ${
                       t.disabled ? 'text-white/20 cursor-default' : subTab === t.id ? 'text-black' : 'text-white/50 hover:text-white hover:bg-white/5'
                     }`}>
                     {!t.disabled && subTab === t.id && (
@@ -75,16 +75,16 @@ export function PokeBrawlPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
                 <DailyBonusButton dailyBonus={profileData?.dailyBonus} />
                 {profileData?.rank && (
                   <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#9b5cff]/10 border border-[#9b5cff]/25 text-[#9b5cff] text-xs font-bold">
-                    <TrendingUp size={13} /> Global Rank: {profileData.rank.rank} of {profileData.rank.total}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#9b5cff]/10 border border-[#9b5cff]/25 text-[#9b5cff] text-xs font-bold whitespace-nowrap">
+                    <TrendingUp size={13} /> Rank {profileData.rank.rank} <span className="hidden sm:inline">of {profileData.rank.total}</span>
                   </motion.div>
                 )}
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.04 }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15] text-xs font-bold">
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#facc15]/10 border border-[#facc15]/25 text-[#facc15] text-xs font-bold whitespace-nowrap">
                   <Coins size={13} /> {(profileData?.balance ?? 0).toLocaleString()}
                 </motion.div>
               </div>
