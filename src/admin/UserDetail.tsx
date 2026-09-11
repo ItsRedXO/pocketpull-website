@@ -9,6 +9,7 @@ import { InventorySection } from './InventorySection';
 import { DepositsSection } from './DepositsSection';
 import { ActivitySection } from './ActivitySection';
 import { ReferralsSection } from './ReferralsSection';
+import { UserPokeBrawlSection } from './UserPokeBrawlSection';
 
 interface UserDetailProps {
   user: UserRow;
@@ -330,6 +331,9 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
           </SectionErrorBoundary>
           <SectionErrorBoundary>
             <ActivitySection user={user} />
+          </SectionErrorBoundary>
+          <SectionErrorBoundary>
+            <UserPokeBrawlSection userId={user.id} showToast={showToast} />
           </SectionErrorBoundary>
         </>
       )}
