@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Activity, Package, DollarSign, Swords, ShoppingCart, Sparkles, ArrowRightLeft, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { UserRow } from './types';
 import { useQuery } from '@tanstack/react-query';
 import type { LogEntryRaw, LogsPage, TimelineEntry } from './activityTypes';
@@ -9,8 +10,25 @@ import { ActivityDetailPopup } from './ActivityDetailPopup';
 
 interface ActivitySectionProps { user: UserRow; }
 
-const BACKEND = 'https://b2nnhe2n.backend.blink.new';
 const PAGE_SIZE = 50;
+
+// This endpoint sits behind adminLogsGuard, which needs a real bearer token
+// (to resolve who's calling) and/or a real admin secret -- the literal
+// string 'true' this fetch used to send is explicitly treated as "not a
+// credential" by the guard (see isAdminSecretCandidate), so every request
+// 401'd and silently came back as "no activity" (see the `!res.ok` fallback
+// below) regardless of which filter was clicked. Also: this used to point at
+// the pre-migration Blink backend (b2nnhe2n.backend.blink.new), which no
+// longer has the current activity_logs data -- BACKEND_BASE is the same
+// Railway backend every other admin panel call already uses.
+async function adminHeaders(): Promise<Record<string, string>> {
+  const token = await blink.auth.getValidToken().catch(() => null);
+  const secret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(secret ? { 'X-Admin-Secret': secret } : {}),
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -296,10 +314,10 @@ export function ActivitySection({ user }: ActivitySectionProps) {
       // Battle filter uses local battleHistory — skip backend call
       if (typeFilter === 'battle') return { rows: [], total: 0 };
 
-      let url = `${BACKEND}/admin-logs?userId=${encodeURIComponent(user.id)}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
+      let url = `${BACKEND_BASE}/admin-logs?userId=${encodeURIComponent(user.id)}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
       if (typeFilter) url += `&type=${encodeURIComponent(typeFilter)}`;
 
-      const res = await fetch(url, { headers: { 'X-Admin-Secret': 'true' } });
+      const res = await fetch(url, { headers: await adminHeaders() });
       if (!res.ok) return { rows: [], total: 0 };
       const json = await res.json() as { rows: any[]; total: number };
       return {
