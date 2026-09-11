@@ -161,7 +161,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-md"
+          className="relative w-full max-w-md overflow-hidden"
           style={{
             background: 'rgba(13, 14, 20, 0.98)',
             border: '1px solid rgba(0,200,255,0.15)',
@@ -183,7 +183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
             <X size={16} />
           </button>
 
-          <div className="p-8">
+          <div className="p-5 sm:p-8">
             {/* Logo */}
             <div className="flex items-center justify-center gap-3 mb-6">
               <img
@@ -354,9 +354,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     />
                   </div>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Date of Birth</label>
-                  <div className="relative">
+                  <div className="relative min-w-0">
                     <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                     <input
                       type="date"
@@ -364,8 +364,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                       onChange={e => setDateOfBirth(e.target.value)}
                       max={eighteenYearsAgo()}
                       min="1900-01-01"
-                      className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                      className="block w-full min-w-0 pl-9 pr-2 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark', boxSizing: 'border-box', maxWidth: '100%' }}
                     />
                   </div>
                   <p className="text-[11px] text-gray-500 mt-1">You must be 18 or older to sign up.</p>
