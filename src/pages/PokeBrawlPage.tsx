@@ -58,8 +58,8 @@ export function PokeBrawlPage() {
           <IntroFlow onComplete={handleIntroComplete} />
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <div className="flex items-center gap-1 overflow-x-auto" role="tablist">
+            <div className="flex items-center justify-between mb-4 gap-3">
+              <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1" role="tablist">
                 {SUB_TABS.map(t => (
                   <button key={t.id} disabled={t.disabled} onClick={() => !t.disabled && setSubTab(t.id)}
                     className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap rounded-lg ${
