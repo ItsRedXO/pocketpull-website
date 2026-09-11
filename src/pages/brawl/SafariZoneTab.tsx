@@ -40,16 +40,19 @@ function TierPreview({ species, tier, color }: { species: BrawlSpecies[]; tier: 
   const preview = useMemo(() => shuffled(tierPreviewPool(species, tier)).slice(0, 2), [species, tier]);
   if (!preview.length) return null;
   return (
-    <div className="flex items-center gap-2 mt-1">
+    <div className="mt-1">
       <span className="text-[8px] uppercase tracking-widest text-white/25">Could get</span>
-      <div className="flex -space-x-2">
+      <div className="flex gap-2 mt-1.5">
         {preview.map(p => (
-          <div key={p.id} title={p.name} className="w-8 h-8 rounded-full overflow-hidden border-2" style={{ borderColor: `${color}80`, background: '#0d0e14' }}>
-            <PokemonPortrait artworkUrl={p.artwork_url} alt={p.name} scale={(p.portrait_scale || 1.5) * 1.1} offsetX={p.portrait_offset_x} offsetY={p.portrait_offset_y} className="w-full h-full" />
+          <div key={p.id} title={p.name} className="flex-1 min-w-0 flex flex-col items-center gap-1 rounded-xl py-2"
+            style={{ background: `${color}12`, border: `1px solid ${color}35` }}>
+            <div className="w-16 h-16 rounded-lg overflow-hidden" style={{ background: '#0d0e14', boxShadow: `inset 0 0 12px ${color}40` }}>
+              <PokemonPortrait artworkUrl={p.artwork_url} alt={p.name} scale={(p.portrait_scale || 1.5) * 1.25} offsetX={p.portrait_offset_x} offsetY={p.portrait_offset_y} className="w-full h-full" />
+            </div>
+            <span className="text-[9px] text-white/50 capitalize truncate w-full text-center px-1">{p.name}</span>
           </div>
         ))}
       </div>
-      <span className="text-[9px] text-white/40 capitalize truncate">{preview.map(p => p.name).join(' · ')}</span>
     </div>
   );
 }
