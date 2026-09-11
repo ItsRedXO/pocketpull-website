@@ -8,7 +8,7 @@ import { DAILY_BONUS_COOLDOWN_MS } from '../lib/brawl/tiers';
 export interface SpeciesRow {
   id: number; name: string; primary_type: string; secondary_type: string | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
-  overall_rating: number; evolution_stage: number; evolution_chain_id: number;
+  overall_rating: number; evolution_stage: number; evolution_chain_id: number; evolves_to: number[];
   is_legendary: number; is_mythical: number; sprite_url: string | null; artwork_url: string | null;
   portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
@@ -18,6 +18,22 @@ export function speciesRowToBattleSpecies(row: SpeciesRow): BattleSpecies {
     speciesId: row.id, name: row.name, primaryType: row.primary_type as PokeType, secondaryType: row.secondary_type as PokeType | null,
     baseHp: row.base_hp, attack: row.base_attack, defense: row.base_defense, spAttack: row.base_sp_attack, spDefense: row.base_sp_defense,
     speed: row.base_speed, overall: row.overall_rating, spriteUrl: row.sprite_url, artworkUrl: row.artwork_url,
+  };
+}
+
+// +5% to every stat per star level, uncapped by the species' usual 1-100 base
+// stat ceiling -- that cap is about how strong a *species* can naturally be,
+// not how far a specific player's ascended, held-item-bearing individual can
+// go. A fresh (0-star) instance is unaffected.
+export const STAR_STAT_BONUS_PER_LEVEL = 0.05;
+export function applyStarBonus(species: BattleSpecies, starLevel: number): BattleSpecies {
+  if (!starLevel) return species;
+  const mult = 1 + STAR_STAT_BONUS_PER_LEVEL * starLevel;
+  return {
+    ...species,
+    baseHp: Math.round(species.baseHp * mult), attack: Math.round(species.attack * mult), defense: Math.round(species.defense * mult),
+    spAttack: Math.round(species.spAttack * mult), spDefense: Math.round(species.spDefense * mult), speed: Math.round(species.speed * mult),
+    overall: Math.round(species.overall * mult),
   };
 }
 
@@ -145,12 +161,12 @@ export async function claimDailyBonus(userId: string, amount: number): Promise<D
 }
 
 export interface InstanceRow {
-  id: string; user_id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; acquired_at: string;
+  id: string; user_id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; star_level: number; acquired_at: string;
 }
 export async function listInstancesForUser(userId: string): Promise<(InstanceRow & SpeciesRow)[]> {
   return query(
     `SELECT i.*, s.name, s.primary_type, s.secondary_type, s.base_hp, s.base_attack, s.base_defense, s.base_sp_attack, s.base_sp_defense, s.base_speed,
-            s.overall_rating, s.evolution_stage, s.is_legendary, s.is_mythical, s.sprite_url, s.artwork_url,
+            s.overall_rating, s.evolution_stage, s.evolution_chain_id, s.evolves_to, s.is_legendary, s.is_mythical, s.sprite_url, s.artwork_url,
             s.portrait_scale, s.portrait_offset_x, s.portrait_offset_y
      FROM brawl_pokemon_instances i JOIN brawl_pokemon_species s ON s.id = i.species_id
      WHERE i.user_id=$1 ORDER BY i.team_slot NULLS LAST, i.acquired_at`,
@@ -179,6 +195,98 @@ export async function setTeam(userId: string, instanceIds: string[]): Promise<vo
     for (let i = 0; i < instanceIds.length; i++) {
       await client.query('UPDATE brawl_pokemon_instances SET is_on_team=1, team_slot=$1 WHERE id=$2 AND user_id=$3', [i + 1, instanceIds[i], userId]);
     }
+  });
+}
+
+// Duplicate-merge economy: 3 copies of a basic (stage 1) species merge into
+// its next evolution; 5 copies of anything past that (2nd stage, or a fully
+// evolved / single-stage species) merge into either the next evolution or --
+// once there's nowhere left to evolve -- a star level. Mirrors the real
+// games' loose "it gets easier early, costlier later" evolution cadence
+// without trying to model per-species candy costs.
+export const EVOLVE_COST_STAGE_1 = 3;
+export const EVOLVE_COST_STAGE_2_PLUS = 5;
+// A star upgrade costs 5 copies *total* at every level ("5 Charizards merge
+// into a 1-star, another 5 into a 2-star"): one of those 5 is the instance
+// being upgraded (it survives, keeping its star progress), so only 4 more
+// need to be freshly spent alongside it.
+export const STAR_UPGRADE_FODDER_COUNT = 4;
+export const MAX_STAR_LEVEL = 3;
+
+export function evolveCostForStage(stage: number): number {
+  return stage <= 1 ? EVOLVE_COST_STAGE_1 : EVOLVE_COST_STAGE_2_PLUS;
+}
+
+export interface EvolveResult { newInstanceId: string; }
+/**
+ * Consumes `instanceIds` copies of `sourceSpeciesId` and creates one instance
+ * of `targetSpeciesId`. Every fodder instance must: belong to the caller,
+ * actually be that species, be off the active team (protects a player's
+ * lineup from an accidental/careless merge), and be un-starred (evolving
+ * shouldn't be a backdoor way to erase a star investment someone already
+ * made in that specific copy).
+ */
+export async function evolveInstances(userId: string, sourceSpeciesId: number, targetSpeciesId: number, instanceIds: string[]): Promise<EvolveResult> {
+  return transaction(async client => {
+    const species = (await client.query('SELECT evolution_stage, evolves_to FROM brawl_pokemon_species WHERE id=$1', [sourceSpeciesId])).rows[0];
+    if (!species) throw new Error('SPECIES_NOT_FOUND');
+    if (!(species.evolves_to as number[] || []).includes(targetSpeciesId)) throw new Error('INVALID_EVOLUTION_TARGET');
+
+    const required = evolveCostForStage(species.evolution_stage);
+    const uniqueIds = Array.from(new Set(instanceIds));
+    if (uniqueIds.length !== required) throw new Error('WRONG_INSTANCE_COUNT');
+
+    const owned = (await client.query(
+      'SELECT id, species_id, is_on_team, star_level FROM brawl_pokemon_instances WHERE user_id=$1 AND id = ANY($2) FOR UPDATE',
+      [userId, uniqueIds],
+    )).rows;
+    if (owned.length !== required) throw new Error('INSTANCES_NOT_FOUND');
+    if (owned.some(r => r.species_id !== sourceSpeciesId)) throw new Error('SPECIES_MISMATCH');
+    if (owned.some(r => r.is_on_team)) throw new Error('INSTANCE_ON_TEAM');
+    if (owned.some(r => r.star_level > 0)) throw new Error('INSTANCE_HAS_STARS');
+
+    await client.query('DELETE FROM brawl_pokemon_instances WHERE id = ANY($1)', [uniqueIds]);
+    const newInstanceId = uid();
+    await client.query('INSERT INTO brawl_pokemon_instances (id, user_id, species_id, source) VALUES ($1,$2,$3,$4)', [newInstanceId, userId, targetSpeciesId, 'evolved']);
+    return { newInstanceId };
+  });
+}
+
+export interface StarUpgradeResult { newStarLevel: number; }
+/**
+ * Bumps `targetInstanceId`'s star level by one, consuming 4 other (off-team,
+ * un-starred, same-species) instances as fodder -- 5 copies touched in total
+ * per level, matching "5 Charizards merge into a 1-star, another 5 into a
+ * 2-star". The target itself keeps its identity/nickname/acquired_at -- only
+ * star_level changes -- while the 4 fodder copies are deleted outright.
+ */
+export async function starUpgradeInstance(userId: string, targetInstanceId: string, fodderInstanceIds: string[]): Promise<StarUpgradeResult> {
+  return transaction(async client => {
+    const uniqueFodder = Array.from(new Set(fodderInstanceIds));
+    if (uniqueFodder.length !== STAR_UPGRADE_FODDER_COUNT) throw new Error('WRONG_INSTANCE_COUNT');
+    if (uniqueFodder.includes(targetInstanceId)) throw new Error('TARGET_IN_FODDER');
+
+    const target = (await client.query(
+      'SELECT id, species_id, is_on_team, star_level FROM brawl_pokemon_instances WHERE id=$1 AND user_id=$2 FOR UPDATE',
+      [targetInstanceId, userId],
+    )).rows[0];
+    if (!target) throw new Error('TARGET_NOT_FOUND');
+    if (target.is_on_team) throw new Error('INSTANCE_ON_TEAM');
+    if (target.star_level >= MAX_STAR_LEVEL) throw new Error('MAX_STAR_LEVEL');
+
+    const fodder = (await client.query(
+      'SELECT id, species_id, is_on_team, star_level FROM brawl_pokemon_instances WHERE user_id=$1 AND id = ANY($2) FOR UPDATE',
+      [userId, uniqueFodder],
+    )).rows;
+    if (fodder.length !== STAR_UPGRADE_FODDER_COUNT) throw new Error('INSTANCES_NOT_FOUND');
+    if (fodder.some(r => r.species_id !== target.species_id)) throw new Error('SPECIES_MISMATCH');
+    if (fodder.some(r => r.is_on_team)) throw new Error('INSTANCE_ON_TEAM');
+    if (fodder.some(r => r.star_level > 0)) throw new Error('INSTANCE_HAS_STARS');
+
+    await client.query('DELETE FROM brawl_pokemon_instances WHERE id = ANY($1)', [uniqueFodder]);
+    const newStarLevel = target.star_level + 1;
+    await client.query('UPDATE brawl_pokemon_instances SET star_level=$1 WHERE id=$2', [newStarLevel, targetInstanceId]);
+    return { newStarLevel };
   });
 }
 
@@ -213,9 +321,9 @@ export async function insertSafariPull(userId: string, tier: number, cost: numbe
   await query('INSERT INTO brawl_safari_pulls (id, user_id, tier, cost, species_ids) VALUES ($1,$2,$3,$4,$5)', [uid(), userId, tier, cost, speciesIds]);
 }
 
-export async function getActiveTeamSpecies(userId: string): Promise<SpeciesRow[]> {
-  return query<SpeciesRow>(
-    `SELECT s.* FROM brawl_pokemon_instances i JOIN brawl_pokemon_species s ON s.id = i.species_id
+export async function getActiveTeamSpecies(userId: string): Promise<(SpeciesRow & { star_level: number })[]> {
+  return query<SpeciesRow & { star_level: number }>(
+    `SELECT s.*, i.star_level FROM brawl_pokemon_instances i JOIN brawl_pokemon_species s ON s.id = i.species_id
      WHERE i.user_id=$1 AND i.is_on_team=1 ORDER BY i.team_slot`,
     [userId],
   );

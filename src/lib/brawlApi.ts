@@ -24,11 +24,11 @@ export type PokeType = 'normal' | 'fire' | 'water' | 'electric' | 'grass' | 'ice
 export interface BrawlSpecies {
   id: number; name: string; primary_type: PokeType; secondary_type: PokeType | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
-  overall_rating: number; evolution_stage: number; is_legendary: number; is_mythical: number; sprite_url: string | null; artwork_url: string | null;
+  overall_rating: number; evolution_stage: number; evolves_to: number[]; is_legendary: number; is_mythical: number; sprite_url: string | null; artwork_url: string | null;
   portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 export interface BrawlInstance extends Omit<BrawlSpecies, 'id'> {
-  id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; acquired_at: string;
+  id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; star_level: number; acquired_at: string;
 }
 export interface BrawlProfile {
   user_id: string; has_completed_intro: number; league: string; league_rating: number; wins: number; losses: number;
@@ -62,11 +62,20 @@ export interface BrawlProfileResponse {
 export interface DailyBonusClaimResult { success: boolean; amount: number; claimedAt: string; nextClaimAt: string; balance: number; }
 
 export const getBrawlConfig = () => get<BrawlConfig>('/brawl/config');
+export const getBrawlSpeciesCatalog = () => get<{ species: BrawlSpecies[] }>('/brawl/species');
 export const getBrawlProfile = () => get<BrawlProfileResponse>('/brawl/profile');
 export const claimBrawlDailyBonus = () => post<DailyBonusClaimResult>('/brawl/daily-bonus/claim');
 export const completeBrawlIntro = () => post<{ success: boolean; alreadyCompleted?: boolean; roster?: BrawlInstance[] }>('/brawl/intro/complete');
 export const getBrawlRoster = () => get<{ roster: BrawlInstance[] }>('/brawl/roster');
 export const setBrawlTeam = (instanceIds: string[]) => post<{ success: boolean; roster: BrawlInstance[] }>('/brawl/team', { instanceIds });
+export const EVOLVE_COST_STAGE_1 = 3;
+export const EVOLVE_COST_STAGE_2_PLUS = 5;
+export const STAR_UPGRADE_FODDER_COUNT = 4;
+export const MAX_STAR_LEVEL = 3;
+export const evolveBrawlRoster = (sourceSpeciesId: number, targetSpeciesId: number, instanceIds: string[]) =>
+  post<{ success: boolean; newInstanceId: string; roster: BrawlInstance[] }>('/brawl/roster/evolve', { sourceSpeciesId, targetSpeciesId, instanceIds });
+export const starUpgradeBrawlRoster = (targetInstanceId: string, fodderInstanceIds: string[]) =>
+  post<{ success: boolean; newStarLevel: number; roster: BrawlInstance[] }>('/brawl/roster/star-upgrade', { targetInstanceId, fodderInstanceIds });
 export interface LeaderboardEntry { user_id: string; username: string | null; avatar_url: string | null; league: string; league_rating: number; wins: number; losses: number; }
 export const getBrawlLeaderboard = () => get<{ leaderboard: LeaderboardEntry[] }>('/brawl/leaderboard');
 export interface TrainerProfile {

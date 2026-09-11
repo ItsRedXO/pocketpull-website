@@ -22,19 +22,26 @@ interface SpeciesPayload {
   is_mythical: boolean;
 }
 interface EvolutionChainNode {
-  species: { name: string };
+  species: { name: string; url: string };
   evolves_to: EvolutionChainNode[];
 }
 interface EvolutionChainPayload {
   chain: EvolutionChainNode;
 }
 
-const evolutionStageCache = new Map<number, Map<string, number>>();
+interface ChainInfo { stages: Map<string, number>; evolvesTo: Map<string, number[]> }
+const evolutionChainCache = new Map<number, ChainInfo>();
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return res.json() as Promise<T>;
+}
+
+function dexIdFromSpeciesUrl(url: string): number {
+  const match = url.match(/\/pokemon-species\/(\d+)\//);
+  if (!match) throw new Error(`Could not parse species id from ${url}`);
+  return Number(match[1]);
 }
 
 function chainIdFromUrl(url: string): number {
@@ -43,18 +50,25 @@ function chainIdFromUrl(url: string): number {
   return Number(match[1]);
 }
 
-async function getEvolutionStages(chainId: number): Promise<Map<string, number>> {
-  const cached = evolutionStageCache.get(chainId);
+/** Walks one PokeAPI evolution chain once (cached per chain id) into both the
+ * existing stage-per-species map and a species-name -> direct evolves_to dex
+ * id[] map (usually one target; a branch like Eevee has several so the merge
+ * UI can let the player choose which evolution to merge into). */
+async function getEvolutionChainInfo(chainId: number): Promise<ChainInfo> {
+  const cached = evolutionChainCache.get(chainId);
   if (cached) return cached;
   const payload = await fetchJson<EvolutionChainPayload>(`${API}/evolution-chain/${chainId}/`);
   const stages = new Map<string, number>();
+  const evolvesTo = new Map<string, number[]>();
   const walk = (node: EvolutionChainNode, stage: number) => {
     stages.set(node.species.name, stage);
+    evolvesTo.set(node.species.name, node.evolves_to.map(n => dexIdFromSpeciesUrl(n.species.url)));
     for (const next of node.evolves_to) walk(next, stage + 1);
   };
   walk(payload.chain, 1);
-  evolutionStageCache.set(chainId, stages);
-  return stages;
+  const info = { stages, evolvesTo };
+  evolutionChainCache.set(chainId, info);
+  return info;
 }
 
 function statFor(stats: PokemonPayload['stats'], name: string): number {
@@ -67,8 +81,9 @@ async function importOne(dexId: number): Promise<void> {
     fetchJson<SpeciesPayload>(`${API}/pokemon-species/${dexId}/`),
   ]);
   const chainId = chainIdFromUrl(species.evolution_chain.url);
-  const stages = await getEvolutionStages(chainId);
+  const { stages, evolvesTo } = await getEvolutionChainInfo(chainId);
   const evolutionStage = stages.get(pokemon.name) ?? 1;
+  const evolvesToIds = evolvesTo.get(pokemon.name) ?? [];
 
   // PokeAPI's real base stats run well past 100 for outliers (Chansey HP 250,
   // Onix DEF 160); scale every stat down to the game's 1-100 range before it's
@@ -89,18 +104,19 @@ async function importOne(dexId: number): Promise<void> {
   await query(
     `INSERT INTO brawl_pokemon_species
       (id, name, primary_type, secondary_type, base_hp, base_attack, base_defense, base_sp_attack, base_sp_defense, base_speed,
-       overall_rating, evolution_stage, evolution_chain_id, is_legendary, is_mythical, sprite_url, artwork_url)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+       overall_rating, evolution_stage, evolution_chain_id, evolves_to, is_legendary, is_mythical, sprite_url, artwork_url)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
      ON CONFLICT (id) DO UPDATE SET
        name=EXCLUDED.name, primary_type=EXCLUDED.primary_type, secondary_type=EXCLUDED.secondary_type,
        base_hp=EXCLUDED.base_hp, base_attack=EXCLUDED.base_attack, base_defense=EXCLUDED.base_defense,
        base_sp_attack=EXCLUDED.base_sp_attack, base_sp_defense=EXCLUDED.base_sp_defense, base_speed=EXCLUDED.base_speed,
        overall_rating=EXCLUDED.overall_rating, evolution_stage=EXCLUDED.evolution_stage, evolution_chain_id=EXCLUDED.evolution_chain_id,
+       evolves_to=EXCLUDED.evolves_to,
        is_legendary=EXCLUDED.is_legendary, is_mythical=EXCLUDED.is_mythical, sprite_url=EXCLUDED.sprite_url, artwork_url=EXCLUDED.artwork_url`,
     [
       dexId, pokemon.name, primaryType, secondaryType ?? null,
       stats.hp, stats.attack, stats.defense, stats.spAttack, stats.spDefense, stats.speed,
-      overall, evolutionStage, chainId, species.is_legendary ? 1 : 0, species.is_mythical ? 1 : 0,
+      overall, evolutionStage, chainId, evolvesToIds, species.is_legendary ? 1 : 0, species.is_mythical ? 1 : 0,
       pokemon.sprites.front_default, pokemon.sprites.other['official-artwork'].front_default ?? pokemon.sprites.other.home.front_default,
     ],
   );

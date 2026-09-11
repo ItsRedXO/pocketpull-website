@@ -7,9 +7,10 @@ import { simulateBattle } from '../lib/brawl/battleSim';
 import { rollSafariPull } from '../lib/brawl/safariZone';
 import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
-  listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds,
-  speciesRowToBattleSpecies, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus, type BrawlProfile,
+  listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds, listAllSpecies,
+  speciesRowToBattleSpecies, applyStarBonus, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
+  getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus,
+  evolveInstances, starUpgradeInstance, type BrawlProfile,
 } from '../repositories/brawl';
 
 // Starter packs are deliberately weaker than the general species pool (28-38
@@ -30,6 +31,11 @@ function tierUnlocked(profile: BrawlProfile, tierId: BattleTierId): boolean {
 }
 
 app.get('/brawl/config', async c => c.json({ battleTiers: BATTLE_TIERS, safariTiers: SAFARI_TIERS, dailyBattleCap: DAILY_BATTLE_CAP, tierRatingDeltas: TIER_RATING_DELTA }));
+
+// Full species catalog (not just what the player owns) -- the merge/evolve UI
+// needs to show the name/art of an evolution target the player doesn't have
+// a copy of yet.
+app.get('/brawl/species', async c => c.json({ species: await listAllSpecies() }));
 
 app.get('/brawl/profile', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;
@@ -105,6 +111,47 @@ app.post('/brawl/team', async c => {
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
 });
 
+const EVOLVE_ERROR_MESSAGES: Record<string, string> = {
+  SPECIES_NOT_FOUND: 'Unknown species',
+  INVALID_EVOLUTION_TARGET: "That Pokemon doesn't evolve into your target species",
+  WRONG_INSTANCE_COUNT: 'Wrong number of Pokemon selected for this evolution',
+  INSTANCES_NOT_FOUND: 'One or more selected Pokemon were not found in your roster',
+  SPECIES_MISMATCH: 'All selected Pokemon must be the same species',
+  INSTANCE_ON_TEAM: 'Remove those Pokemon from your active team before merging them',
+  INSTANCE_HAS_STARS: 'Starred Pokemon can\'t be used as evolution fodder',
+};
+app.post('/brawl/roster/evolve', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const { sourceSpeciesId, targetSpeciesId, instanceIds } = await c.req.json().catch(() => ({}));
+  if (!Number.isInteger(sourceSpeciesId) || !Number.isInteger(targetSpeciesId) || !Array.isArray(instanceIds)) {
+    return c.json({ error: 'Invalid request' }, 400);
+  }
+  try {
+    const result = await evolveInstances(userId, sourceSpeciesId, targetSpeciesId, instanceIds);
+    return c.json({ success: true, newInstanceId: result.newInstanceId, roster: await listInstancesForUser(userId) });
+  } catch (e: any) {
+    return c.json({ error: EVOLVE_ERROR_MESSAGES[e.message] || 'Evolution failed' }, 400);
+  }
+});
+
+app.post('/brawl/roster/star-upgrade', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const { targetInstanceId, fodderInstanceIds } = await c.req.json().catch(() => ({}));
+  if (typeof targetInstanceId !== 'string' || !Array.isArray(fodderInstanceIds)) return c.json({ error: 'Invalid request' }, 400);
+  try {
+    const result = await starUpgradeInstance(userId, targetInstanceId, fodderInstanceIds);
+    return c.json({ success: true, newStarLevel: result.newStarLevel, roster: await listInstancesForUser(userId) });
+  } catch (e: any) {
+    const messages: Record<string, string> = {
+      ...EVOLVE_ERROR_MESSAGES,
+      TARGET_IN_FODDER: "The Pokemon being upgraded can't also be one of the 5 fodder Pokemon",
+      TARGET_NOT_FOUND: 'Pokemon not found in your roster',
+      MAX_STAR_LEVEL: 'That Pokemon is already at the max star level',
+    };
+    return c.json({ error: messages[e.message] || 'Star upgrade failed' }, 400);
+  }
+});
+
 app.get('/brawl/leaderboard', async c => c.json({ leaderboard: await getLeaderboard(100) }));
 
 app.get('/brawl/trainer/:userId', async c => {
@@ -157,7 +204,7 @@ app.post('/brawl/battle/play', async c => {
 
   const activeTeamRows = await getActiveTeamSpecies(userId);
   if (activeTeamRows.length !== 6) return c.json({ error: 'Set a full 6-Pokemon active team before battling' }, 400);
-  const userBattleTeam = activeTeamRows.map(speciesRowToBattleSpecies);
+  const userBattleTeam = activeTeamRows.map(row => applyStarBonus(speciesRowToBattleSpecies(row), row.star_level));
 
   if (config.entryCost > 0) {
     try {

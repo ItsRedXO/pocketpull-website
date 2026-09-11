@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Star } from 'lucide-react';
 import { PokemonPortrait } from './PokemonPortrait';
 import { typeColor } from './typeColors';
 
@@ -35,7 +36,7 @@ interface PokemonLike {
   name: string; artwork_url: string | null; primary_type: string; overall_rating: number;
   base_attack: number; base_defense: number; base_hp: number; base_speed: number;
   portrait_scale?: number; portrait_offset_x?: number; portrait_offset_y?: number;
-  is_legendary?: number; is_mythical?: number;
+  is_legendary?: number; is_mythical?: number; star_level?: number;
 }
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname }: {
@@ -88,8 +89,13 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
       <div className="text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1" style={{ color: style.text }}>
         {nickname || mon.name}
       </div>
-      <div className="text-[9px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: style.subtext }}>
+      <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: style.subtext }}>
         {TIER_LABEL[tier]}
+        {!!mon.star_level && (
+          <span className="flex items-center gap-px ml-0.5">
+            {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={8} fill="#facc15" className="text-[#facc15]" />)}
+          </span>
+        )}
       </div>
 
       <div className="w-full grid grid-cols-4 border-t" style={{ background: style.statBg, borderColor: 'rgba(0,0,0,0.25)' }}>
