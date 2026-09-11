@@ -1,6 +1,7 @@
 import { query, transaction } from '../lib/postgres';
-import { pickShopItems, SHOP_ROTATION_MS, type BrawlItemDef, type ItemRarity, type ItemKind } from '../lib/brawl/items';
+import { pickShopItems, type BrawlItemDef, type ItemRarity, type ItemKind } from '../lib/brawl/items';
 import { applyBrawlWalletTransaction, getWalletBalance } from './brawl';
+import { startOfDayInZone, nextResetAt } from '../lib/dailyReset';
 
 export interface ItemRow {
   key: string; name: string; description: string; rarity: ItemRarity; kind: ItemKind;
@@ -24,12 +25,16 @@ interface ShopStateRow { id: number; item_keys: string[]; next_item_keys: string
 export interface ShopStatus { items: BrawlItemDef[]; rotatedAt: string; nextRotateAt: string; }
 
 /**
- * Lazily rotates the shared shop stock once 24h have passed since the last
- * rotation -- "fill in on read, no background job" pattern, same as
- * Challenges. Promotes whatever admins staged in next_item_keys (or rolls a
- * fresh set if nothing was staged), then immediately stages a new "next"
- * batch so there's always something to preview/edit ahead of the following
- * rotation.
+ * Lazily rotates the shared shop stock once today's midnight-Pacific
+ * boundary has passed since the last rotation -- "fill in on read, no
+ * background job" pattern, same as Challenges. Anchored to a fixed
+ * wall-clock moment (not a rolling 24h-since-last-rotation timer) so it
+ * resets at the same instant every night regardless of when a player or
+ * admin last touched it -- same boundary the daily battle cap uses (see
+ * countRunsToday), by design. Promotes whatever admins staged in
+ * next_item_keys (or rolls a fresh set if nothing was staged), then
+ * immediately stages a new "next" batch so there's always something to
+ * preview/edit ahead of the following rotation.
  */
 export async function getShopStatus(): Promise<ShopStatus> {
   return transaction(async client => {
@@ -37,7 +42,7 @@ export async function getShopStatus(): Promise<ShopStatus> {
     if (!row) row = (await client.query('INSERT INTO brawl_item_shop_state (id) VALUES (1) RETURNING *')).rows[0];
     const allItems = await listAllItems();
 
-    const stale = !row!.item_keys?.length || new Date(row!.rotated_at).getTime() + SHOP_ROTATION_MS <= Date.now();
+    const stale = !row!.item_keys?.length || new Date(row!.rotated_at).getTime() < startOfDayInZone(new Date()).getTime();
     if (stale) {
       const promoted = row!.next_item_keys?.length ? row!.next_item_keys : pickShopItems(allItems.map(toDef));
       const freshNext = pickShopItems(allItems.map(toDef));
@@ -52,7 +57,7 @@ export async function getShopStatus(): Promise<ShopStatus> {
 
     const byKey = new Map(allItems.map(i => [i.key, i]));
     const items = row!.item_keys.map(k => byKey.get(k)).filter((i): i is ItemRow => !!i).map(toDef);
-    return { items, rotatedAt: row!.rotated_at, nextRotateAt: new Date(new Date(row!.rotated_at).getTime() + SHOP_ROTATION_MS).toISOString() };
+    return { items, rotatedAt: row!.rotated_at, nextRotateAt: nextResetAt(new Date()).toISOString() };
   });
 }
 

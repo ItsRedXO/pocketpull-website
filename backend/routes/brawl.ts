@@ -267,7 +267,7 @@ app.post('/brawl/battle/play', async c => {
   }
 
   const dailyCount = await countRunsToday(userId);
-  if (dailyCount >= DAILY_BATTLE_CAP) return c.json({ error: `Daily battle limit reached (${DAILY_BATTLE_CAP}/day). Resets at midnight UTC.` }, 429);
+  if (dailyCount >= DAILY_BATTLE_CAP) return c.json({ error: `Daily battle limit reached (${DAILY_BATTLE_CAP}/day). Resets at midnight PT.` }, 429);
 
   const activeTeamRows = await getActiveTeamSpecies(userId);
   if (activeTeamRows.length !== 6) return c.json({ error: 'Set a full 6-Pokemon active team before battling' }, 400);

@@ -17,7 +17,6 @@ export interface BrawlItemDef {
   active: boolean;
 }
 
-export const SHOP_ROTATION_MS = 24 * 60 * 60 * 1000;
 export const SHOP_RARITY_QUOTAS: Record<ItemRarity, number> = { common: 5, uncommon: 3, rare: 2 };
 
 function shuffled<T>(items: T[]): T[] {

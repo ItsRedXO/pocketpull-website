@@ -4,6 +4,7 @@ import { uid } from '../lib/auth';
 import type { BattleSpecies } from '../lib/brawl/battleSim';
 import type { PokeType } from '../lib/brawl/typeChart';
 import { DAILY_BONUS_COOLDOWN_MS } from '../lib/brawl/tiers';
+import { startOfDayInZone } from '../lib/dailyReset';
 
 export interface SpeciesRow {
   id: number; name: string; primary_type: string; secondary_type: string | null;
@@ -295,7 +296,7 @@ export interface BattleRunRow {
   id: string; user_id: string; tier: string; status: string; entry_cost: number; total_reward: number; matches_won: number; matches_total: number; created_at: string; completed_at: string | null;
 }
 export async function countRunsToday(userId: string): Promise<number> {
-  const rows = await query<{ count: string }>("SELECT count(*)::text count FROM brawl_battle_runs WHERE user_id=$1 AND created_at >= date_trunc('day', now())", [userId]);
+  const rows = await query<{ count: string }>('SELECT count(*)::text count FROM brawl_battle_runs WHERE user_id=$1 AND created_at >= $2', [userId, startOfDayInZone(new Date())]);
   return Number(rows[0]?.count || 0);
 }
 export async function lastRunForTier(userId: string, tier: string): Promise<BattleRunRow | null> {

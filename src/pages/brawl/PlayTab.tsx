@@ -97,9 +97,8 @@ export function PlayTab() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-        <div className="flex items-center gap-2"><Trophy size={16} className="text-[#9b5cff]" /><h3 className="font-display text-sm uppercase tracking-widest text-white/70">Battle Tiers</h3></div>
-        <div className="text-[11px] text-white/40">{profile.dailyBattlesUsed}/{profile.dailyBattleCap} battles today</div>
+      <div className="flex items-center gap-2 mb-5">
+        <Trophy size={16} className="text-[#9b5cff]" /><h3 className="font-display text-sm uppercase tracking-widest text-white/70">Battle Tiers</h3>
       </div>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
       <div className="relative">
