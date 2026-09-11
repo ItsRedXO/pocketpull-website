@@ -63,6 +63,8 @@ export const DAILY_BONUS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export interface SafariTierConfig {
   tier: number;
+  label: string;
+  description: string;
   cost: number;
   count: number;
   overallMin: number;
@@ -70,12 +72,41 @@ export interface SafariTierConfig {
   bonusChance: number;
   bonusOverallMin: number;
   bonusOverallMax: number;
+  // Evolution stages this tier's pool draws from (1 = basic, 2 = 2nd stage, 3 =
+  // fully evolved). Omitted = every stage.
+  stages?: number[];
+  // Excludes true Legendaries / Mythicals from the pool. There's no dedicated
+  // "pseudo-legendary" flag in the species table (Dragonite, Tyranitar, etc. are
+  // just strong non-legendary mons), so that theme comes purely from the overall
+  // range at tier 4+ once real Legendaries/Mythicals are allowed to compete for
+  // those same high overall bands.
+  excludeLegendary?: boolean;
+  excludeMythical?: boolean;
 }
 
 export const SAFARI_TIERS: SafariTierConfig[] = [
-  { tier: 1, cost: 500, count: 2, overallMin: 48, overallMax: 55, bonusChance: 0.05, bonusOverallMin: 56, bonusOverallMax: 70 },
-  { tier: 2, cost: 1250, count: 2, overallMin: 48, overallMax: 60, bonusChance: 0.08, bonusOverallMin: 61, bonusOverallMax: 75 },
-  { tier: 3, cost: 3000, count: 2, overallMin: 50, overallMax: 65, bonusChance: 0.06, bonusOverallMin: 66, bonusOverallMax: 80 },
-  { tier: 4, cost: 6500, count: 2, overallMin: 55, overallMax: 70, bonusChance: 0.06, bonusOverallMin: 71, bonusOverallMax: 85 },
-  { tier: 5, cost: 12000, count: 2, overallMin: 60, overallMax: 80, bonusChance: 0.07, bonusOverallMin: 81, bonusOverallMax: 99 },
+  {
+    tier: 1, label: 'Basic Evolutions', description: 'Every pull here is a basic, first-stage Pokemon.',
+    cost: 500, count: 2, overallMin: 30, overallMax: 55, bonusChance: 0.05, bonusOverallMin: 56, bonusOverallMax: 69,
+    stages: [1], excludeLegendary: true, excludeMythical: true,
+  },
+  {
+    tier: 2, label: '2nd Stage Evolutions', description: 'A mix of first and second-stage Pokemon.',
+    cost: 1250, count: 2, overallMin: 40, overallMax: 65, bonusChance: 0.05, bonusOverallMin: 66, bonusOverallMax: 75,
+    stages: [1, 2], excludeLegendary: true, excludeMythical: true,
+  },
+  {
+    tier: 3, label: '3rd Stage Evolutions', description: 'All three evolution stages are in the pool.',
+    cost: 3000, count: 2, overallMin: 55, overallMax: 75, bonusChance: 0.05, bonusOverallMin: 70, bonusOverallMax: 85,
+    excludeLegendary: true, excludeMythical: true,
+  },
+  {
+    tier: 4, label: 'Pseudo-Legendaries & Mythicals', description: 'Where Mythicals and near-legendary powerhouses start showing up.',
+    cost: 6500, count: 2, overallMin: 60, overallMax: 80, bonusChance: 0.05, bonusOverallMin: 75, bonusOverallMax: 90,
+    excludeLegendary: true,
+  },
+  {
+    tier: 5, label: 'Legends Encounter', description: 'Change the future with a legendary pull.',
+    cost: 12000, count: 2, overallMin: 70, overallMax: 90, bonusChance: 0.05, bonusOverallMin: 75, bonusOverallMax: 99,
+  },
 ];

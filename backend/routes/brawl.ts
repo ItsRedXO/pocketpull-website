@@ -121,7 +121,9 @@ app.post('/brawl/safari/pull', async c => {
     if (e.message === 'INSUFFICIENT_POKEDOLLARS') return c.json({ error: 'Not enough pokedollars for this Safari Zone tier' }, 400);
     throw e;
   }
-  const pool = await query<{ id: number; overall_rating: number }>('SELECT id, overall_rating FROM brawl_pokemon_species');
+  const pool = await query<{ id: number; overall_rating: number; evolution_stage: number; is_legendary: number; is_mythical: number }>(
+    'SELECT id, overall_rating, evolution_stage, is_legendary, is_mythical FROM brawl_pokemon_species',
+  );
   const speciesIds = rollSafariPull(tierConfig, pool);
   const instanceIds = await insertInstances(userId, speciesIds, 'safari');
   await insertSafariPull(userId, tierConfig.tier, tierConfig.cost, speciesIds);

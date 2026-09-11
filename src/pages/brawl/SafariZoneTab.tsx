@@ -50,9 +50,9 @@ export function SafariZoneTab() {
               className="relative rounded-xl border p-4 flex flex-col gap-2 overflow-hidden"
               style={{ borderColor: `${color}45`, background: `linear-gradient(160deg, ${color}14 0%, rgba(255,255,255,0.02) 60%)` }}>
               <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl opacity-30" style={{ background: color }} />
-              <h4 className="font-display text-sm uppercase tracking-wider" style={{ color }}>Tier {t.tier}</h4>
-              <div className="text-[11px] text-white/50">Guarantees {t.count} Pokemon, overall {t.overallMin}-{t.overallMax}</div>
-              <div className="text-[10px] text-white/30">Small chance ({Math.round(t.bonusChance * 100)}%) of {t.bonusOverallMin}-{t.bonusOverallMax} overall</div>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">Tier {t.tier}</span>
+              <h4 className="font-display text-sm uppercase tracking-wider -mt-1" style={{ color }}>{t.label}</h4>
+              <div className="text-[11px] text-white/50">{t.description}</div>
               <div className="flex items-center gap-1.5 text-[#facc15] text-sm font-bold mt-1"><Coins size={14} /> {t.cost.toLocaleString()}</div>
               <motion.button onClick={() => handlePull(t.tier)} disabled={!affordable || pulling === t.tier}
                 whileHover={affordable ? { scale: 1.03 } : undefined} whileTap={affordable ? { scale: 0.96 } : undefined}

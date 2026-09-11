@@ -41,7 +41,11 @@ export interface BattleTierConfig {
   opponentOverallMin: number; opponentOverallMax: number;
   unlockAfter: { counter: string; count: number } | null;
 }
-export interface SafariTierConfig { tier: number; cost: number; count: number; overallMin: number; overallMax: number; bonusChance: number; bonusOverallMin: number; bonusOverallMax: number; }
+export interface SafariTierConfig {
+  tier: number; label: string; description: string; cost: number; count: number;
+  overallMin: number; overallMax: number; bonusChance: number; bonusOverallMin: number; bonusOverallMax: number;
+  stages?: number[]; excludeLegendary?: boolean; excludeMythical?: boolean;
+}
 export interface BrawlConfig {
   battleTiers: Record<string, BattleTierConfig>; safariTiers: SafariTierConfig[]; dailyBattleCap: number;
   tierRatingDeltas: Record<string, { win: number; loss: number }>;
