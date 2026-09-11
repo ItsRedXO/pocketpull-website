@@ -240,19 +240,36 @@ app.post('/admin/auth/bulk-migrate-next', async (c) => {
   return c.json({ done: false, migrated: next.email });
 });
 
+/** True if the given YYYY-MM-DD date of birth is 18+ years ago as of today (UTC). */
+function isAtLeast18(dateOfBirth: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return false;
+  const dob = new Date(`${dateOfBirth}T00:00:00Z`);
+  if (Number.isNaN(dob.getTime())) return false;
+  const today = new Date();
+  if (dob.getTime() > today.getTime()) return false;
+  let age = today.getUTCFullYear() - dob.getUTCFullYear();
+  const hadBirthdayThisYear = today.getUTCMonth() > dob.getUTCMonth() || (today.getUTCMonth() === dob.getUTCMonth() && today.getUTCDate() >= dob.getUTCDate());
+  if (!hadBirthdayThisYear) age -= 1;
+  return age >= 18;
+}
+
 /**
  * POST /auth/complete-supabase-signup
  *
  * Phase 5: creates the PocketPull account row for a brand-new,
  * Supabase-native signup (one that never touched Blink at all). Takes no
- * body -- username and referralCode were embedded in the Supabase user's
- * own metadata at supabase.auth.signUp() time (options.data), so this
- * works identically whether a session exists immediately (email
+ * body -- username, referralCode and dateOfBirth were embedded in the
+ * Supabase user's own metadata at supabase.auth.signUp() time (options.data),
+ * so this works identically whether a session exists immediately (email
  * confirmation off) or only later once the user clicks the confirmation
  * link (the frontend calls this the first time it sees *any* verified
  * Supabase session with no linked account -- see useSupabaseAuthUser in
  * useAuth.ts). Idempotent: a second call for an already-linked identity
  * just returns the existing account instead of erroring.
+ *
+ * The 18+ check happens client-side too (immediate feedback in the signup
+ * form), but this server-side check is the real gate -- the client check is
+ * trivially bypassed via devtools, this one is not.
  */
 app.post('/auth/complete-supabase-signup', async (c) => {
   let claims;
@@ -270,6 +287,9 @@ app.post('/auth/complete-supabase-signup', async (c) => {
   const meta = (claims.raw?.user_metadata as Record<string, unknown>) || {};
   let username = String(meta.username || '').trim();
   const referralCodeInput = String(meta.referralCode || '').trim().toUpperCase();
+  const dateOfBirth = String(meta.dateOfBirth || '').trim();
+
+  if (!isAtLeast18(dateOfBirth)) return c.json({ error: 'You must be 18 or older to create an account' }, 403);
 
   if (username && (username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username))) username = '';
   if (username) {
@@ -290,9 +310,9 @@ app.post('/auth/complete-supabase-signup', async (c) => {
 
   const referralCode = Math.random().toString(36).slice(2, 10).toUpperCase();
   await query(
-    `INSERT INTO users (id, email, username, display_name, avatar_url, balance, matched_balance, email_verified, role, is_banned, is_deleted, referral_code, referred_by_id, referral_reward_paid, auth_user_id)
-     VALUES ($1,$2,$3,$3,'',0,0,1,'',0,0,$4,$5,0,$6)`,
-    [userId, claims.email, username, referralCode, referredById, claims.authUserId]
+    `INSERT INTO users (id, email, username, display_name, avatar_url, balance, matched_balance, email_verified, role, is_banned, is_deleted, referral_code, referred_by_id, referral_reward_paid, auth_user_id, date_of_birth)
+     VALUES ($1,$2,$3,$3,'',0,0,1,'',0,0,$4,$5,0,$6,$7)`,
+    [userId, claims.email, username, referralCode, referredById, claims.authUserId, dateOfBirth]
   );
 
   return c.json({ success: true, userId, alreadyExists: false });

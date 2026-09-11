@@ -1,12 +1,33 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Eye, EyeOff, Mail, Lock, User, User2, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Eye, EyeOff, Mail, Lock, User, User2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTab?: 'login' | 'signup' | 'forgot';
+}
+
+/** True if the given YYYY-MM-DD date of birth is 18+ years ago as of today. */
+function isAtLeast18(dateOfBirth: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return false;
+  const dob = new Date(`${dateOfBirth}T00:00:00`);
+  if (Number.isNaN(dob.getTime())) return false;
+  const today = new Date();
+  if (dob.getTime() > today.getTime()) return false;
+  let age = today.getFullYear() - dob.getFullYear();
+  const hadBirthdayThisYear = today.getMonth() > dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+  if (!hadBirthdayThisYear) age -= 1;
+  return age >= 18;
+}
+
+// Browser date-picker ceiling: today minus 18 years, so pickers that honor
+// `max` won't even let a too-young birthdate be selected in the first place.
+function eighteenYearsAgo(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().slice(0, 10);
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTab = 'login' }) => {
@@ -20,6 +41,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -35,6 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     setPassword('');
     setConfirmPassword('');
     setUsername('');
+    setDateOfBirth('');
     setReferralCode('');
     setError('');
     setSuccess('');
@@ -72,16 +95,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !username || !confirmPassword) { setError('Please fill in all fields'); return; }
+    if (!email || !password || !username || !confirmPassword || !dateOfBirth) { setError('Please fill in all fields'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     if (username.length < 3) { setError('Username must be at least 3 characters'); return; }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) { setError('Username can only contain letters, numbers, and underscores'); return; }
+    if (!isAtLeast18(dateOfBirth)) { setError('You must be 18 or older to create an account.'); return; }
     if (!agreeTerms) { setError('You must agree to the Terms of Service'); return; }
     setIsSubmitting(true);
     setError('');
     try {
-      await signUp(email, password, username, referralCode);
+      await signUp(email, password, username, referralCode, dateOfBirth);
       setSuccess('Account created! Welcome to PocketPull — you can now log in.');
       setTimeout(() => { switchTab('login'); onClose(); }, 2000);
     } catch (err) {
@@ -329,6 +353,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                       style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Date of Birth</label>
+                  <div className="relative">
+                    <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={e => setDateOfBirth(e.target.value)}
+                      max={eighteenYearsAgo()}
+                      min="1900-01-01"
+                      className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">You must be 18 or older to sign up.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">Password</label>

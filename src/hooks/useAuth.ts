@@ -162,17 +162,18 @@ export function useAuth() {
     return result;
   };
 
-  const signUp = async (email: string, password: string, username: string, referralCode?: string) => {
+  const signUp = async (email: string, password: string, username: string, referralCode?: string, dateOfBirth?: string) => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedUsername = username.trim();
     const trimmedReferral = referralCode?.trim().toUpperCase() || '';
+    const trimmedDob = dateOfBirth?.trim() || '';
     if (trimmedReferral) localStorage.setItem('pending_referral_code', trimmedReferral);
 
     if (supabase) {
       const { data, error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
-        options: { data: { username: trimmedUsername, referralCode: trimmedReferral } },
+        options: { data: { username: trimmedUsername, referralCode: trimmedReferral, dateOfBirth: trimmedDob } },
       });
       if (!error) {
         if (!data.session) {
