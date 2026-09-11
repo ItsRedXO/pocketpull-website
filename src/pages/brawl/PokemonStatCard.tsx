@@ -5,10 +5,20 @@ import { typeColor } from './typeColors';
 
 export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
 
+// Legendary is a species flag, not a stat threshold -- a Legendary/Mythical
+// is always Legendary tier regardless of its actual stats (an accurate but
+// mediocre-stat legendary is still a legendary), and no amount of raw stat
+// can buy a regular species into that tier. The bronze/silver/gold cutoffs
+// below are calibrated against the real post-rescale overall_rating spread
+// for everyone else (see scaleBaseStat in backend/lib/brawl/rating.ts): the
+// strongest non-legendary in the dex (Dragonite) lands at 66, so a 65+
+// "gold" cutoff would leave gold nearly empty. 40/55 puts most basic-stage
+// and early mons in bronze, the solid mid-tier in silver, and the genuine
+// stat leaders in gold.
 export function getCardTier(mon: { overall_rating: number; is_legendary?: number; is_mythical?: number }): CardTier {
   if (mon.is_legendary || mon.is_mythical) return 'legendary';
-  if (mon.overall_rating >= 80) return 'gold';
-  if (mon.overall_rating >= 65) return 'silver';
+  if (mon.overall_rating >= 55) return 'gold';
+  if (mon.overall_rating >= 40) return 'silver';
   return 'bronze';
 }
 
