@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { generateUsername, seededRandom, getDailySeed } from '../lib/simulation';
 import type { BattleWithPlayers, BattlePlayer, BattleStatus } from '../pages/battles/battleTypes';
 import { usePacks } from './usePacks';
@@ -145,5 +145,74 @@ function createSimPlayer(battleId: string, seed: string, isHost: boolean): Battl
     cardsJson: '[]',
     totalValue: 0,
     isWinner: false
+  };
+}
+
+/**
+ * Hook for a "recent battles" feed (e.g. the homepage's Platform Activity
+ * section) that actually matches the activity level shown on the Pack
+ * Battles page -- previously that section only queried real completed
+ * battles, which are sparse, while Pack Battles fills itself with
+ * `useSimulatedBattles` above; the two never agreed with each other. Reuses
+ * the same daily-seeded generation approach so both surfaces feel like one
+ * consistent (simulated) economy, just producing already-finished battles
+ * with a decided winner instead of lobbies still waiting to fill.
+ */
+export function useSimulatedRecentBattles(count = 6) {
+  const { data: packs = [] } = usePacks();
+  // Rotates the feed every ~45s so it doesn't look frozen, without needing
+  // any backend state.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 45_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return useMemo(() => {
+    if (packs.length === 0) return [];
+    const dailySeed = getDailySeed();
+    return Array.from({ length: count }, (_, i) => createSimRecentBattle(packs, `${dailySeed}_recentfeed_${tick}_${i}`));
+  }, [packs, tick, count]);
+}
+
+function createSimRecentBattle(packs: any[], seed: string) {
+  const rng = seededRandom(seed);
+  const playerCount = [2, 3, 4][Math.floor(rng() * 3)];
+  const mode = rng() < 0.25 ? 'shared' : 'standard';
+
+  const packCount = 1 + Math.floor(rng() * 3);
+  const selectedPacks: { name: string }[] = [];
+  let totalCost = 0;
+  for (let i = 0; i < packCount; i++) {
+    const pack = packs[Math.floor(rng() * packs.length)];
+    if (pack) {
+      selectedPacks.push({ name: pack.name });
+      totalCost += Number(pack.price);
+    }
+  }
+
+  const players = Array.from({ length: playerCount }, (_, idx) => ({
+    username: generateUsername(seed + '_p' + idx),
+    isAi: rng() < 0.4,
+    isWinner: false,
+  }));
+  players[Math.floor(rng() * players.length)].isWinner = true;
+
+  // Finished sometime in the last ~40 minutes, so the feed reads as recent
+  // without every entry claiming to have just ended simultaneously.
+  const minutesAgo = Math.floor(rng() * 40);
+  const endedAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+
+  return {
+    id: 'sim_recent_' + seed,
+    status: 'finished' as BattleStatus,
+    mode,
+    playerCount,
+    endedAt,
+    startedAt: endedAt,
+    createdAt: endedAt,
+    packsJson: JSON.stringify(selectedPacks),
+    totalCost,
+    players,
   };
 }

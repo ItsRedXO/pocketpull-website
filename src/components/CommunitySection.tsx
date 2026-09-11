@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { startOfDay } from 'date-fns';
 import { blink } from '../lib/blink';
 import { useLiveCounters } from '../hooks/useLiveCounters';
 import { useGodPulls } from '../hooks/usePacks';
+import { useSimulatedRecentBattles } from '../hooks/useSimulatedBattles';
 
 const RARITY_LABEL: Record<string, string> = {
   common: 'Common',
@@ -81,6 +81,20 @@ export const CommunitySection: React.FC = () => {
     refetchInterval: 5000,
   });
 
+  // Real battles are sparse -- fold in the same simulated activity the Pack
+  // Battles page already shows (see useSimulatedBattles) so this "recent"
+  // feed doesn't look dead next to it, sorted together by recency.
+  const simulatedRecentBattles = useSimulatedRecentBattles(6);
+  const recentBattles = useMemo(() => {
+    return [...realRecentBattles, ...simulatedRecentBattles]
+      .sort((a: any, b: any) => {
+        const at = new Date(a.endedAt || a.startedAt || a.createdAt).getTime();
+        const bt = new Date(b.endedAt || b.startedAt || b.createdAt).getTime();
+        return bt - at;
+      })
+      .slice(0, 6);
+  }, [realRecentBattles, simulatedRecentBattles]);
+
   const stats = [
     { label: 'Cards Pulled Today', value: cardsWonToday.toLocaleString(), icon: '✨', color: '#9b5cff' },
     { label: 'Active Battles', value: liveBattles.toLocaleString(), icon: '⚔️', color: '#ef4444' },
@@ -152,7 +166,7 @@ export const CommunitySection: React.FC = () => {
             </motion.div>
 
             <div className="space-y-3">
-              {realRecentBattles.length > 0 ? realRecentBattles.map((battle: any, i: number) => {
+              {recentBattles.length > 0 ? recentBattles.map((battle: any, i: number) => {
                 const statusInfo = STATUS_CONFIG[battle.status] || { label: battle.status, color: '#fff', bg: 'rgba(255,255,255,0.1)' };
                 const packs = JSON.parse(battle.packsJson || '[]');
                 const packNames = packs.map((p: any) => p.name).join(', ');

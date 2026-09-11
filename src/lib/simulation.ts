@@ -1,4 +1,4 @@
-import { startOfDay } from 'date-fns';
+import { startOfDayInZone } from './dailyReset';
 
 /**
  * Deterministic pseudo-random number generator using a seed.
@@ -28,20 +28,19 @@ export function generateUsername(seed: string) {
 }
 
 export function getDailySeed() {
-  // Use PST (UTC-8) for daily cycle
-  const now = new Date();
-  const pstOffset = 8 * 60 * 60 * 1000;
-  const pstDate = new Date(now.getTime() - pstOffset);
-  return startOfDay(pstDate).toISOString();
+  // Anchored to midnight Pacific (DST-aware), not each viewer's own local
+  // midnight -- so every visitor sees the same simulated "today" values.
+  return startOfDayInZone(new Date()).toISOString();
 }
 
 /**
- * Returns a value that increases slowly throughout the day.
+ * Returns a value that increases slowly throughout the day, resetting at
+ * midnight Pacific for every visitor regardless of their own timezone.
  * @param base Base value at start of day
  * @param perDay Total expected increase in 24h
  */
 export function getDailyIncrementalValue(base: number, perDay: number) {
-  const start = startOfDay(new Date()).getTime();
+  const start = startOfDayInZone(new Date()).getTime();
   const elapsedMs = Date.now() - start;
   const msPerUnit = (86400 * 1000) / perDay;
   return base + Math.floor(elapsedMs / msPerUnit);

@@ -1,33 +1,35 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { realtime } from '../lib/realtime';
-import { startOfDay } from 'date-fns';
-import { getDailyIncrementalValue, getDailySeed, seededRandom } from '../lib/simulation';
+import { getDailyIncrementalValue } from '../lib/simulation';
+import { startOfDayInZone } from '../lib/dailyReset';
 import { getLeaderboardData } from '../lib/leaderboard';
 
 /**
  * Hook to manage global live counters for the hero section and platform activity.
- * - Packs Opened Today: Deterministic time-based curve (40k–80k/day), computed server-side.
- *     Resets at midnight Pacific. Only ever increases.
- * - Cards Won Today: Targeted ~10,000/day, resets at midnight
- * - Biggest Pull Today: Synchronized with #1 on leaderboard
- * - Live Players: Simulated 150-250 (fluctuating) + real presence count
- * - Total Upgrades: Targeted ~5,000/day, resets at midnight
- * - Exchanges Today: Targeted ~3,000/day, resets at midnight
+ * - Packs Opened Today: Deterministic time-based curve (40k-80k/day), computed
+ *     locally (see getDailyIncrementalValue) so the range is exact and
+ *     verifiable -- previously sourced from a legacy external endpoint whose
+ *     actual output drifted well outside its own documented range.
+ *     Resets at midnight Pacific. Only ever increases within a day.
+ * - Cards Won Today: Targeted ~10,000/day, resets at midnight Pacific.
+ * - Biggest Pull Today: Synchronized with #1 on leaderboard (itself capped at
+ *     the real catalog's highest card value -- see leaderboard.ts).
+ * - Live Players: Simulated 150-250 (fluctuating) + real presence count.
+ * - Total Upgrades: Targeted ~5,000/day, resets at midnight Pacific.
+ * - Exchanges Today: Targeted ~3,000/day, resets at midnight Pacific.
  */
 export function useLiveCounters() {
-  // Track previous value so the counter only ever goes up within a session
-  const packsOpenedRef = useRef(0);
-  const lastDateRef = useRef('');
+  // 1. Packs Opened (local deterministic curve; re-sampled periodically so it
+  // still visibly ticks up like a live counter without any network call).
+  const [packsOpened, setPacksOpened] = useState(() => getDailyIncrementalValue(40000, 40000));
+  useEffect(() => {
+    const interval = setInterval(() => setPacksOpened(getDailyIncrementalValue(40000, 40000)), 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Reset the monotonic ref when the Pacific date changes
-  const todayPacific = new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
-  if (lastDateRef.current && lastDateRef.current !== todayPacific) {
-    packsOpenedRef.current = 0;
-  }
-  lastDateRef.current = todayPacific;
-
-  // 1. Packs Opened & Live Battles (Centralized backend source, fast polling)
+  // Live Battles (real count from the centralized battle-stats endpoint, kept
+  // as-is -- only packsOpened from this source was inaccurate/unpredictable).
   const { data: backendStats } = useQuery({
     queryKey: ['battle-stats-centralized'],
     queryFn: async () => {
@@ -40,12 +42,6 @@ export function useLiveCounters() {
     retry: false,
   });
 
-  const rawPacksOpened = backendStats?.packsOpened ?? 0;
-  // Only ever go up within a day; day-reset handled above
-  if (rawPacksOpened > packsOpenedRef.current) {
-    packsOpenedRef.current = rawPacksOpened;
-  }
-  const packsOpened = packsOpenedRef.current;
   const realLiveBattles = backendStats?.liveBattles || 0;
 
   // Simulate active battles count to keep community section feeling alive
@@ -73,7 +69,7 @@ export function useLiveCounters() {
 
   // 5. Average Pull Value (Fluctuating around $120)
   const avgPullValue = useMemo(() => {
-    const seed = startOfDay(new Date()).getTime();
+    const seed = startOfDayInZone(new Date()).getTime();
     const hour = new Date().getHours();
     const minute = new Date().getMinutes();
     const fluctuation = Math.sin(seed + hour + minute) * 15;

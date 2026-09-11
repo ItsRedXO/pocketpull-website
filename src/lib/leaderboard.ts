@@ -129,18 +129,25 @@ async function loadLeaderboardData(type: 'pulls' | 'packs' | 'upgrades', userId?
         // Final value: never exceeds the absolute highest value card in the pool
         val = Math.min(maxAvailableValue, val + noise);
       } else {
-        val = 100 + (1 - i / targetCount) * 2000 + (dayProgress * 500);
+        // Fallback pool if the real card list didn't load -- capped near the
+        // catalog's actual current highest card value so it doesn't invent a
+        // number nothing on the site is actually worth.
+        val = 100 + (1 - i / targetCount) * 2900 + (dayProgress * 100);
       }
     } else if (type === 'packs') {
-      // Base value + a large component that increases throughout the day
-      const dailyIncrease = dayProgress * (200 + entryRng() * 300);
-      val = 50 + (1 - i / targetCount) * 4000 + dailyIncrease;
+      // A realistic single-day total for even the most active player: top
+      // simulated entry lands around 150-180 packs opened today, not
+      // thousands (previously topped out near 4,500/day, wildly inflated).
+      const dailyIncrease = dayProgress * (10 + entryRng() * 15);
+      val = 5 + (1 - i / targetCount) * 150 + dailyIncrease;
       // Active fluctuation
-      val += (activeRng() * 2);
+      val += (activeRng() * 1);
     } else if (type === 'upgrades') {
-      val = 20 + (1 - i / targetCount) * 300 + (dayProgress * 100);
+      // Similarly scaled down: top simulated entry lands around 55-65
+      // upgrade attempts today (previously topped out near 420/day).
+      val = 2 + (1 - i / targetCount) * 45 + (dayProgress * 15);
       // Active fluctuation shifts ranking
-      val += (activeRng() * 3);
+      val += (activeRng() * 1);
     }
 
     simulatedEntries.push({
@@ -153,7 +160,17 @@ async function loadLeaderboardData(type: 'pulls' | 'packs' | 'upgrades', userId?
   }
 
   // 4. Combine, Sort and Format
-  const all = [...realEntries, ...simulatedEntries]
+  let combined = [...realEntries, ...simulatedEntries];
+  // "Biggest pull" can never exceed what's actually the highest-value card in
+  // the live catalog -- clamps any entry (including a real recorded pull from
+  // before the catalog changed) rather than ever showing a dollar figure
+  // nothing on the site is priced at. Display-only: never rewrites the
+  // underlying recorded value.
+  if (type === 'pulls' && cardPool.length > 0) {
+    const maxAvailableValue = Number(cardPool[0].estimatedValue);
+    combined = combined.map(e => ({ ...e, numericValue: Math.min(e.numericValue, maxAvailableValue) }));
+  }
+  const all = combined
     .sort((a, b) => b.numericValue - a.numericValue)
     .slice(0, 100);
 
