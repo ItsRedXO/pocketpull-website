@@ -82,7 +82,7 @@ app.patch('/admin/brawl/species/:id', async c => {
       fields.overall_rating = computeOverallRating({
         hp: merged.base_hp, attack: merged.base_attack, defense: merged.base_defense,
         spAttack: merged.base_sp_attack, spDefense: merged.base_sp_defense, speed: merged.base_speed,
-      });
+      }, !!(merged.is_legendary || merged.is_mythical));
     }
   }
 

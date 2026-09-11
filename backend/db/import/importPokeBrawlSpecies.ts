@@ -96,7 +96,7 @@ async function importOne(dexId: number): Promise<void> {
     spDefense: scaleBaseStat(statFor(pokemon.stats, 'special-defense')),
     speed: scaleBaseStat(statFor(pokemon.stats, 'speed')),
   };
-  const overall = computeOverallRating(stats);
+  const overall = computeOverallRating(stats, species.is_legendary || species.is_mythical);
   const primaryType = pokemon.types.find(t => true) ? (pokemon.types[0].type.name as PokeType) : null;
   const secondaryType = pokemon.types[1]?.type.name as PokeType | undefined;
   if (!primaryType) throw new Error(`No type data for dex id ${dexId}`);
