@@ -79,9 +79,14 @@ app.post('/auth/password-reset', async (c) => {
                 <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 24px;">
                   We received a request to reset your password. Click the button below to choose a new one. This link is valid for 1 hour.
                 </p>
-                <p style="margin:0 0 24px;">
-                  <a href="${resetUrl}" style="display:inline-block;background-color:#00c8ff;color:#04121a;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;">Reset Password</a>
-                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td bgcolor="#00c8ff" align="center" style="background-color:#00c8ff;border-radius:10px;">
+                      <a href="${resetUrl}" style="display:inline-block;padding:12px 28px;font-family:sans-serif;font-size:14px;font-weight:700;color:#04121a;text-decoration:none;">Reset Password</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="color:#6b7280;font-size:12px;margin:0 0 16px;">Or copy and paste this link into your browser: <a href="${resetUrl}" style="color:#00c8ff;">${resetUrl}</a></p>
                 <p style="color:#6b7280;font-size:12px;margin:0;">If you didn't request a password reset, you can safely ignore this email.</p>
               </div>
               <div style="padding:14px 36px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;background:rgba(0,0,0,0.2);">
