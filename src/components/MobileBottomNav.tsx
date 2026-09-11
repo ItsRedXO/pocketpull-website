@@ -10,9 +10,9 @@ const bottomNavTabs: { id: Page; label: string; icon: React.FC<{ size?: number; 
   { id: 'home', label: 'Packs', icon: Package },
   { id: 'upgrader', label: 'Upgrader', icon: Zap },
   { id: 'battle', label: 'Battles', icon: Swords },
-  { id: 'brawl', label: 'Brawl', icon: Gamepad2 },
   { id: 'exchanger', label: 'Exchanger', icon: ArrowLeftRight },
   { id: 'inventory', label: 'Collection', icon: Archive },
+  { id: 'brawl', label: 'Brawl', icon: Gamepad2 },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = React.memo(({ currentPage, onPageChange }) => (

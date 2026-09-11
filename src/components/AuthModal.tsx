@@ -365,7 +365,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                       max={eighteenYearsAgo()}
                       min="1900-01-01"
                       className="block w-full min-w-0 pl-9 pr-2 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark', boxSizing: 'border-box', maxWidth: '100%' }}
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark', boxSizing: 'border-box', maxWidth: '100%', height: 42, lineHeight: '20px' }}
                     />
                   </div>
                   <p className="text-[11px] text-gray-500 mt-1">You must be 18 or older to sign up.</p>
