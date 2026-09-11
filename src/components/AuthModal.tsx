@@ -364,8 +364,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                       onChange={e => setDateOfBirth(e.target.value)}
                       max={eighteenYearsAgo()}
                       min="1900-01-01"
-                      className="block w-full min-w-0 pl-9 pr-2 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark', boxSizing: 'border-box', maxWidth: '100%', height: 42, lineHeight: '20px' }}
+                      className="block w-full min-w-0 pl-9 pr-2 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none transition-all appearance-none"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark',
+                        boxSizing: 'border-box', maxWidth: '100%', height: 42, lineHeight: '20px',
+                        WebkitAppearance: 'none', MozAppearance: 'textfield',
+                      }}
                     />
                   </div>
                   <p className="text-[11px] text-gray-500 mt-1">You must be 18 or older to sign up.</p>
