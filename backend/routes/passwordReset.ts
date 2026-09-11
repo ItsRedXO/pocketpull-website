@@ -80,7 +80,7 @@ app.post('/auth/password-reset', async (c) => {
                   We received a request to reset your password. Click the button below to choose a new one. This link is valid for 1 hour.
                 </p>
                 <p style="margin:0 0 24px;">
-                  <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#00c8ff,#0099cc);color:#000;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;">Reset Password</a>
+                  <a href="${resetUrl}" style="display:inline-block;background-color:#00c8ff;color:#04121a;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;">Reset Password</a>
                 </p>
                 <p style="color:#6b7280;font-size:12px;margin:0;">If you didn't request a password reset, you can safely ignore this email.</p>
               </div>
