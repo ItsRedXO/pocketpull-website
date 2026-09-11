@@ -4,6 +4,7 @@ import { query } from '../lib/postgres';
 import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, DAILY_BONUS_AMOUNT, DAILY_BONUS_COOLDOWN_MS, type BattleTierId } from '../lib/brawl/tiers';
 import { TIER_RATING_DELTA } from '../lib/brawl/leagues';
 import { simulateBattle } from '../lib/brawl/battleSim';
+import type { PokeType } from '../lib/brawl/typeChart';
 import { rollSafariPull } from '../lib/brawl/safariZone';
 import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
@@ -12,6 +13,7 @@ import {
   getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus,
   evolveInstances, starUpgradeInstance, type BrawlProfile,
 } from '../repositories/brawl';
+import { getChallengeStatus, selectChallenge, advanceChallenge } from '../repositories/brawlChallenges';
 
 // Starter packs are deliberately weaker than the general species pool (28-38
 // overall -- real basic-stage Pokemon top out around 36-37 post-rescale, see
@@ -128,6 +130,7 @@ app.post('/brawl/roster/evolve', async c => {
   }
   try {
     const result = await evolveInstances(userId, sourceSpeciesId, targetSpeciesId, instanceIds);
+    await advanceChallenge(userId, 'evolve_pokemon');
     return c.json({ success: true, newInstanceId: result.newInstanceId, roster: await listInstancesForUser(userId) });
   } catch (e: any) {
     return c.json({ error: EVOLVE_ERROR_MESSAGES[e.message] || 'Evolution failed' }, 400);
@@ -149,6 +152,29 @@ app.post('/brawl/roster/star-upgrade', async c => {
       MAX_STAR_LEVEL: 'That Pokemon is already at the max star level',
     };
     return c.json({ error: messages[e.message] || 'Star upgrade failed' }, 400);
+  }
+});
+
+app.get('/brawl/challenges', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  return c.json(await getChallengeStatus(userId));
+});
+
+app.post('/brawl/challenges/select', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const { challengeId } = await c.req.json().catch(() => ({}));
+  if (typeof challengeId !== 'string') return c.json({ error: 'Invalid request' }, 400);
+  try {
+    const active = await selectChallenge(userId, challengeId);
+    return c.json({ success: true, active: { ...active, progress: 0 } });
+  } catch (e: any) {
+    const messages: Record<string, string> = {
+      NO_CHALLENGE_STATE: 'Challenges not available yet, try again shortly',
+      ALREADY_SELECTED: 'You already have a challenge locked in',
+      ON_COOLDOWN: 'New challenges are still on cooldown',
+      INVALID_CHALLENGE: 'That challenge is no longer available',
+    };
+    return c.json({ error: messages[e.message] || 'Failed to select challenge' }, 400);
   }
 });
 
@@ -177,6 +203,7 @@ app.post('/brawl/safari/pull', async c => {
   const speciesIds = rollSafariPull(tierConfig, pool);
   const instanceIds = await insertInstances(userId, speciesIds, 'safari');
   await insertSafariPull(userId, tierConfig.tier, tierConfig.cost, speciesIds);
+  await advanceChallenge(userId, 'open_safari');
   const pulled = await getSpeciesByIds(speciesIds);
   const balance = await getWalletBalance(userId);
   return c.json({ success: true, pulled, instanceIds, balance });
@@ -220,6 +247,7 @@ app.post('/brawl/battle/play', async c => {
   let matchesWon = 0;
   let ratingDelta = 0;
   const tierRatingDelta = TIER_RATING_DELTA[config.id];
+  const teamMonoType: PokeType | null = activeTeamRows.every(r => r.primary_type === activeTeamRows[0].primary_type) ? (activeTeamRows[0].primary_type as PokeType) : null;
 
   for (let i = 0; i < config.matches; i++) {
     let opponentIds = await pickRandomSpeciesIds(6, { overallMin: config.opponentOverallMin, overallMax: config.opponentOverallMax });
@@ -231,6 +259,10 @@ app.post('/brawl/battle/play', async c => {
     await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, outcome.frames);
     matches.push({ index: i, result, opponentSpeciesIds: opponentIds, frames: outcome.frames, obstacles: outcome.obstacles, maxTicks: outcome.maxTicks });
     ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
+    if (result === 'win') {
+      await advanceChallenge(userId, 'win_matches');
+      if (teamMonoType) await advanceChallenge(userId, 'win_mono_type', { teamType: teamMonoType });
+    }
     if (result === 'loss') break;
     matchesWon++;
   }
@@ -244,6 +276,7 @@ app.post('/brawl/battle/play', async c => {
   }
   if (reward > 0) await applyBrawlWalletTransaction(userId, 'tier_reward', reward, `reward:${run.id}`, { tier: config.id });
   await completeRun(run.id, status, matchesWon, reward);
+  if (status === 'won' && config.id !== 'local_battle') await advanceChallenge(userId, 'win_tournament');
 
   const matchesPlayed = matches.length;
   const counterUpdates: Partial<Record<keyof BrawlProfile, number>> = { wins: matchesWon, losses: matchesPlayed - matchesWon };

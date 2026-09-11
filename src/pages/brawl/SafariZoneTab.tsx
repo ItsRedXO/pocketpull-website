@@ -117,6 +117,7 @@ export function SafariZoneTab() {
       setRevealReady(false);
       qc.invalidateQueries({ queryKey: ['brawl-profile'] });
       qc.invalidateQueries({ queryKey: ['brawl-roster'] });
+      qc.invalidateQueries({ queryKey: ['brawl-challenges'] });
     } catch (e: any) {
       setError(e.message || 'Pull failed');
     } finally {

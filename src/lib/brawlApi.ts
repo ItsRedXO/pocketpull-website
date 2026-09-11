@@ -111,3 +111,28 @@ export interface BrawlBattlePlayResult {
   rating: RatingChangeResult;
 }
 export const playBrawlBattle = (tier: string) => post<BrawlBattlePlayResult>('/brawl/battle/play', { tier });
+
+export type ChallengeType = 'win_matches' | 'win_tournament' | 'evolve_pokemon' | 'open_safari' | 'win_mono_type';
+export type ChallengeReward =
+  | { kind: 'pokedollars'; amount: number }
+  | { kind: 'pokemon'; overallMin: number; overallMax: number };
+export interface ChallengeInstance {
+  id: string; templateKey: string; type: ChallengeType;
+  label: string; description: string; target: number;
+  meta?: { type?: PokeType };
+  reward: ChallengeReward;
+}
+export interface LastCompletedChallenge {
+  label: string; reward: ChallengeReward;
+  pokemon?: { id: number; name: string; artworkUrl: string | null; overallRating: number };
+  completedAt: string;
+}
+export interface ChallengeStatus {
+  status: 'select' | 'active' | 'cooldown';
+  offered: ChallengeInstance[];
+  active: (ChallengeInstance & { progress: number }) | null;
+  cooldownEndsAt: string | null;
+  lastCompleted: LastCompletedChallenge | null;
+}
+export const getBrawlChallenges = () => get<ChallengeStatus>('/brawl/challenges');
+export const selectBrawlChallenge = (challengeId: string) => post<{ success: boolean; active: ChallengeInstance & { progress: number } }>('/brawl/challenges/select', { challengeId });

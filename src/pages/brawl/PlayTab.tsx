@@ -88,6 +88,7 @@ export function PlayTab() {
     setResult(null);
     setPlayingTier(null);
     qc.invalidateQueries({ queryKey: ['brawl-profile'] });
+    qc.invalidateQueries({ queryKey: ['brawl-challenges'] });
   };
 
   if (!config || !profile) return <div className="text-white/40 text-sm py-16 text-center">Loading tiers…</div>;

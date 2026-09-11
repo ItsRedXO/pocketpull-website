@@ -41,6 +41,7 @@ export function EvolveModal({ speciesId, instances, speciesCatalog, onClose }: {
       const chosen = unstarred.slice(0, evolveCost).map(i => i.id);
       await evolveBrawlRoster(speciesId, targetSpeciesId, chosen);
       await qc.invalidateQueries({ queryKey: ['brawl-roster'] });
+      qc.invalidateQueries({ queryKey: ['brawl-challenges'] });
       setResult(`Evolved into ${targetSpecies?.name || 'the next stage'}!`);
     } catch (e: any) {
       setError(e.message || 'Evolve failed');
