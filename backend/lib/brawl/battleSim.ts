@@ -33,6 +33,7 @@ interface Fighter extends BattleSpecies {
   cooldown: number;
   targetId: string | null;
   routeCorner: Point | null;
+  stuckTicks: number;
 }
 
 export interface ArenaObstacle { x1: number; y1: number; x2: number; y2: number; }
@@ -66,8 +67,32 @@ export interface BattleOutcome {
 const HP_SCALE = 2;
 const DAMAGE_SCALE = 0.4;
 const STAB_MULTIPLIER = 1.5;
-const ATTACK_RANGE = 16;
 const MOVE_STEP = 5;
+
+// Physical moves (Tackle, Scratch, Close Combat...) only reach an adjacent
+// target; special moves (Flamethrower, Hydro Pump...) are ranged and can be
+// thrown from further out, but fall off in power the closer they get to their
+// max range -- a Flamethrower at point-blank hits as hard as it should, but
+// grazing the very edge of its range is weaker than landing it mid-range.
+const MELEE_RANGE = 9;
+const RANGED_RANGE = 24;
+const RANGED_FALLOFF_START = 14;
+const RANGED_FALLOFF_FLOOR = 0.6;
+
+function moveRange(move: BrawlMove): { max: number; falloffStart: number | null } {
+  return move.category === 'physical' ? { max: MELEE_RANGE, falloffStart: null } : { max: RANGED_RANGE, falloffStart: RANGED_FALLOFF_START };
+}
+function rangeFalloffMultiplier(move: BrawlMove, dist: number): number {
+  const range = moveRange(move);
+  if (range.falloffStart == null || dist <= range.falloffStart) return 1;
+  const t = clamp((dist - range.falloffStart) / (range.max - range.falloffStart), 0, 1);
+  return 1 - t * (1 - RANGED_FALLOFF_FLOOR);
+}
+
+// A single hit is capped at this fraction of the target's max HP so no
+// species -- however lopsided the matchup -- can one-shot a full-health
+// target. See the damage formula in the main loop for the rest of the curve.
+const ONE_SHOT_CAP = 0.7;
 // 300 ticks is also the simulation's real-time "budget": the frontend runs one
 // tick every 300ms at 1x, so a full-length match is a ~90 second round, same
 // ballpark as a CS2 round timer. Most matches end well before this via a wipe.
@@ -96,7 +121,7 @@ function toFighter(species: BattleSpecies, side: Side, index: number): Fighter {
     ...species, id: `${side}-${index}`, side,
     x: side === 'user' ? 12 : 88, y: 8 + index * 16.4,
     hp: maxHp, maxHp, fainted: false, moves: buildMoveset(species.primaryType, species.secondaryType),
-    cooldown: 0, targetId: null, routeCorner: null,
+    cooldown: 0, targetId: null, routeCorner: null, stuckTicks: 0,
   };
 }
 
@@ -151,7 +176,15 @@ function pickBestCorner(fighter: Fighter, target: Fighter, obstacle: ArenaObstac
     { x: obstacle.x2 + pad, y: obstacle.y2 + pad },
   ].map(c => ({ x: clamp(c.x, FIELD_MIN, FIELD_MAX), y: clamp(c.y, FIELD_MIN, FIELD_MAX) }));
   const reachable = corners.filter(c => !segmentBlockedByObstacle(fighter.x, fighter.y, c.x, c.y, obstacle));
-  const pool = reachable.length ? reachable : corners;
+  let pool = reachable.length ? reachable : corners;
+  // If we're re-picking a corner (this only runs when the target is still not
+  // reachable from wherever we're standing), never re-select one we're already
+  // standing on -- distance-to-self is always 0, so without this a corner that
+  // doesn't actually clear the obstacle's sightline gets picked forever,
+  // producing a zero-movement loop the stuck-detector can't see (moveFighterToward
+  // treats "arrived at waypoint" as success even when the waypoint is a no-op).
+  const notCurrent = pool.filter(c => distance(fighter.x, fighter.y, c.x, c.y) > 1.5);
+  if (notCurrent.length) pool = notCurrent;
   let best = pool[0], bestScore = Infinity;
   for (const c of pool) {
     const score = distance(fighter.x, fighter.y, c.x, c.y) + distance(c.x, c.y, target.x, target.y);
@@ -173,9 +206,62 @@ function nextWaypoint(fighter: Fighter, target: Fighter): { x: number; y: number
   return { x: fighter.routeCorner.x, y: fighter.routeCorner.y, blocked: true };
 }
 
-/** Prefers moves that actually deal damage; only resorts to an immune move if every option is immune. */
-function pickMove(attacker: Fighter, defenderTypes: (PokeType | null)[]): BrawlMove {
-  const scored = attacker.moves.map(move => {
+/** Steps the fighter one tick toward (wx, wy). Three things keep this from
+ * producing the "stuck in place" / "bouncing off the wall" behavior a plain
+ * fixed-length step can fall into:
+ *  1. Never overshoots -- steps the *remaining* distance if it's under
+ *     MOVE_STEP, instead of always taking a full step and potentially
+ *     landing past a route corner and into the obstacle it was routing around.
+ *  2. If the direct step would land inside an obstacle, tries sliding along
+ *     just the X or just the Y axis instead of freezing outright.
+ *  3. If even that fails for several ticks in a row (a fighter genuinely
+ *     wedged against cover), forces a fresh route and nudges it in a random
+ *     open direction to break the deadlock. */
+function moveFighterToward(fighter: Fighter, wx: number, wy: number): void {
+  const dx = wx - fighter.x, dy = wy - fighter.y;
+  const rawLen = Math.hypot(dx, dy);
+
+  // Already (essentially) at the waypoint we were told to route to, yet still
+  // being called -- meaning the caller still sees the target as unreachable
+  // from here. That's a no-progress tick even though nothing looks "blocked",
+  // so it counts toward stuckTicks same as a wall collision would, instead of
+  // silently resetting the counter on a move that goes nowhere.
+  if (rawLen >= 0.5) {
+    const step = Math.min(MOVE_STEP, rawLen);
+    const nx = clamp(fighter.x + (dx / rawLen) * step, FIELD_MIN, FIELD_MAX);
+    const ny = clamp(fighter.y + (dy / rawLen) * step, FIELD_MIN, FIELD_MAX);
+
+    if (!insideAnyObstacle(nx, ny)) {
+      fighter.x = nx; fighter.y = ny; fighter.stuckTicks = 0;
+      return;
+    }
+    if (!insideAnyObstacle(nx, fighter.y)) {
+      fighter.x = nx; fighter.stuckTicks = 0;
+      return;
+    }
+    if (!insideAnyObstacle(fighter.x, ny)) {
+      fighter.y = ny; fighter.stuckTicks = 0;
+      return;
+    }
+  }
+
+  fighter.stuckTicks++;
+  if (fighter.stuckTicks > 4) {
+    fighter.routeCorner = null;
+    fighter.stuckTicks = 0;
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const ex = clamp(fighter.x + Math.cos(angle) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
+      const ey = clamp(fighter.y + Math.sin(angle) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
+      if (!insideAnyObstacle(ex, ey)) { fighter.x = ex; fighter.y = ey; break; }
+    }
+  }
+}
+
+/** Prefers moves that actually deal damage; only resorts to an immune move if every option is immune.
+ * `candidates` is whichever of the attacker's moves are actually in range this tick (see moveRange). */
+function pickMove(attacker: Fighter, defenderTypes: (PokeType | null)[], candidates: BrawlMove[]): BrawlMove {
+  const scored = candidates.map(move => {
     const mult = typeMultiplier(move.type, defenderTypes);
     const stab = move.type === attacker.primaryType || move.type === attacker.secondaryType ? STAB_MULTIPLIER : 1;
     return { move, mult, score: Math.max(0.05, move.power * mult * stab) };
@@ -255,24 +341,37 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
 
       const dist = distance(fighter.x, fighter.y, target.x, target.y);
       const waypoint = nextWaypoint(fighter, target);
-      if (dist > ATTACK_RANGE || waypoint.blocked) {
-        const dx = waypoint.x - fighter.x, dy = waypoint.y - fighter.y;
-        const len = Math.hypot(dx, dy) || 1;
-        const nx = clamp(fighter.x + (dx / len) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
-        const ny = clamp(fighter.y + (dy / len) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
-        if (!insideAnyObstacle(nx, ny)) { fighter.x = nx; fighter.y = ny; }
+      const usableMoves = fighter.moves.filter(m => dist <= moveRange(m).max);
+      if (usableMoves.length === 0 || waypoint.blocked) {
+        moveFighterToward(fighter, waypoint.x, waypoint.y);
         continue;
       }
+      fighter.stuckTicks = 0;
       if (fighter.cooldown > 0) continue;
 
       const defenderTypes = [target.primaryType, target.secondaryType];
-      const move = pickMove(fighter, defenderTypes);
+      const move = pickMove(fighter, defenderTypes, usableMoves);
       const mult = typeMultiplier(move.type, defenderTypes);
       const atkStat = move.category === 'physical' ? fighter.attack : fighter.spAttack;
       const defStat = move.category === 'physical' ? target.defense : target.spDefense;
       const stab = move.type === fighter.primaryType || move.type === fighter.secondaryType ? STAB_MULTIPLIER : 1;
       const variance = 0.85 + Math.random() * 0.15;
-      const damage = mult === 0 ? 0 : Math.max(1, Math.round(move.power * (atkStat / Math.max(1, defStat)) * stab * mult * DAMAGE_SCALE * variance));
+
+      // Bounded 0..1 attack/defense ratio (instead of a raw division) so a big
+      // stat mismatch swings damage without ever exploding into a one-shot --
+      // e.g. 97 attack vs 4 defense lands ~1.37x, not ~24x. overallFactor is a
+      // gentler secondary nudge from each side's overall rating, so the single
+      // attack-vs-defense pair isn't the *only* thing damage answers to.
+      const statRatio = atkStat / Math.max(1, atkStat + defStat);
+      const statMultiplier = 0.6 + statRatio * 0.8;
+      const overallFactor = clamp(1 + (fighter.overall - target.overall) / 300, 0.85, 1.15);
+      const falloff = rangeFalloffMultiplier(move, dist);
+
+      let damage = 0;
+      if (mult > 0) {
+        const raw = move.power * DAMAGE_SCALE * statMultiplier * overallFactor * stab * mult * falloff * variance;
+        damage = Math.max(1, Math.round(Math.min(raw, target.maxHp * ONE_SHOT_CAP)));
+      }
       target.hp = Math.max(0, target.hp - damage);
       fighter.cooldown = cooldownTicksFor(fighter.speed);
       attacks.push({
