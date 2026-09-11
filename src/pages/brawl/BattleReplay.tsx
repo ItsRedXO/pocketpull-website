@@ -7,6 +7,11 @@ import { typeColor } from './typeColors';
 const EFFECTIVENESS_LABEL: Record<string, string> = { immune: 'No effect', 'not-very-effective': 'Not very effective', neutral: '', 'super-effective': 'Super effective!' };
 const EFFECTIVENESS_COLOR: Record<string, string> = { immune: '#8892a4', 'not-very-effective': '#a8a878', neutral: '#ffffff', 'super-effective': '#f8d030' };
 const BASE_TICK_MS = 300;
+// Roughly matches the server's MELEE_RANGE (9 arena units) -- the frontend
+// doesn't know a move's category, only its start/end position, so distance
+// stands in for "this landed as a point-blank swing" vs "this was thrown
+// across the field" when picking which attack visual to play.
+const MELEE_VISUAL_THRESHOLD = 12;
 
 // One flavor particle per attacking type -- what actually reads as "flamethrower
 // throws fire", "bubble/hydro pump throws water", etc. on the arena.
@@ -15,6 +20,44 @@ const TYPE_PARTICLES: Record<string, string> = {
   fighting: '👊', poison: '🧪', ground: '💨', flying: '🌪️', psychic: '🔮', bug: '🐛',
   rock: '🪨', ghost: '👻', dragon: '🐉', dark: '🌑', steel: '⚙️', fairy: '✨',
 };
+
+// Location-flavored arenas -- purely cosmetic (background, ambient particles,
+// obstacle coloring), never gameplay: no arena grants a buff or debuff. Picked
+// fresh per match so a multi-match tournament run doesn't sit in the same
+// backdrop the whole way through.
+interface ArenaTheme {
+  key: string; background: string; vignette: string; obstacleFill: [string, string]; obstacleBorder: string;
+  particle: string; particleCount: number; direction: 'up' | 'down';
+}
+const ARENA_THEMES: ArenaTheme[] = [
+  { key: 'water', background: 'radial-gradient(130% 110% at 50% 0%, rgba(0,180,255,0.22) 0%, rgba(6,22,40,0.92) 55%, rgba(3,10,20,0.97) 100%)', vignette: '#22c4ff', obstacleFill: ['#0e4a66', '#0a3450'], obstacleBorder: 'rgba(80,200,255,0.35)', particle: '💧', particleCount: 9, direction: 'up' },
+  { key: 'fire', background: 'radial-gradient(130% 110% at 50% 100%, rgba(255,110,30,0.26) 0%, rgba(40,12,7,0.92) 55%, rgba(16,5,4,0.97) 100%)', vignette: '#ff7b3d', obstacleFill: ['#4a2214', '#2c130b'], obstacleBorder: 'rgba(255,140,60,0.4)', particle: '🔥', particleCount: 7, direction: 'up' },
+  { key: 'grass', background: 'radial-gradient(130% 110% at 50% 0%, rgba(90,220,110,0.2) 0%, rgba(8,30,15,0.92) 55%, rgba(4,14,8,0.97) 100%)', vignette: '#5adc6e', obstacleFill: ['#254d2c', '#173420'], obstacleBorder: 'rgba(120,230,140,0.35)', particle: '🍃', particleCount: 8, direction: 'down' },
+  { key: 'electric', background: 'radial-gradient(130% 110% at 50% 0%, rgba(250,220,50,0.18) 0%, rgba(32,13,46,0.92) 55%, rgba(14,6,22,0.97) 100%)', vignette: '#facc15', obstacleFill: ['#3a3054', '#241c38'], obstacleBorder: 'rgba(250,220,80,0.35)', particle: '⚡', particleCount: 6, direction: 'up' },
+  { key: 'ice', background: 'radial-gradient(130% 110% at 50% 0%, rgba(160,230,255,0.22) 0%, rgba(10,30,44,0.92) 55%, rgba(4,14,22,0.97) 100%)', vignette: '#a6e6ff', obstacleFill: ['#274a5c', '#183140'], obstacleBorder: 'rgba(180,235,255,0.4)', particle: '❄️', particleCount: 9, direction: 'down' },
+  { key: 'rock', background: 'radial-gradient(130% 110% at 50% 100%, rgba(190,150,100,0.18) 0%, rgba(32,25,18,0.92) 55%, rgba(14,11,8,0.97) 100%)', vignette: '#c8a06a', obstacleFill: ['#4a3c2a', '#2e2418'], obstacleBorder: 'rgba(200,165,110,0.35)', particle: '💨', particleCount: 5, direction: 'up' },
+  { key: 'ghost', background: 'radial-gradient(130% 110% at 50% 0%, rgba(150,90,220,0.24) 0%, rgba(20,11,32,0.94) 55%, rgba(8,4,16,0.98) 100%)', vignette: '#a56aff', obstacleFill: ['#3a2a52', '#221934'], obstacleBorder: 'rgba(180,140,255,0.4)', particle: '👻', particleCount: 5, direction: 'up' },
+  { key: 'beach', background: 'radial-gradient(130% 110% at 50% 100%, rgba(255,214,140,0.24) 0%, rgba(42,33,17,0.88) 55%, rgba(18,14,8,0.96) 100%)', vignette: '#ffd68c', obstacleFill: ['#5c4a2a', '#3a2f1a'], obstacleBorder: 'rgba(255,220,160,0.4)', particle: '✨', particleCount: 6, direction: 'down' },
+];
+
+/** Drifting theme particles behind the fight -- picked once per theme and
+ * looped indefinitely, never interacting with gameplay. */
+function ArenaAmbience({ theme }: { theme: ArenaTheme }) {
+  const particles = useMemo(() => Array.from({ length: theme.particleCount }, () => ({
+    x: Math.random() * 100, delay: Math.random() * 5, duration: 7 + Math.random() * 6, size: 10 + Math.random() * 9, drift: (Math.random() - 0.5) * 30,
+  })), [theme.key]);
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p, i) => (
+        <motion.div key={i} className="absolute select-none" style={{ left: `${p.x}%`, fontSize: p.size, ...(theme.direction === 'up' ? { bottom: -24 } : { top: -24 }) }}
+          animate={{ y: theme.direction === 'up' ? [0, -420] : [0, 420], x: [0, p.drift], opacity: [0, 0.7, 0.7, 0] }}
+          transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: 'linear' }}>
+          {theme.particle}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
 /** Type-flavored particle burst + floating damage number at the point of impact.
  * Effectiveness scales the burst: bigger/brighter for a super-effective hit,
@@ -59,6 +102,69 @@ function MoveBurst({ attack }: { attack: ArenaAttackEvent }) {
         -{attack.damage}
       </motion.div>
     </>
+  );
+}
+
+/** Glowing dual-stroke beam for moves thrown from range. SVG-only (lines),
+ * meant to be rendered inside the arena's <svg> layer -- see RangedProjectile
+ * for the traveling orb that pairs with this, which has to live outside the
+ * SVG since it's a plain HTML element. */
+function RangedBeam({ attack }: { attack: ArenaAttackEvent }) {
+  const color = typeColor(attack.moveType);
+  return (
+    <>
+      <motion.line x1={attack.fromX} y1={attack.fromY} x2={attack.toX} y2={attack.toY}
+        initial={{ opacity: 0.55 }} animate={{ opacity: 0 }} transition={{ duration: 0.32, ease: 'easeOut' }}
+        stroke={color} strokeWidth={3} strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: 'blur(2.5px)' }} />
+      <motion.line x1={attack.fromX} y1={attack.fromY} x2={attack.toX} y2={attack.toY}
+        initial={{ opacity: 0.95 }} animate={{ opacity: 0 }} transition={{ duration: 0.32, ease: 'easeOut' }}
+        stroke="#ffffff" strokeWidth={0.9} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </>
+  );
+}
+
+/** The orb that actually travels the beam's path, for moves thrown from
+ * range -- gives the hit a sense of motion instead of a static line
+ * appearing and fading in place. Plain HTML (positioned via left/top %), so
+ * it renders as a sibling of the arena's <svg>, not inside it. */
+function RangedProjectile({ attack, tickSeconds }: { attack: ArenaAttackEvent; tickSeconds: number }) {
+  const color = typeColor(attack.moveType);
+  const duration = Math.min(0.26, Math.max(0.12, tickSeconds * 0.7));
+  return (
+    <motion.div className="absolute rounded-full pointer-events-none"
+      style={{ width: 7, height: 7, marginLeft: -3.5, marginTop: -3.5, background: color, boxShadow: `0 0 10px 3px ${color}` }}
+      initial={{ left: `${attack.fromX}%`, top: `${attack.fromY}%`, opacity: 0.9, scale: 0.6 }}
+      animate={{ left: `${attack.toX}%`, top: `${attack.toY}%`, opacity: [0.9, 1, 0], scale: [0.6, 1, 0.7] }}
+      transition={{ duration, ease: 'easeIn' }} />
+  );
+}
+
+/** Quick crossed-slash flash for point-blank attacks, in place of a beam that
+ * would barely be visible over such a short distance. */
+function MeleeAttackVisual({ attack }: { attack: ArenaAttackEvent }) {
+  const color = typeColor(attack.moveType);
+  return (
+    <motion.div className="absolute pointer-events-none" style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, marginLeft: -14, marginTop: -14, width: 28, height: 28 }}
+      initial={{ opacity: 0, scale: 0.3, rotate: -25 }} animate={{ opacity: [0, 1, 0], scale: [0.3, 1.25, 1], rotate: 20 }} transition={{ duration: 0.28 }}>
+      <svg viewBox="0 0 28 28" className="w-full h-full">
+        <line x1="4" y1="21" x2="24" y2="7" stroke={color} strokeWidth="3" strokeLinecap="round" />
+        <line x1="6" y1="14" x2="22" y2="4" stroke="#ffffff" strokeWidth="1.3" strokeLinecap="round" opacity="0.85" />
+      </svg>
+    </motion.div>
+  );
+}
+
+/** Expanding shockwave ring at the point of impact -- bigger and brighter for
+ * a super-effective hit -- layered under MoveBurst's particles for extra weight. */
+function ImpactRing({ attack }: { attack: ArenaAttackEvent }) {
+  const color = typeColor(attack.moveType);
+  const big = attack.effectiveness === 'super-effective';
+  const size = big ? 42 : 26;
+  return (
+    <motion.div className="absolute rounded-full pointer-events-none" style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, border: `2px solid ${color}` }}
+      initial={{ width: 4, height: 4, marginLeft: -2, marginTop: -2, opacity: 0.9 }}
+      animate={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, opacity: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }} />
   );
 }
 
@@ -108,33 +214,33 @@ function PokemonIcon({ mon, tickSeconds, hitEffect, tick }: { mon: ArenaFrame['p
   );
 }
 
-function Arena({ frame, obstacles, tickSeconds }: { frame: ArenaFrame; obstacles: ArenaObstacle[]; tickSeconds: number }) {
+function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; obstacles: ArenaObstacle[]; tickSeconds: number; theme: ArenaTheme }) {
+  const rangedAttacks = frame.attacks.filter(a => Math.hypot(a.toX - a.fromX, a.toY - a.fromY) >= MELEE_VISUAL_THRESHOLD);
+  const meleeAttacks = frame.attacks.filter(a => Math.hypot(a.toX - a.fromX, a.toY - a.fromY) < MELEE_VISUAL_THRESHOLD);
   return (
-    <div className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border border-white/10"
-      style={{ background: 'linear-gradient(90deg, rgba(0,200,255,0.10) 0%, rgba(10,11,15,0.4) 48%, rgba(10,11,15,0.4) 52%, rgba(248,113,113,0.10) 100%)' }}>
-      <div className="absolute inset-y-0 left-1/2 w-px bg-white/5" />
+    <div className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border" style={{ background: theme.background, borderColor: `${theme.vignette}30`, boxShadow: `inset 0 0 60px ${theme.vignette}18` }}>
+      <ArenaAmbience theme={theme} />
+      <div className="absolute inset-y-0 left-1/2 w-px" style={{ background: `${theme.vignette}25` }} />
       {obstacles.map((o, i) => (
         <div key={i} className="absolute rounded-sm" style={{
           left: `${o.x1}%`, top: `${o.y1}%`, width: `${o.x2 - o.x1}%`, height: `${o.y2 - o.y1}%`,
-          background: 'repeating-linear-gradient(135deg, #3a3f4d, #3a3f4d 4px, #2a2e38 4px, #2a2e38 8px)',
-          border: '1px solid rgba(255,255,255,0.12)', boxShadow: 'inset 0 0 8px rgba(0,0,0,0.5)',
+          background: `repeating-linear-gradient(135deg, ${theme.obstacleFill[0]}, ${theme.obstacleFill[0]} 4px, ${theme.obstacleFill[1]} 4px, ${theme.obstacleFill[1]} 8px)`,
+          border: `1px solid ${theme.obstacleBorder}`, boxShadow: 'inset 0 0 8px rgba(0,0,0,0.5)',
         }} />
       ))}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
         <AnimatePresence>
-          {frame.attacks.map(a => (
-            <motion.line key={`${frame.tick}-${a.attackerId}-${a.defenderId}`} x1={a.fromX} y1={a.fromY} x2={a.toX} y2={a.toY}
-              initial={{ opacity: 0.85 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }}
-              stroke={typeColor(a.moveType)} strokeWidth={0.8} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-          ))}
+          {rangedAttacks.map(a => <RangedBeam key={`beam-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
         </AnimatePresence>
       </svg>
       <AnimatePresence>
-        {frame.attacks.map(a => (
-          <motion.div key={`glow-${frame.tick}-${a.attackerId}-${a.defenderId}`}
-            className="absolute w-3 h-3 rounded-full pointer-events-none" style={{ left: `${a.toX}%`, top: `${a.toY}%`, transform: 'translate(-50%,-50%)', background: typeColor(a.moveType) }}
-            initial={{ opacity: 0.7, scale: 0.3 }} animate={{ opacity: 0, scale: 1.6 }} transition={{ duration: 0.4 }} />
-        ))}
+        {rangedAttacks.map(a => <RangedProjectile key={`proj-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} tickSeconds={tickSeconds} />)}
+      </AnimatePresence>
+      <AnimatePresence>
+        {meleeAttacks.map(a => <MeleeAttackVisual key={`melee-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
+      </AnimatePresence>
+      <AnimatePresence>
+        {frame.attacks.map(a => <ImpactRing key={`ring-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
       </AnimatePresence>
       <AnimatePresence>
         {frame.attacks.map(a => <MoveBurst key={`vfx-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
@@ -153,6 +259,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, rating, onClo
   const [playing, setPlaying] = useState(true);
   const [finished, setFinished] = useState(false);
   const [speed, setSpeed] = useState<typeof SPEED_OPTIONS[number]>(1);
+  const theme = useMemo(() => ARENA_THEMES[Math.floor(Math.random() * ARENA_THEMES.length)], [matchIndex]);
 
   const match = matches[matchIndex];
   const frames = match.frames;
@@ -200,7 +307,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, rating, onClo
             </div>
 
             <div className="relative">
-              <Arena frame={currentFrame} obstacles={match.obstacles} tickSeconds={tickDelayMs / 1000} />
+              <Arena frame={currentFrame} obstacles={match.obstacles} tickSeconds={tickDelayMs / 1000} theme={theme} />
 
               {/* kill feed, top-right */}
               <div className="absolute top-3 right-3 flex flex-col gap-1 items-end max-w-[45%]">

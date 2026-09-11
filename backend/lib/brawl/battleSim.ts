@@ -100,16 +100,46 @@ export const MAX_TICKS = 300;
 const FIELD_MIN = 2;
 const FIELD_MAX = 98;
 
-// Four small, staggered cover pieces (not one wall down the middle) so both
-// routing and sightlines vary across the field instead of funneling everyone
-// through the same two gaps. Pokemon steer around whichever piece blocks their
-// path (see nextWaypoint) and can't attack through one (see lineOfSightBlocked).
-const OBSTACLES: ArenaObstacle[] = [
-  { x1: 18, y1: 18, x2: 26, y2: 30 },
-  { x1: 74, y1: 70, x2: 82, y2: 82 },
-  { x1: 46, y1: 8, x2: 54, y2: 18 },
-  { x1: 46, y1: 82, x2: 54, y2: 92 },
-];
+// 2-3 pairs of small cover pieces, randomly placed fresh every battle instead
+// of one fixed 4-piece map -- each placed piece is mirrored 180 degrees
+// around the field center so neither side's routing/sightlines are
+// structurally favored by the layout, and everything stays clear of both
+// spawn lanes so nobody spawns boxed in. Pokemon steer around whichever
+// piece blocks their path (see nextWaypoint) and can't attack through one
+// (nextWaypoint's `blocked` flag makes the attacker move instead of firing).
+const OBSTACLE_PAIR_COUNT_MIN = 2;
+const OBSTACLE_PAIR_COUNT_MAX = 3;
+const OBSTACLE_MIN_SIZE = 6;
+const OBSTACLE_MAX_SIZE = 12;
+const OBSTACLE_SPAWN_MARGIN_X = 22;
+
+function rectsOverlap(a: ArenaObstacle, b: ArenaObstacle, pad = 4): boolean {
+  return !(a.x2 + pad < b.x1 || b.x2 + pad < a.x1 || a.y2 + pad < b.y1 || b.y2 + pad < a.y1);
+}
+function mirrorObstacle(o: ArenaObstacle): ArenaObstacle {
+  return { x1: 100 - o.x2, y1: 100 - o.y2, x2: 100 - o.x1, y2: 100 - o.y1 };
+}
+function overlapsAny(candidate: ArenaObstacle, existing: ArenaObstacle[]): boolean {
+  return existing.some(o => rectsOverlap(candidate, o));
+}
+
+function generateObstacles(): ArenaObstacle[] {
+  const pairCount = OBSTACLE_PAIR_COUNT_MIN + Math.floor(Math.random() * (OBSTACLE_PAIR_COUNT_MAX - OBSTACLE_PAIR_COUNT_MIN + 1));
+  const placed: ArenaObstacle[] = [];
+  let attempts = 0;
+  while (placed.length < pairCount * 2 && attempts < 300) {
+    attempts++;
+    const w = OBSTACLE_MIN_SIZE + Math.random() * (OBSTACLE_MAX_SIZE - OBSTACLE_MIN_SIZE);
+    const h = OBSTACLE_MIN_SIZE + Math.random() * (OBSTACLE_MAX_SIZE - OBSTACLE_MIN_SIZE);
+    const x1 = OBSTACLE_SPAWN_MARGIN_X + Math.random() * (100 - OBSTACLE_SPAWN_MARGIN_X * 2 - w);
+    const y1 = 4 + Math.random() * (92 - h);
+    const candidate: ArenaObstacle = { x1, y1, x2: x1 + w, y2: y1 + h };
+    const mirrored = mirrorObstacle(candidate);
+    if (overlapsAny(candidate, placed) || overlapsAny(mirrored, placed) || rectsOverlap(candidate, mirrored)) continue;
+    placed.push(candidate, mirrored);
+  }
+  return placed;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -155,11 +185,11 @@ function segmentBlockedByObstacle(x1: number, y1: number, x2: number, y2: number
     segmentsIntersect(x1, y1, x2, y2, o.x1, o.y2, o.x1, o.y1)
   );
 }
-function blockingObstacle(x1: number, y1: number, x2: number, y2: number): ArenaObstacle | null {
-  return OBSTACLES.find(o => segmentBlockedByObstacle(x1, y1, x2, y2, o)) ?? null;
+function blockingObstacle(x1: number, y1: number, x2: number, y2: number, obstacles: ArenaObstacle[]): ArenaObstacle | null {
+  return obstacles.find(o => segmentBlockedByObstacle(x1, y1, x2, y2, o)) ?? null;
 }
-function insideAnyObstacle(x: number, y: number): boolean {
-  return OBSTACLES.some(o => pointInObstacle(x, y, o));
+function insideAnyObstacle(x: number, y: number, obstacles: ArenaObstacle[]): boolean {
+  return obstacles.some(o => pointInObstacle(x, y, o));
 }
 
 /** Nearest-total-detour corner of the blocking obstacle, padded just outside its
@@ -197,8 +227,8 @@ function pickBestCorner(fighter: Fighter, target: Fighter, obstacle: ArenaObstac
  * path is clear, otherwise around whichever obstacle is in the way. Sticks with
  * the chosen corner until reached (rather than recomputing every tick) so a
  * fighter doesn't dither between two equally-good routes. */
-function nextWaypoint(fighter: Fighter, target: Fighter): { x: number; y: number; blocked: boolean } {
-  const blocker = blockingObstacle(fighter.x, fighter.y, target.x, target.y);
+function nextWaypoint(fighter: Fighter, target: Fighter, obstacles: ArenaObstacle[]): { x: number; y: number; blocked: boolean } {
+  const blocker = blockingObstacle(fighter.x, fighter.y, target.x, target.y, obstacles);
   if (!blocker) { fighter.routeCorner = null; return { x: target.x, y: target.y, blocked: false }; }
   if (!fighter.routeCorner || distance(fighter.x, fighter.y, fighter.routeCorner.x, fighter.routeCorner.y) < 2.5) {
     fighter.routeCorner = pickBestCorner(fighter, target, blocker);
@@ -217,7 +247,7 @@ function nextWaypoint(fighter: Fighter, target: Fighter): { x: number; y: number
  *  3. If even that fails for several ticks in a row (a fighter genuinely
  *     wedged against cover), forces a fresh route and nudges it in a random
  *     open direction to break the deadlock. */
-function moveFighterToward(fighter: Fighter, wx: number, wy: number): void {
+function moveFighterToward(fighter: Fighter, wx: number, wy: number, obstacles: ArenaObstacle[]): void {
   const dx = wx - fighter.x, dy = wy - fighter.y;
   const rawLen = Math.hypot(dx, dy);
 
@@ -231,15 +261,15 @@ function moveFighterToward(fighter: Fighter, wx: number, wy: number): void {
     const nx = clamp(fighter.x + (dx / rawLen) * step, FIELD_MIN, FIELD_MAX);
     const ny = clamp(fighter.y + (dy / rawLen) * step, FIELD_MIN, FIELD_MAX);
 
-    if (!insideAnyObstacle(nx, ny)) {
+    if (!insideAnyObstacle(nx, ny, obstacles)) {
       fighter.x = nx; fighter.y = ny; fighter.stuckTicks = 0;
       return;
     }
-    if (!insideAnyObstacle(nx, fighter.y)) {
+    if (!insideAnyObstacle(nx, fighter.y, obstacles)) {
       fighter.x = nx; fighter.stuckTicks = 0;
       return;
     }
-    if (!insideAnyObstacle(fighter.x, ny)) {
+    if (!insideAnyObstacle(fighter.x, ny, obstacles)) {
       fighter.y = ny; fighter.stuckTicks = 0;
       return;
     }
@@ -253,7 +283,7 @@ function moveFighterToward(fighter: Fighter, wx: number, wy: number): void {
       const angle = Math.random() * Math.PI * 2;
       const ex = clamp(fighter.x + Math.cos(angle) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
       const ey = clamp(fighter.y + Math.sin(angle) * MOVE_STEP, FIELD_MIN, FIELD_MAX);
-      if (!insideAnyObstacle(ex, ey)) { fighter.x = ex; fighter.y = ey; break; }
+      if (!insideAnyObstacle(ex, ey, obstacles)) { fighter.x = ex; fighter.y = ey; break; }
     }
   }
 }
@@ -301,6 +331,7 @@ function shuffled<T>(items: T[]): T[] {
  * frame log (positions + events) for the frontend to play back as a live replay.
  */
 export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: BattleSpecies[]): BattleOutcome {
+  const obstacles = generateObstacles();
   const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i));
   const opponentTeam = opponentSpecies.map((s, i) => toFighter(s, 'opponent', i));
   const all = [...userTeam, ...opponentTeam];
@@ -340,10 +371,10 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
       }
 
       const dist = distance(fighter.x, fighter.y, target.x, target.y);
-      const waypoint = nextWaypoint(fighter, target);
+      const waypoint = nextWaypoint(fighter, target, obstacles);
       const usableMoves = fighter.moves.filter(m => dist <= moveRange(m).max);
       if (usableMoves.length === 0 || waypoint.blocked) {
-        moveFighterToward(fighter, waypoint.x, waypoint.y);
+        moveFighterToward(fighter, waypoint.x, waypoint.y, obstacles);
         continue;
       }
       fighter.stuckTicks = 0;
@@ -402,5 +433,5 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
     winner = koUser !== koOpponent ? (koUser > koOpponent ? 'user' : 'opponent') : (userHpTotal >= opponentHpTotal ? 'user' : 'opponent');
   }
 
-  return { winner, koCountUser: koUser, koCountOpponent: koOpponent, frames, obstacles: OBSTACLES, maxTicks: MAX_TICKS };
+  return { winner, koCountUser: koUser, koCountOpponent: koOpponent, frames, obstacles, maxTicks: MAX_TICKS };
 }
