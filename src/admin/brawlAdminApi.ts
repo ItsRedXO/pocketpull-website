@@ -56,3 +56,37 @@ export const grantAdminBrawlInstance = (userId: string, speciesId: number) => ad
 export const deleteAdminBrawlInstance = (userId: string, instanceId: string) => adminDelete<{ success: boolean; roster: AdminBrawlInstance[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/instances/${encodeURIComponent(instanceId)}`);
 export const setAdminBrawlTeam = (userId: string, instanceIds: string[]) => adminPut<{ success: boolean; roster: AdminBrawlInstance[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/team`, { instanceIds });
 export const getAdminBrawlSpecies = () => adminGet<{ species: AdminBrawlSpecies[] }>('/admin/brawl/species');
+
+export type ItemRarity = 'common' | 'uncommon' | 'rare';
+export type ItemKind = 'stone' | 'held' | 'other';
+export interface AdminBrawlItem {
+  key: string; name: string; description: string; rarity: ItemRarity; kind: ItemKind;
+  price: number; sprite_url: string | null; active: boolean;
+}
+export interface AdminBrawlItemDef { key: string; name: string; description: string; rarity: ItemRarity; kind: ItemKind; price: number; spriteUrl: string | null; active: boolean; }
+export interface AdminShopStatus {
+  current: { itemKeys: string[]; items: AdminBrawlItemDef[]; rotatedAt: string };
+  next: { itemKeys: string[]; items: AdminBrawlItemDef[] };
+  nextRotateAt: string;
+}
+
+export const getAdminBrawlItems = () => adminGet<{ items: AdminBrawlItem[] }>('/admin/brawl/items');
+export const createAdminBrawlItem = (fields: Partial<AdminBrawlItem> & { key: string }) => adminPost<{ success: boolean; item: AdminBrawlItem }>('/admin/brawl/items', fields);
+export const updateAdminBrawlItem = (key: string, fields: Partial<AdminBrawlItem>) => adminPatch<{ success: boolean; item: AdminBrawlItem }>(`/admin/brawl/items/${encodeURIComponent(key)}`, fields);
+export const deleteAdminBrawlItem = (key: string) => adminDelete<{ success: boolean }>(`/admin/brawl/items/${encodeURIComponent(key)}`);
+export const getAdminBrawlShop = () => adminGet<AdminShopStatus>('/admin/brawl/items/shop');
+export const setAdminBrawlShopSlate = (slate: 'current' | 'next', itemKeys: string[]) => adminPut<AdminShopStatus>(`/admin/brawl/items/shop/${slate}`, { itemKeys });
+export const regenerateAdminBrawlNextShop = () => adminPost<AdminShopStatus>('/admin/brawl/items/shop/next/regenerate');
+export const rotateAdminBrawlShopNow = () => adminPost<AdminShopStatus>('/admin/brawl/items/shop/rotate-now');
+
+export type ChallengeTemplateType = 'win_matches' | 'win_tournament' | 'evolve_pokemon' | 'open_safari' | 'win_mono_type';
+export type ChallengeRewardKind = 'pokedollars' | 'pokemon';
+export interface AdminChallengeTemplate {
+  key: string; type: ChallengeTemplateType; label: string; description: string; target: number;
+  reward_kind: ChallengeRewardKind; reward_amount: number | null; reward_overall_min: number | null; reward_overall_max: number | null;
+  fixed_type: string | null; active: boolean;
+}
+export const getAdminBrawlChallengeTemplates = () => adminGet<{ templates: AdminChallengeTemplate[] }>('/admin/brawl/challenges');
+export const createAdminBrawlChallengeTemplate = (fields: Partial<AdminChallengeTemplate> & { key: string }) => adminPost<{ success: boolean; template: AdminChallengeTemplate }>('/admin/brawl/challenges', fields);
+export const updateAdminBrawlChallengeTemplate = (key: string, fields: Partial<AdminChallengeTemplate>) => adminPatch<{ success: boolean; template: AdminChallengeTemplate }>(`/admin/brawl/challenges/${encodeURIComponent(key)}`, fields);
+export const deleteAdminBrawlChallengeTemplate = (key: string) => adminDelete<{ success: boolean }>(`/admin/brawl/challenges/${encodeURIComponent(key)}`);

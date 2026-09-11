@@ -1,8 +1,26 @@
 import { query, transaction } from '../lib/postgres';
 import { uid } from '../lib/auth';
-import { generateChallengeOptions, CHALLENGE_COOLDOWN_MS, type ChallengeInstance, type ChallengeType } from '../lib/brawl/challenges';
+import {
+  buildChallengeInstance, CHALLENGE_COOLDOWN_MS, CHALLENGE_OPTIONS_COUNT,
+  type ChallengeInstance, type ChallengeType, type ChallengeTemplateRow,
+} from '../lib/brawl/challenges';
 import type { PokeType } from '../lib/brawl/typeChart';
 import { insertInstances } from './brawl';
+
+function shuffled<T>(items: T[]): T[] {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/** Draws `count` distinct active templates from the catalog and renders each into a concrete offered challenge. */
+async function generateChallengeOptions(count = CHALLENGE_OPTIONS_COUNT): Promise<ChallengeInstance[]> {
+  const rows = await query<ChallengeTemplateRow>('SELECT * FROM brawl_challenge_templates WHERE active = true');
+  return shuffled(rows).slice(0, count).map(buildChallengeInstance);
+}
 
 export interface LastCompletedChallenge {
   label: string;
@@ -53,7 +71,7 @@ export async function getChallengeStatus(userId: string): Promise<ChallengeStatu
     return { status: 'cooldown', offered: [], active: null, cooldownEndsAt: row.next_available_at, lastCompleted: row.last_completed };
   }
   if (!row.offered || row.offered.length === 0) {
-    const offered = generateChallengeOptions();
+    const offered = await generateChallengeOptions();
     await query('UPDATE brawl_challenge_state SET offered=$1, next_available_at=NULL, updated_at=now() WHERE user_id=$2', [JSON.stringify(offered), userId]);
     row = { ...row, offered, next_available_at: null };
   }
@@ -161,4 +179,41 @@ export async function claimChallenge(userId: string): Promise<ChallengeClaimResu
     );
     return { label: challenge.label, reward: challenge.reward, pokemon: lastCompleted.pokemon };
   });
+}
+
+// ---- Admin: challenge template CRUD --------------------------------------
+// Deleting/editing a template never touches challenges already offered or
+// locked in for a player -- those are rendered ChallengeInstance snapshots
+// stored as jsonb on brawl_challenge_state, not references back to this row.
+
+export async function adminListChallengeTemplates(): Promise<ChallengeTemplateRow[]> {
+  return query<ChallengeTemplateRow>('SELECT * FROM brawl_challenge_templates ORDER BY type, key');
+}
+
+export async function adminCreateChallengeTemplate(fields: Record<string, unknown>): Promise<ChallengeTemplateRow> {
+  return (await query<ChallengeTemplateRow>(
+    `INSERT INTO brawl_challenge_templates (key, type, label, description, target, reward_kind, reward_amount, reward_overall_min, reward_overall_max, fixed_type, active)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+    [
+      fields.key, fields.type, fields.label, fields.description, fields.target, fields.reward_kind,
+      fields.reward_amount ?? null, fields.reward_overall_min ?? null, fields.reward_overall_max ?? null,
+      fields.fixed_type || null, !!fields.active,
+    ],
+  ))[0];
+}
+
+const CHALLENGE_TEMPLATE_EDITABLE_FIELDS = new Set([
+  'type', 'label', 'description', 'target', 'reward_kind', 'reward_amount', 'reward_overall_min', 'reward_overall_max', 'fixed_type', 'active',
+]);
+export async function adminUpdateChallengeTemplate(key: string, fields: Record<string, unknown>): Promise<ChallengeTemplateRow | null> {
+  const entries = Object.entries(fields).filter(([k]) => CHALLENGE_TEMPLATE_EDITABLE_FIELDS.has(k));
+  if (!entries.length) return (await query<ChallengeTemplateRow>('SELECT * FROM brawl_challenge_templates WHERE key=$1', [key]))[0] || null;
+  const sets = entries.map(([k], i) => `${k}=$${i + 1}`).join(',');
+  const params: unknown[] = entries.map(([, v]) => v);
+  params.push(key);
+  return (await query<ChallengeTemplateRow>(`UPDATE brawl_challenge_templates SET ${sets}, updated_at=now() WHERE key=$${params.length} RETURNING *`, params))[0] || null;
+}
+
+export async function adminDeleteChallengeTemplate(key: string): Promise<void> {
+  await query('DELETE FROM brawl_challenge_templates WHERE key=$1', [key]);
 }
