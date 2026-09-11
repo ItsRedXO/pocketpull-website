@@ -3,7 +3,7 @@
 //   tsx backend/db/import/importPokeBrawlSpecies.ts 1 151
 // Safe to re-run: upserts on the PokeAPI national dex id, existing rows are refreshed in place.
 import { query } from '../../lib/postgres';
-import { computeOverallRating } from '../../lib/brawl/rating';
+import { computeOverallRating, scaleBaseStat } from '../../lib/brawl/rating';
 import type { PokeType } from '../../lib/brawl/typeChart';
 
 const API = 'https://pokeapi.co/api/v2';
@@ -70,13 +70,16 @@ async function importOne(dexId: number): Promise<void> {
   const stages = await getEvolutionStages(chainId);
   const evolutionStage = stages.get(pokemon.name) ?? 1;
 
+  // PokeAPI's real base stats run well past 100 for outliers (Chansey HP 250,
+  // Onix DEF 160); scale every stat down to the game's 1-100 range before it's
+  // ever stored (see scaleBaseStat for the curve and why).
   const stats = {
-    hp: statFor(pokemon.stats, 'hp'),
-    attack: statFor(pokemon.stats, 'attack'),
-    defense: statFor(pokemon.stats, 'defense'),
-    spAttack: statFor(pokemon.stats, 'special-attack'),
-    spDefense: statFor(pokemon.stats, 'special-defense'),
-    speed: statFor(pokemon.stats, 'speed'),
+    hp: scaleBaseStat(statFor(pokemon.stats, 'hp')),
+    attack: scaleBaseStat(statFor(pokemon.stats, 'attack')),
+    defense: scaleBaseStat(statFor(pokemon.stats, 'defense')),
+    spAttack: scaleBaseStat(statFor(pokemon.stats, 'special-attack')),
+    spDefense: scaleBaseStat(statFor(pokemon.stats, 'special-defense')),
+    speed: scaleBaseStat(statFor(pokemon.stats, 'speed')),
   };
   const overall = computeOverallRating(stats);
   const primaryType = pokemon.types.find(t => true) ? (pokemon.types[0].type.name as PokeType) : null;

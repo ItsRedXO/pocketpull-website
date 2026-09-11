@@ -12,11 +12,13 @@ import {
   getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus, type BrawlProfile,
 } from '../repositories/brawl';
 
-// Starter packs are deliberately weaker than the general species pool (45-50
-// overall) so a first-time player's team is an "average" starting roster they
-// work up from, rather than getting lucky/unlucky into something wildly uneven.
-const STARTER_OVERALL_MIN = 45;
-const STARTER_OVERALL_MAX = 50;
+// Starter packs are deliberately weaker than the general species pool (28-38
+// overall -- real basic-stage Pokemon top out around 36-37 post-rescale, see
+// scaleBaseStat in rating.ts) so a first-time player's team is an "average"
+// starting roster they work up from, rather than getting lucky/unlucky into
+// something wildly uneven.
+const STARTER_OVERALL_MIN = 28;
+const STARTER_OVERALL_MAX = 38;
 
 const app = new Hono();
 async function auth(c: any) { try { return await requireAuth(c); } catch (e: any) { if (e.message === 'ACCOUNT_DEACTIVATED') return c.json({ error: 'Account deactivated' }, 403); return c.json({ error: 'Authentication required' }, 401); } }

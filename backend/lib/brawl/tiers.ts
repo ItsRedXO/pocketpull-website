@@ -28,30 +28,34 @@ export interface BattleTierConfig {
   winCounterField: 'local_battles_played' | 'local_tournament_wins' | 'state_tournament_wins' | 'regional_tournament_wins' | 'elite_four_wins';
 }
 
+// Opponent bands below are tuned against the post-rescale overall_rating
+// distribution (see scaleBaseStat in rating.ts): real Gen 1 basics land
+// ~20-40, decent evolved mons ~45-60, and the dex ceiling (Mewtwo) is ~73 --
+// there's no more "80s/90s" territory now that every stat tops out at 100.
 export const BATTLE_TIERS: Record<BattleTierId, BattleTierConfig> = {
   local_battle: {
     id: 'local_battle', label: 'Local Battle', matches: 1, entryCost: 0, cooldownMs: 0,
-    winReward: 150, lossReward: 50, opponentOverallMin: 40, opponentOverallMax: 55,
+    winReward: 150, lossReward: 50, opponentOverallMin: 15, opponentOverallMax: 38,
     unlockAfter: null, winCounterField: 'local_battles_played',
   },
   local_tournament: {
     id: 'local_tournament', label: 'Local Tournament', matches: 2, entryCost: 0, cooldownMs: 5 * 60 * 1000,
-    totalReward: 500, lossConsolation: 50, opponentOverallMin: 40, opponentOverallMax: 58,
+    totalReward: 500, lossConsolation: 50, opponentOverallMin: 22, opponentOverallMax: 45,
     unlockAfter: { counter: 'local_battles_played', count: 5 }, winCounterField: 'local_tournament_wins',
   },
   state_tournament: {
     id: 'state_tournament', label: 'State Tournament', matches: 3, entryCost: 250, cooldownMs: 15 * 60 * 1000,
-    totalReward: 1500, lossConsolation: 0, opponentOverallMin: 45, opponentOverallMax: 62,
+    totalReward: 1500, lossConsolation: 0, opponentOverallMin: 32, opponentOverallMax: 52,
     unlockAfter: { counter: 'local_tournament_wins', count: 3 }, winCounterField: 'state_tournament_wins',
   },
   regional_tournament: {
     id: 'regional_tournament', label: 'Regional Tournament', matches: 3, entryCost: 750, cooldownMs: 60 * 60 * 1000,
-    totalReward: 4500, lossConsolation: 0, opponentOverallMin: 50, opponentOverallMax: 68,
+    totalReward: 4500, lossConsolation: 0, opponentOverallMin: 42, opponentOverallMax: 60,
     unlockAfter: { counter: 'state_tournament_wins', count: 3 }, winCounterField: 'regional_tournament_wins',
   },
   elite_four: {
     id: 'elite_four', label: 'Elite Four', matches: 4, entryCost: 2000, cooldownMs: 6 * 60 * 60 * 1000,
-    totalReward: 15000, lossConsolation: 0, opponentOverallMin: 58, opponentOverallMax: 80,
+    totalReward: 15000, lossConsolation: 0, opponentOverallMin: 55, opponentOverallMax: 73,
     unlockAfter: { counter: 'regional_tournament_wins', count: 3 }, winCounterField: 'elite_four_wins',
   },
 };
@@ -84,29 +88,31 @@ export interface SafariTierConfig {
   excludeMythical?: boolean;
 }
 
+// Same post-rescale calibration as BATTLE_TIERS above -- bands shifted down
+// to fit the real ~15-73 overall_rating spread instead of the old 30-90.
 export const SAFARI_TIERS: SafariTierConfig[] = [
   {
     tier: 1, label: 'Basic Evolutions', description: 'Every pull here is a basic, first-stage Pokemon.',
-    cost: 500, count: 2, overallMin: 30, overallMax: 55, bonusChance: 0.05, bonusOverallMin: 56, bonusOverallMax: 69,
+    cost: 500, count: 2, overallMin: 15, overallMax: 37, bonusChance: 0.05, bonusOverallMin: 38, bonusOverallMax: 45,
     stages: [1], excludeLegendary: true, excludeMythical: true,
   },
   {
     tier: 2, label: '2nd Stage Evolutions', description: 'A mix of first and second-stage Pokemon.',
-    cost: 1250, count: 2, overallMin: 40, overallMax: 65, bonusChance: 0.05, bonusOverallMin: 66, bonusOverallMax: 75,
+    cost: 1250, count: 2, overallMin: 28, overallMax: 48, bonusChance: 0.05, bonusOverallMin: 49, bonusOverallMax: 56,
     stages: [1, 2], excludeLegendary: true, excludeMythical: true,
   },
   {
     tier: 3, label: '3rd Stage Evolutions', description: 'All three evolution stages are in the pool.',
-    cost: 3000, count: 2, overallMin: 55, overallMax: 75, bonusChance: 0.05, bonusOverallMin: 70, bonusOverallMax: 85,
+    cost: 3000, count: 2, overallMin: 42, overallMax: 58, bonusChance: 0.05, bonusOverallMin: 55, bonusOverallMax: 66,
     excludeLegendary: true, excludeMythical: true,
   },
   {
     tier: 4, label: 'Pseudo-Legendaries & Mythicals', description: 'Where Mythicals and near-legendary powerhouses start showing up.',
-    cost: 6500, count: 2, overallMin: 60, overallMax: 80, bonusChance: 0.05, bonusOverallMin: 75, bonusOverallMax: 90,
+    cost: 6500, count: 2, overallMin: 52, overallMax: 64, bonusChance: 0.05, bonusOverallMin: 62, bonusOverallMax: 73,
     excludeLegendary: true,
   },
   {
     tier: 5, label: 'Legends Encounter', description: 'Change the future with a legendary pull.',
-    cost: 12000, count: 2, overallMin: 70, overallMax: 90, bonusChance: 0.05, bonusOverallMin: 75, bonusOverallMax: 99,
+    cost: 12000, count: 2, overallMin: 58, overallMax: 73, bonusChance: 0.05, bonusOverallMin: 65, bonusOverallMax: 80,
   },
 ];
