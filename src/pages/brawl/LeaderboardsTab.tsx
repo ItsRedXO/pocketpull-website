@@ -42,7 +42,7 @@ export function LeaderboardsTab() {
           <div className="rounded-xl border border-white/10 overflow-hidden overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-white/5 text-white/40 uppercase tracking-wider">
-                <tr><th className="px-3 py-2 text-left">#</th><th className="px-3 py-2 text-left">Trainer</th><th className="px-3 py-2 text-right">Global Rating</th><th className="px-3 py-2 text-right">W-L</th></tr>
+                <tr><th className="px-3 py-2 text-left">#</th><th className="px-3 py-2 text-left">Trainer</th><th className="px-3 py-2 text-right">W-L</th></tr>
               </thead>
               <tbody>
                 <AnimatePresence mode="wait">
@@ -63,10 +63,9 @@ export function LeaderboardsTab() {
                               {r.avatar_url ? <img src={r.avatar_url} alt={r.username || 'Trainer'} className="h-full w-full object-cover" onError={e => { e.currentTarget.style.display = 'none'; }} /> : (r.username || 'T').trim().slice(0, 1).toUpperCase()}
                             </span>
                             <span className="hover:text-[#00c8ff] transition-colors">{r.username || 'Trainer'}</span>
-                            {rank === 1 && <Medal size={12} className="text-[#facc15]" />}
+                            {rankColor && <Medal size={12} style={{ color: rankColor }} />}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right text-[#00c8ff] font-bold">{r.league_rating}</td>
                         <td className="px-3 py-2 text-right text-white/50">{r.wins}-{r.losses}</td>
                       </motion.tr>
                     );

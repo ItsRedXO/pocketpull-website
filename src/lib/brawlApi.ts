@@ -52,10 +52,12 @@ export interface BrawlConfig {
 }
 
 export interface DailyBonusStatus { amount: number; claimable: boolean; nextClaimAt: string | null; }
+export interface RankInfo { rank: number; total: number; }
 export interface BrawlProfileResponse {
   profile: BrawlProfile; balance: number; rosterCount: number; dailyBattlesUsed: number; dailyBattleCap: number;
   tierStatus: Record<string, { unlocked: boolean; cooldownEndsAt: string | null }>;
   dailyBonus: DailyBonusStatus;
+  rank: RankInfo;
 }
 export interface DailyBonusClaimResult { success: boolean; amount: number; claimedAt: string; nextClaimAt: string; balance: number; }
 

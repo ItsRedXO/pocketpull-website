@@ -231,6 +231,23 @@ export async function getLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
   );
 }
 
+export interface RankInfo { rank: number; total: number; }
+/**
+ * Where a trainer sits on the global leaderboard (1-indexed) and how many
+ * trainers are ranked in total -- same ordering as getLeaderboard so "Rank 1
+ * of 2" always lines up with what the leaderboard table actually shows.
+ */
+export async function getPlayerRank(userId: string): Promise<RankInfo> {
+  const rows = await query<{ rank: string; total: string }>(
+    `SELECT rank, total FROM (
+       SELECT user_id, ROW_NUMBER() OVER (ORDER BY league_rating DESC, wins DESC) AS rank, COUNT(*) OVER () AS total
+       FROM brawl_profiles
+     ) ranked WHERE user_id = $1`,
+    [userId],
+  );
+  return { rank: Number(rows[0]?.rank || 1), total: Number(rows[0]?.total || 1) };
+}
+
 export interface TrainerProfile {
   userId: string; username: string | null; avatarUrl: string | null;
   leagueRating: number; wins: number; losses: number;

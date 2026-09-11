@@ -9,7 +9,7 @@ import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds,
   speciesRowToBattleSpecies, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, applyRatingChange, getTrainerProfile, claimDailyBonus, type BrawlProfile,
+  getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus, type BrawlProfile,
 } from '../repositories/brawl';
 
 // Starter packs are deliberately weaker than the general species pool (45-50
@@ -55,7 +55,8 @@ app.get('/brawl/profile', async c => {
     if (endsAt > Date.now()) dailyBonusNextClaimAt = new Date(endsAt).toISOString();
   }
   const dailyBonus = { amount: DAILY_BONUS_AMOUNT, claimable: !dailyBonusNextClaimAt, nextClaimAt: dailyBonusNextClaimAt };
-  return c.json({ profile, balance, rosterCount, dailyBattlesUsed, dailyBattleCap: DAILY_BATTLE_CAP, tierStatus, dailyBonus });
+  const rank = await getPlayerRank(userId);
+  return c.json({ profile, balance, rosterCount, dailyBattlesUsed, dailyBattleCap: DAILY_BATTLE_CAP, tierStatus, dailyBonus, rank });
 });
 
 app.post('/brawl/daily-bonus/claim', async c => {

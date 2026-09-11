@@ -76,10 +76,10 @@ export function PokeBrawlPage() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <DailyBonusButton dailyBonus={profileData?.dailyBonus} />
-                {profileData?.profile && (
+                {profileData?.rank && (
                   <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#9b5cff]/10 border border-[#9b5cff]/25 text-[#9b5cff] text-xs font-bold">
-                    <TrendingUp size={13} /> Global Rating: {profileData.profile.league_rating}
+                    <TrendingUp size={13} /> Global Rank: {profileData.rank.rank} of {profileData.rank.total}
                   </motion.div>
                 )}
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.04 }}
