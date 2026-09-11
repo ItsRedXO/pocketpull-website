@@ -25,9 +25,14 @@ function TierRow({ index, color, config, status, onPlay, playing }: { index: num
 
   return (
     <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }} className="relative flex gap-4">
-      <div className="relative z-10 shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-display text-sm font-bold"
-        style={{ background: locked ? 'rgba(255,255,255,0.05)' : `${color}20`, border: `2px solid ${locked ? 'rgba(255,255,255,0.1)' : color}`, color: locked ? 'rgba(255,255,255,0.3)' : color }}>
-        {locked ? <Lock size={14} /> : index}
+      <div className="relative z-10 shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-display text-base font-black"
+        style={{
+          background: locked ? `${color}22` : color,
+          border: `2px solid ${locked ? `${color}80` : color}`,
+          color: locked ? color : '#fff',
+          boxShadow: locked ? 'none' : `0 0 14px ${color}90`,
+        }}>
+        {locked ? <Lock size={15} /> : index}
       </div>
 
       <motion.div whileHover={!locked ? { y: -2 } : undefined}
@@ -45,7 +50,7 @@ function TierRow({ index, color, config, status, onPlay, playing }: { index: num
           ) : (
             <div className="flex items-center gap-1.5 text-[#facc15] text-xs font-bold mt-1.5">
               <Coins size={13} />
-              {config.totalReward ? `${config.totalReward} pokedollars` : `${config.winReward} win / ${config.lossReward} loss`}
+              Prize: {config.totalReward ?? config.winReward} pokedollars
             </div>
           )}
         </div>
