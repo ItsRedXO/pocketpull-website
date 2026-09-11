@@ -27,7 +27,8 @@ export const adminDelete = <T>(path: string) => request<T>(path, 'DELETE');
 export interface AdminBrawlSpecies {
   id: number; name: string; primary_type: string; secondary_type: string | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
-  overall_rating: number; evolution_stage: number; sprite_url: string | null; artwork_url: string | null;
+  overall_rating: number; evolution_stage: number; is_legendary: number; is_mythical: number; card_tier_override: string | null;
+  sprite_url: string | null; artwork_url: string | null;
   portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 export interface AdminBrawlUserSummary {
@@ -38,7 +39,7 @@ export interface AdminBrawlProfile {
   local_battles_played: number; local_tournament_wins: number; state_tournament_wins: number; regional_tournament_wins: number; elite_four_wins: number;
 }
 export interface AdminBrawlInstance extends Omit<AdminBrawlSpecies, 'id'> {
-  id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; acquired_at: string;
+  id: string; species_id: number; nickname: string | null; source: string; is_on_team: number; team_slot: number | null; star_level: number; acquired_at: string;
 }
 export interface AdminBrawlUserDetail {
   user: { id: string; username: string | null; avatar_url: string | null };

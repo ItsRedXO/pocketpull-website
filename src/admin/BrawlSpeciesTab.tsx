@@ -8,18 +8,29 @@ import { PokemonPortrait } from '../pages/brawl/PokemonPortrait';
 interface BrawlSpecies {
   id: number; name: string; primary_type: string; secondary_type: string | null;
   base_hp: number; base_attack: number; base_defense: number; base_sp_attack: number; base_sp_defense: number; base_speed: number;
-  overall_rating: number; evolution_stage: number; sprite_url: string | null; artwork_url: string | null;
+  overall_rating: number; evolution_stage: number; is_legendary: number; is_mythical: number;
+  card_tier_override: string | null; sprite_url: string | null; artwork_url: string | null;
   portrait_scale: number; portrait_offset_x: number; portrait_offset_y: number;
 }
 
-const STAT_KEYS = ['base_hp', 'base_attack', 'base_defense', 'base_sp_attack', 'base_sp_defense', 'base_speed'] as const;
+// Special attack/defense are edited elsewhere (they're battle-relevant but
+// not something admins need to eyeball in this table) -- HP/ATK/DEF/SPD plus
+// Overall and Stage is the at-a-glance set.
+const STAT_KEYS = ['base_hp', 'base_attack', 'base_defense', 'base_speed'] as const;
 const STAT_LABELS: Record<typeof STAT_KEYS[number], string> = {
-  base_hp: 'HP', base_attack: 'ATK', base_defense: 'DEF', base_sp_attack: 'SpA', base_sp_defense: 'SpD', base_speed: 'SPD',
+  base_hp: 'HP', base_attack: 'ATK', base_defense: 'DEF', base_speed: 'SPD',
 };
 const PORTRAIT_KEYS = ['portrait_scale', 'portrait_offset_x', 'portrait_offset_y'] as const;
 const PORTRAIT_LABELS: Record<typeof PORTRAIT_KEYS[number], string> = {
   portrait_scale: 'Zoom', portrait_offset_x: 'Pan X', portrait_offset_y: 'Pan Y',
 };
+const TIER_OPTIONS = [
+  { value: '', label: 'Auto' },
+  { value: 'bronze', label: 'Bronze' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'gold', label: 'Gold' },
+  { value: 'legendary', label: 'Legendary' },
+];
 
 async function adminHeaders(): Promise<Record<string, string>> {
   const token = await blink.auth.getValidToken();
@@ -117,6 +128,7 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
                 {STAT_KEYS.map(k => <th key={k} className="px-2 py-2 text-center">{STAT_LABELS[k]}</th>)}
                 <th className="px-2 py-2 text-center">Overall</th>
                 <th className="px-2 py-2 text-center">Stage</th>
+                <th className="px-2 py-2 text-center text-[#facc15]/80">Tier</th>
                 {PORTRAIT_KEYS.map(k => <th key={k} className="px-2 py-2 text-center text-[#00c8ff]/70">{PORTRAIT_LABELS[k]}</th>)}
                 <th className="px-2 py-2 text-center">Save</th>
               </tr>
@@ -146,6 +158,12 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
                       className="w-14 bg-transparent border-b border-white/10 focus:border-[#00c8ff] text-[#00c8ff] font-bold text-center outline-none" />
                   </td>
                   <td className="px-2 py-1.5 text-center text-white/40">{row.evolution_stage}</td>
+                  <td className="px-2 py-1.5">
+                    <select value={valueFor(row, 'card_tier_override')} onChange={e => setEdit(row.id, 'card_tier_override', e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-md text-[10px] font-bold uppercase text-[#facc15] px-1.5 py-1 outline-none focus:border-[#facc15]">
+                      {TIER_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-[#0d0e14] text-white normal-case">{o.label}</option>)}
+                    </select>
+                  </td>
                   {PORTRAIT_KEYS.map(k => (
                     <td key={k} className="px-2 py-1.5">
                       <input type="number" step="0.1" value={valueFor(row, k)} onChange={e => setEdit(row.id, k, e.target.value)}

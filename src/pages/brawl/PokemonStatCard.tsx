@@ -16,7 +16,10 @@ export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
 // "gold" cutoff would leave gold nearly empty. 40/55 puts most basic-stage
 // and early mons in bronze, the solid mid-tier in silver, and the genuine
 // stat leaders in gold.
-export function getCardTier(mon: { overall_rating: number; is_legendary?: number; is_mythical?: number }): CardTier {
+export function getCardTier(mon: { overall_rating: number; is_legendary?: number; is_mythical?: number; card_tier_override?: string | null }): CardTier {
+  if (mon.card_tier_override === 'bronze' || mon.card_tier_override === 'silver' || mon.card_tier_override === 'gold' || mon.card_tier_override === 'legendary') {
+    return mon.card_tier_override;
+  }
   if (mon.is_legendary || mon.is_mythical) return 'legendary';
   if (mon.overall_rating >= 55) return 'gold';
   if (mon.overall_rating >= 40) return 'silver';
@@ -36,7 +39,7 @@ interface PokemonLike {
   name: string; artwork_url: string | null; primary_type: string; overall_rating: number;
   base_attack: number; base_defense: number; base_hp: number; base_speed: number;
   portrait_scale?: number; portrait_offset_x?: number; portrait_offset_y?: number;
-  is_legendary?: number; is_mythical?: number; star_level?: number;
+  is_legendary?: number; is_mythical?: number; star_level?: number; card_tier_override?: string | null;
 }
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname }: {

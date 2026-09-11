@@ -39,6 +39,13 @@ app.patch('/admin/brawl/species/:id', async c => {
   for (const key of ['name', 'primary_type', 'secondary_type', 'sprite_url', 'artwork_url'] as const) {
     if (body[key] !== undefined) fields[key] = body[key] || null;
   }
+  if (body.card_tier_override !== undefined) {
+    const value = body.card_tier_override || null;
+    if (value !== null && !['bronze', 'silver', 'gold', 'legendary'].includes(value)) {
+      return c.json({ error: 'card_tier_override must be bronze, silver, gold, legendary, or null' }, 400);
+    }
+    fields.card_tier_override = value;
+  }
   const statFields = ['base_hp', 'base_attack', 'base_defense', 'base_sp_attack', 'base_sp_defense', 'base_speed'] as const;
   let statsChanged = false;
   for (const key of statFields) {
