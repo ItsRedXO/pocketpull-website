@@ -153,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-xl px-4"
+        className="fixed inset-0 z-[200] overflow-y-auto bg-black/80 backdrop-blur-xl px-4 py-8"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -161,7 +161,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-md overflow-hidden"
+          className="relative w-full max-w-md mx-auto overflow-hidden"
           style={{
             background: 'rgba(13, 14, 20, 0.98)',
             border: '1px solid rgba(0,200,255,0.15)',
