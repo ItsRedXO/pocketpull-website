@@ -142,3 +142,14 @@ export interface ChallengeClaimResult {
   balance: number;
 }
 export const claimBrawlChallenge = () => post<ChallengeClaimResult>('/brawl/challenges/claim');
+
+export type ItemRarity = 'common' | 'uncommon' | 'rare';
+export type ItemKind = 'stone' | 'held';
+export interface BrawlItemDef {
+  key: string; name: string; description: string; rarity: ItemRarity; kind: ItemKind; price: number; spriteUrl: string; enabledInShop: boolean;
+}
+export interface ItemShopStatus { items: BrawlItemDef[]; rotatedAt: string; nextRotateAt: string; }
+export const getBrawlItemShop = () => get<ItemShopStatus>('/brawl/items/shop');
+export interface ItemInventoryEntry { itemKey: string; quantity: number; item: BrawlItemDef; }
+export const getBrawlItemInventory = () => get<{ inventory: ItemInventoryEntry[] }>('/brawl/items/inventory');
+export const buyBrawlItem = (itemKey: string) => post<{ success: boolean; balance: number; quantity: number; itemKey: string }>('/brawl/items/buy', { itemKey });

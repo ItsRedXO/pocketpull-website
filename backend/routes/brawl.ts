@@ -14,6 +14,7 @@ import {
   evolveInstances, starUpgradeInstance, type BrawlProfile,
 } from '../repositories/brawl';
 import { getChallengeStatus, selectChallenge, advanceChallenge, claimChallenge } from '../repositories/brawlChallenges';
+import { getShopStatus, getInventory, buyItem } from '../repositories/brawlItems';
 
 // Starter packs are deliberately weaker than the general species pool (28-38
 // overall -- real basic-stage Pokemon top out around 36-37 post-rescale, see
@@ -190,6 +191,30 @@ app.post('/brawl/challenges/claim', async c => {
       NOT_READY: "That challenge isn't complete yet",
     };
     return c.json({ error: messages[e.message] || 'Failed to claim challenge' }, 400);
+  }
+});
+
+app.get('/brawl/items/shop', async c => c.json(await getShopStatus()));
+
+app.get('/brawl/items/inventory', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  return c.json({ inventory: await getInventory(userId) });
+});
+
+app.post('/brawl/items/buy', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const { itemKey } = await c.req.json().catch(() => ({}));
+  if (typeof itemKey !== 'string') return c.json({ error: 'Invalid request' }, 400);
+  try {
+    const result = await buyItem(userId, itemKey);
+    return c.json({ success: true, balance: result.balance, quantity: result.quantity, itemKey });
+  } catch (e: any) {
+    const messages: Record<string, string> = {
+      UNKNOWN_ITEM: 'Unknown item',
+      NOT_IN_SHOP: "That item isn't in today's shop rotation",
+      INSUFFICIENT_POKEDOLLARS: 'Not enough pokedollars for that item',
+    };
+    return c.json({ error: messages[e.message] || 'Purchase failed' }, 400);
   }
 });
 
