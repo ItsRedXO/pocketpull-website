@@ -6,23 +6,21 @@ import { typeColor } from './typeColors';
 
 export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
 
-// Legendary is a species flag, not a stat threshold -- a Legendary/Mythical
-// is always Legendary tier regardless of its actual stats (an accurate but
-// mediocre-stat legendary is still a legendary), and no amount of raw stat
-// can buy a regular species into that tier. The bronze/silver/gold cutoffs
-// below are calibrated against the real post-rescale overall_rating spread
-// for everyone else (see scaleBaseStat in backend/lib/brawl/rating.ts): the
-// strongest non-legendary in the dex (Dragonite) lands at 66, so a 65+
-// "gold" cutoff would leave gold nearly empty. 40/55 puts most basic-stage
-// and early mons in bronze, the solid mid-tier in silver, and the genuine
-// stat leaders in gold.
+// Bronze 0-49 / Silver 50-65 / Gold 66-80 / Legendary 81-100 -- a straight
+// read of overall_rating now that computeOverallRating (see rating.ts) is a
+// weighted composite leaning on a species' best stats instead of a flat
+// average, so genuine standouts can actually reach the 80s-90s. A real
+// Legendary/Mythical is still always Legendary tier even if its stat roll
+// lands below 81 (an accurate but mediocre-stat legendary is still a
+// legendary) -- the rating threshold is an OR on top of that flag, not a
+// replacement for it, so non-legendary species can earn their way in too.
 export function getCardTier(mon: { overall_rating: number; is_legendary?: number; is_mythical?: number; card_tier_override?: string | null }): CardTier {
   if (mon.card_tier_override === 'bronze' || mon.card_tier_override === 'silver' || mon.card_tier_override === 'gold' || mon.card_tier_override === 'legendary') {
     return mon.card_tier_override;
   }
-  if (mon.is_legendary || mon.is_mythical) return 'legendary';
-  if (mon.overall_rating >= 55) return 'gold';
-  if (mon.overall_rating >= 40) return 'silver';
+  if (mon.is_legendary || mon.is_mythical || mon.overall_rating >= 81) return 'legendary';
+  if (mon.overall_rating >= 66) return 'gold';
+  if (mon.overall_rating >= 50) return 'silver';
   return 'bronze';
 }
 

@@ -25,10 +25,18 @@ export function scaleBaseStat(raw: number): number {
   return Math.max(1, Math.min(100, Math.round(100 * Math.pow(ratio, STAT_SCALE_GAMMA))));
 }
 
-// Overall = mean of the six (already 1-100-scaled) base stats, rounded and
-// clamped as a safety net so every species fits the 0-100 rating scale the
-// rest of the game (Safari Zone tiers, opponent ranges) is built around.
+// Overall is a Madden-style weighted composite, not a flat average: a
+// specialist's headline stat should carry it toward an elite rating even if
+// its other stats are unremarkable (Dragonite's monster Attack should read
+// as a genuine standout, not get diluted into mediocrity by its middling
+// HP/Speed). Weighting 50% best stat + 30% second-best + 20% the remaining
+// four keeps balanced generalists close to their old average while letting
+// true specialists (and anything maxed on a single stat) climb toward the
+// 90s. Result is still 1-100-scaled since every input already is.
 export function computeOverallRating(stats: BrawlBaseStats): number {
-  const sum = stats.hp + stats.attack + stats.defense + stats.spAttack + stats.spDefense + stats.speed;
-  return Math.max(0, Math.min(100, Math.round(sum / 6)));
+  const values = [stats.hp, stats.attack, stats.defense, stats.spAttack, stats.spDefense, stats.speed].sort((a, b) => b - a);
+  const [best, second, ...rest] = values;
+  const restAvg = rest.reduce((sum, v) => sum + v, 0) / rest.length;
+  const weighted = 0.5 * best + 0.3 * second + 0.2 * restAvg;
+  return Math.max(0, Math.min(100, Math.round(weighted)));
 }
