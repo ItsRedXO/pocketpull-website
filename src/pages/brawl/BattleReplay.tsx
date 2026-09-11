@@ -1,12 +1,79 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, FastForward, X, Skull, Trophy, Coins, ArrowUp, ArrowDown, Clock } from 'lucide-react';
-import type { ArenaFrame, ArenaObstacle, BrawlMatchResult, RatingChangeResult } from '../../lib/brawlApi';
+import type { ArenaAttackEvent, ArenaFrame, ArenaObstacle, BrawlMatchResult, Effectiveness, RatingChangeResult } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
 
 const EFFECTIVENESS_LABEL: Record<string, string> = { immune: 'No effect', 'not-very-effective': 'Not very effective', neutral: '', 'super-effective': 'Super effective!' };
 const EFFECTIVENESS_COLOR: Record<string, string> = { immune: '#8892a4', 'not-very-effective': '#a8a878', neutral: '#ffffff', 'super-effective': '#f8d030' };
 const BASE_TICK_MS = 300;
+
+// One flavor particle per attacking type -- what actually reads as "flamethrower
+// throws fire", "bubble/hydro pump throws water", etc. on the arena.
+const TYPE_PARTICLES: Record<string, string> = {
+  normal: '💫', fire: '🔥', water: '💧', electric: '⚡', grass: '🍃', ice: '❄️',
+  fighting: '👊', poison: '🧪', ground: '💨', flying: '🌪️', psychic: '🔮', bug: '🐛',
+  rock: '🪨', ghost: '👻', dragon: '🐉', dark: '🌑', steel: '⚙️', fairy: '✨',
+};
+
+/** Type-flavored particle burst + floating damage number at the point of impact.
+ * Effectiveness scales the burst: bigger/brighter for a super-effective hit,
+ * smaller and muted for a resisted one, and a plain block icon (no damage) when
+ * the move can't touch the target at all -- so the type chart is something you
+ * can *see* happen, not just a number in the corner readout. */
+function MoveBurst({ attack }: { attack: ArenaAttackEvent }) {
+  const emoji = TYPE_PARTICLES[attack.moveType] || '💫';
+  const big = attack.effectiveness === 'super-effective';
+  const weak = attack.effectiveness === 'not-very-effective';
+  const immune = attack.effectiveness === 'immune';
+  const count = immune ? 0 : big ? 7 : weak ? 3 : 5;
+  const particles = useMemo(() => Array.from({ length: count }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const dist = (big ? 5 : weak ? 2.2 : 3.5) + Math.random() * 2;
+    return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, delay: Math.random() * 0.06, rotate: (Math.random() - 0.5) * 120 };
+  }), [count, big, weak]);
+
+  if (immune) {
+    return (
+      <motion.div className="absolute pointer-events-none select-none" style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, marginLeft: -8, marginTop: -8, fontSize: 15 }}
+        initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: [0, 1, 0], scale: 1 }} transition={{ duration: 0.5 }}>
+        🛡️
+      </motion.div>
+    );
+  }
+
+  return (
+    <>
+      {particles.map((p, i) => (
+        <motion.div key={i} className="absolute pointer-events-none select-none"
+          style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, marginLeft: big ? -8 : -6, marginTop: big ? -8 : -6, fontSize: big ? 15 : weak ? 9 : 12 }}
+          initial={{ opacity: 0.95, left: `${attack.toX}%`, top: `${attack.toY}%`, scale: 0.6, rotate: 0 }}
+          animate={{ opacity: 0, left: `${attack.toX + p.dx}%`, top: `${attack.toY + p.dy}%`, scale: 1, rotate: p.rotate }}
+          transition={{ duration: big ? 0.55 : 0.4, delay: p.delay, ease: 'easeOut' }}>
+          {emoji}
+        </motion.div>
+      ))}
+      <motion.div className="absolute pointer-events-none font-black tabular-nums"
+        style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, marginLeft: -10, color: EFFECTIVENESS_COLOR[attack.effectiveness], fontSize: big ? 13 : 10, textShadow: '0 1px 3px rgba(0,0,0,.85)' }}
+        initial={{ opacity: 0, y: 0 }} animate={{ opacity: [0, 1, 0], y: -16 }} transition={{ duration: 0.7 }}>
+        -{attack.damage}
+      </motion.div>
+    </>
+  );
+}
+
+/** Brief colored ring pulse on a Pokemon that just got hit -- gold for super
+ * effective, dull olive for resisted -- so a type advantage reads instantly on
+ * the fighter itself, not just in the burst or the corner text. Keyed by tick so
+ * it replays every time this specific fighter takes a new hit. */
+function HitFlash({ effectiveness }: { effectiveness: Effectiveness }) {
+  const color = EFFECTIVENESS_COLOR[effectiveness];
+  return (
+    <motion.div className="absolute inset-0 rounded-full pointer-events-none"
+      style={{ boxShadow: `0 0 0 2px ${color}` }}
+      initial={{ opacity: 0.9, scale: 1 }} animate={{ opacity: 0, scale: 1.7 }} transition={{ duration: 0.4 }} />
+  );
+}
 
 function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.ceil(totalSeconds));
@@ -14,7 +81,7 @@ function formatClock(totalSeconds: number): string {
 }
 const SPEED_OPTIONS = [1, 2, 5, 10, 16] as const;
 
-function PokemonIcon({ mon, tickSeconds }: { mon: ArenaFrame['pokemon'][number]; tickSeconds: number }) {
+function PokemonIcon({ mon, tickSeconds, hitEffect, tick }: { mon: ArenaFrame['pokemon'][number]; tickSeconds: number; hitEffect?: Effectiveness; tick: number }) {
   const accent = mon.side === 'user' ? '#00c8ff' : '#f87171';
   const hpPct = Math.max(0, Math.min(100, (mon.hp / mon.maxHp) * 100));
   const hpColor = hpPct > 50 ? '#4ade80' : hpPct > 20 ? '#facc15' : '#f87171';
@@ -25,8 +92,11 @@ function PokemonIcon({ mon, tickSeconds }: { mon: ArenaFrame['pokemon'][number];
       animate={{ left: `${mon.x}%`, top: `${mon.y}%`, opacity: mon.fainted ? 0.2 : 1 }}
       transition={{ duration: tickSeconds, ease: 'linear' }}
     >
-      <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center" style={{ background: '#0006', border: `1.5px solid ${accent}`, filter: mon.fainted ? 'grayscale(1)' : undefined }}>
+      <div className="relative w-7 h-7 rounded-full overflow-hidden flex items-center justify-center" style={{ background: '#0006', border: `1.5px solid ${accent}`, filter: mon.fainted ? 'grayscale(1)' : undefined }}>
         {mon.artworkUrl ? <img src={mon.artworkUrl} alt={mon.name} className="w-full h-full object-contain scale-[2.2]" style={{ objectPosition: 'top' }} /> : null}
+        <AnimatePresence>
+          {!mon.fainted && hitEffect && hitEffect !== 'neutral' && <HitFlash key={tick} effectiveness={hitEffect} />}
+        </AnimatePresence>
       </div>
       {!mon.fainted && (
         <div className="w-6 h-[3px] rounded-full bg-white/15 mt-0.5 overflow-hidden">
@@ -61,12 +131,18 @@ function Arena({ frame, obstacles, tickSeconds }: { frame: ArenaFrame; obstacles
       </svg>
       <AnimatePresence>
         {frame.attacks.map(a => (
-          <motion.div key={`burst-${frame.tick}-${a.attackerId}-${a.defenderId}`}
-            className="absolute w-4 h-4 rounded-full pointer-events-none" style={{ left: `${a.toX}%`, top: `${a.toY}%`, transform: 'translate(-50%,-50%)', background: typeColor(a.moveType) }}
-            initial={{ opacity: 0.9, scale: 0.3 }} animate={{ opacity: 0, scale: 1.8 }} transition={{ duration: 0.45 }} />
+          <motion.div key={`glow-${frame.tick}-${a.attackerId}-${a.defenderId}`}
+            className="absolute w-3 h-3 rounded-full pointer-events-none" style={{ left: `${a.toX}%`, top: `${a.toY}%`, transform: 'translate(-50%,-50%)', background: typeColor(a.moveType) }}
+            initial={{ opacity: 0.7, scale: 0.3 }} animate={{ opacity: 0, scale: 1.6 }} transition={{ duration: 0.4 }} />
         ))}
       </AnimatePresence>
-      {frame.pokemon.map(mon => <PokemonIcon key={mon.id} mon={mon} tickSeconds={tickSeconds} />)}
+      <AnimatePresence>
+        {frame.attacks.map(a => <MoveBurst key={`vfx-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
+      </AnimatePresence>
+      {frame.pokemon.map(mon => (
+        <PokemonIcon key={mon.id} mon={mon} tickSeconds={tickSeconds} tick={frame.tick}
+          hitEffect={frame.attacks.find(a => a.defenderId === mon.id)?.effectiveness} />
+      ))}
     </div>
   );
 }
