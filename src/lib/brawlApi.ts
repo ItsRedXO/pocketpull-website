@@ -33,6 +33,7 @@ export interface BrawlInstance extends Omit<BrawlSpecies, 'id'> {
 export interface BrawlProfile {
   user_id: string; has_completed_intro: number; league: string; league_rating: number; wins: number; losses: number;
   local_battles_played: number; local_tournament_wins: number; state_tournament_wins: number; regional_tournament_wins: number; elite_four_wins: number;
+  daily_bonus_claimed_at: string | null;
 }
 export interface BattleTierConfig {
   id: string; label: string; matches: number; entryCost: number; cooldownMs: number;
@@ -46,13 +47,17 @@ export interface BrawlConfig {
   tierRatingDeltas: Record<string, { win: number; loss: number }>;
 }
 
+export interface DailyBonusStatus { amount: number; claimable: boolean; nextClaimAt: string | null; }
 export interface BrawlProfileResponse {
   profile: BrawlProfile; balance: number; rosterCount: number; dailyBattlesUsed: number; dailyBattleCap: number;
   tierStatus: Record<string, { unlocked: boolean; cooldownEndsAt: string | null }>;
+  dailyBonus: DailyBonusStatus;
 }
+export interface DailyBonusClaimResult { success: boolean; amount: number; claimedAt: string; nextClaimAt: string; balance: number; }
 
 export const getBrawlConfig = () => get<BrawlConfig>('/brawl/config');
 export const getBrawlProfile = () => get<BrawlProfileResponse>('/brawl/profile');
+export const claimBrawlDailyBonus = () => post<DailyBonusClaimResult>('/brawl/daily-bonus/claim');
 export const completeBrawlIntro = () => post<{ success: boolean; alreadyCompleted?: boolean; roster?: BrawlInstance[] }>('/brawl/intro/complete');
 export const getBrawlRoster = () => get<{ roster: BrawlInstance[] }>('/brawl/roster');
 export const setBrawlTeam = (instanceIds: string[]) => post<{ success: boolean; roster: BrawlInstance[] }>('/brawl/team', { instanceIds });

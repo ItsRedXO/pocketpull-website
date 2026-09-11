@@ -58,6 +58,9 @@ export const BATTLE_TIERS: Record<BattleTierId, BattleTierConfig> = {
 
 export const DAILY_BATTLE_CAP = 250;
 
+export const DAILY_BONUS_AMOUNT = 500;
+export const DAILY_BONUS_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 export interface SafariTierConfig {
   tier: number;
   cost: number;

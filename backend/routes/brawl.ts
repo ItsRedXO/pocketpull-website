@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
-import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, type BattleTierId } from '../lib/brawl/tiers';
+import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, DAILY_BONUS_AMOUNT, DAILY_BONUS_COOLDOWN_MS, type BattleTierId } from '../lib/brawl/tiers';
 import { TIER_RATING_DELTA } from '../lib/brawl/leagues';
 import { simulateBattle } from '../lib/brawl/battleSim';
 import { rollSafariPull } from '../lib/brawl/safariZone';
@@ -9,7 +9,7 @@ import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds,
   speciesRowToBattleSpecies, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, applyRatingChange, getTrainerProfile, type BrawlProfile,
+  getLeaderboard, applyRatingChange, getTrainerProfile, claimDailyBonus, type BrawlProfile,
 } from '../repositories/brawl';
 
 // Starter packs are deliberately weaker than the general species pool (45-50
@@ -49,7 +49,28 @@ app.get('/brawl/profile', async c => {
     }
     tierStatus[tierId] = { unlocked, cooldownEndsAt };
   }
-  return c.json({ profile, balance, rosterCount, dailyBattlesUsed, dailyBattleCap: DAILY_BATTLE_CAP, tierStatus });
+  let dailyBonusNextClaimAt: string | null = null;
+  if (profile.daily_bonus_claimed_at) {
+    const endsAt = new Date(profile.daily_bonus_claimed_at).getTime() + DAILY_BONUS_COOLDOWN_MS;
+    if (endsAt > Date.now()) dailyBonusNextClaimAt = new Date(endsAt).toISOString();
+  }
+  const dailyBonus = { amount: DAILY_BONUS_AMOUNT, claimable: !dailyBonusNextClaimAt, nextClaimAt: dailyBonusNextClaimAt };
+  return c.json({ profile, balance, rosterCount, dailyBattlesUsed, dailyBattleCap: DAILY_BATTLE_CAP, tierStatus, dailyBonus });
+});
+
+app.post('/brawl/daily-bonus/claim', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  try {
+    const result = await claimDailyBonus(userId, DAILY_BONUS_AMOUNT);
+    return c.json({ success: true, amount: DAILY_BONUS_AMOUNT, claimedAt: result.claimedAt, nextClaimAt: result.nextClaimAt, balance: result.balanceAfter });
+  } catch (e: any) {
+    if (e.message === 'DAILY_BONUS_ON_COOLDOWN') {
+      const profile = await getOrCreateProfile(userId);
+      const endsAt = new Date(profile.daily_bonus_claimed_at!).getTime() + DAILY_BONUS_COOLDOWN_MS;
+      return c.json({ error: 'Daily bonus already claimed', nextClaimAt: new Date(endsAt).toISOString() }, 429);
+    }
+    throw e;
+  }
 });
 
 app.post('/brawl/intro/complete', async c => {

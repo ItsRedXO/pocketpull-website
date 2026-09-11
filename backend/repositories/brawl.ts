@@ -3,6 +3,7 @@ import { query, transaction } from '../lib/postgres';
 import { uid } from '../lib/auth';
 import type { BattleSpecies } from '../lib/brawl/battleSim';
 import type { PokeType } from '../lib/brawl/typeChart';
+import { DAILY_BONUS_COOLDOWN_MS } from '../lib/brawl/tiers';
 
 export interface SpeciesRow {
   id: number; name: string; primary_type: string; secondary_type: string | null;
@@ -54,6 +55,7 @@ export async function updateSpecies(id: number, fields: Record<string, unknown>)
 export interface BrawlProfile {
   user_id: string; has_completed_intro: number; league: string; league_rating: number; wins: number; losses: number;
   local_battles_played: number; local_tournament_wins: number; state_tournament_wins: number; regional_tournament_wins: number; elite_four_wins: number;
+  daily_bonus_claimed_at: string | null;
 }
 export async function getOrCreateProfile(userId: string): Promise<BrawlProfile> {
   const existing = await query<BrawlProfile>('SELECT * FROM brawl_profiles WHERE user_id=$1', [userId]);
@@ -109,6 +111,36 @@ export async function applyBrawlWalletTransaction(userId: string, type: string, 
       [uid(), userId, type, amount, balanceBefore, balanceAfter, sourceId || null, JSON.stringify(metadata)],
     );
     return { balanceBefore, balanceAfter };
+  });
+}
+
+export interface DailyBonusResult { claimedAt: string; nextClaimAt: string; balanceBefore: number; balanceAfter: number; }
+/**
+ * Claims the once-per-24h Poke Brawl pokedollar bonus. Cooldown check + wallet
+ * credit happen inside one row-locked transaction (rather than reusing
+ * applyBrawlWalletTransaction's own transaction) so two concurrent requests
+ * can't both slip past the cooldown check and double-claim.
+ */
+export async function claimDailyBonus(userId: string, amount: number): Promise<DailyBonusResult> {
+  return transaction(async client => {
+    await client.query('INSERT INTO brawl_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [userId]);
+    const profileRow = (await client.query('SELECT daily_bonus_claimed_at FROM brawl_profiles WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
+    const last = profileRow?.daily_bonus_claimed_at ? new Date(profileRow.daily_bonus_claimed_at).getTime() : 0;
+    if (Date.now() - last < DAILY_BONUS_COOLDOWN_MS) throw new Error('DAILY_BONUS_ON_COOLDOWN');
+
+    const now = new Date();
+    await client.query('UPDATE brawl_profiles SET daily_bonus_claimed_at=$1, updated_at=now() WHERE user_id=$2', [now, userId]);
+
+    await client.query('INSERT INTO brawl_wallets (user_id, balance) VALUES ($1, 0) ON CONFLICT (user_id) DO NOTHING', [userId]);
+    const walletRow = (await client.query('SELECT balance FROM brawl_wallets WHERE user_id=$1 FOR UPDATE', [userId])).rows[0];
+    const balanceBefore = Number(walletRow?.balance || 0);
+    const balanceAfter = balanceBefore + amount;
+    await client.query('UPDATE brawl_wallets SET balance=$1, updated_at=now() WHERE user_id=$2', [balanceAfter, userId]);
+    await client.query(
+      'INSERT INTO brawl_wallet_transactions (id, user_id, type, amount, balance_before, balance_after, source_id, metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [uid(), userId, 'daily_bonus', amount, balanceBefore, balanceAfter, `daily_bonus:${userId}:${now.toISOString().slice(0, 10)}`, JSON.stringify({})],
+    );
+    return { claimedAt: now.toISOString(), nextClaimAt: new Date(now.getTime() + DAILY_BONUS_COOLDOWN_MS).toISOString(), balanceBefore, balanceAfter };
   });
 }
 
