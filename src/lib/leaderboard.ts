@@ -62,9 +62,12 @@ async function loadLeaderboardData(type: 'pulls' | 'packs' | 'upgrades', userId?
     if (!isRateLimitError(e)) console.warn(`Failed to fetch real leaderboard for ${type}`);
   }
 
+  // Read the field matching this tab's type -- not a `||` fallback chain,
+  // which always picked biggestPull first whenever it was non-zero and
+  // silently mislabeled it as packs/upgrades on the other tabs too.
   const realEntries = realRows.map(r => ({
     user: r.username || 'Trainer',
-    numericValue: Number(r.biggestPull || r.packsOpened || r.upgradesAttempted || 0),
+    numericValue: type === 'pulls' ? Number(r.biggestPull || 0) : type === 'packs' ? Number(r.packsOpened || 0) : Number(r.upgradesAttempted || 0),
     avatar: getAvatarEmoji(r.username),
     isReal: true
   }));
