@@ -18,6 +18,21 @@ interface ReferredUser {
   rewardPaid: boolean;
 }
 
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous 0/O, 1/I/L
+function generateReferralCode(): string {
+  let code = '';
+  for (let i = 0; i < 5; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return code;
+}
+async function generateUniqueReferralCode(excludeUserId: string): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateReferralCode();
+    const existing = await blink.db.users.list({ where: { referralCode: code }, limit: 5 }) as any[];
+    if (!(existing || []).some(r => r.id !== excludeUserId)) return code;
+  }
+  return generateReferralCode();
+}
+
 export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsSectionProps) {
   const qc = useQueryClient();
   const [editingCode, setEditingCode] = useState(false);
@@ -34,7 +49,17 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
     queryFn: async () => {
       // Get user row fresh for latest referralCode
       const userRow = await blink.db.users.get(user.id) as any;
-      const referralCode = (userRow?.referralCode as string) || '';
+      let referralCode = (userRow?.referralCode as string) || '';
+
+      // Self-heal: some accounts (mainly ones imported from the pre-Supabase
+      // backend) never had a code generated at all. Rather than leaving this
+      // blank until a one-off migration happens to cover it, generate one
+      // the moment an admin actually looks -- guarantees every account has a
+      // working code without needing another manual backfill later.
+      if (!referralCode) {
+        referralCode = await generateUniqueReferralCode(user.id);
+        await blink.db.users.update(user.id, { referralCode });
+      }
 
       // Get referred users
       const rawReferred = await blink.db.users.list({

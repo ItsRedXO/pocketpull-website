@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, ShieldPlus } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { UserRow, InventoryRow } from './types';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { SectionErrorBoundary } from './SectionErrorBoundary';
@@ -30,6 +31,29 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
   const [banningUser, setBanningUser] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
   const [promotingUser, setPromotingUser] = useState(false);
+
+  // Fallback for "Last Online" when the presence heartbeat has no data yet
+  // (a brand new signal -- most accounts won't have pinged it yet) or never
+  // will (an account that predates it): fall back to their most recent
+  // recorded action instead of just saying "Never" forever, since that's
+  // what "online" practically meant before there was a dedicated signal for
+  // it. Only fetched when needed -- most users already have a lastSeenAt.
+  const { data: lastActionAt } = useQuery<string | null>({
+    queryKey: ['admin-last-action', user.id],
+    queryFn: async () => {
+      const headers: Record<string, string> = {};
+      try { const token = await blink.auth.getValidToken(); if (token) headers.Authorization = `Bearer ${token}`; } catch {}
+      const secret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+      if (secret) headers['X-Admin-Secret'] = secret;
+      const res = await fetch(`${BACKEND_BASE}/admin-logs?userId=${encodeURIComponent(user.id)}&limit=1`, { headers });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => ({})) as any;
+      return data?.rows?.[0]?.createdAt || null;
+    },
+    enabled: !user.lastSeenAt,
+    staleTime: 30_000,
+  });
+  const lastOnlineDisplay = user.lastSeenAt || lastActionAt;
 
   const { data: referrerInfo } = useQuery<{ username: string; code: string } | null>({
     queryKey: ['admin-referrer', user.id, user.referredById],
@@ -228,7 +252,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
             <div className="space-y-1">
               <p className="text-[11px] text-white/60">Created: <span className="text-white/80">{new Date(user.createdAt).toLocaleDateString()}</span></p>
               <p className="text-[11px] text-white/60">
-                Last Online: <span className="text-white/80">{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleDateString() : 'Never'}</span>
+                Last Online: <span className="text-white/80">{lastOnlineDisplay ? new Date(lastOnlineDisplay).toLocaleDateString() : 'N/A'}</span>
               </p>
             </div>
           </div>
