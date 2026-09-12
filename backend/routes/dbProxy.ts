@@ -154,6 +154,11 @@ app.post('/db', async (c) => {
     const body = await c.req.json<any>();
     const logical = body.table as string;
     const operation = body.operation as string;
+    // TEMP diagnostic -- logs every /db request touching the users table
+    // (any operation), unconditionally, before any branching/auth, to rule
+    // out a table-name mismatch hiding get() calls from the more specific
+    // logging further down.
+    if (logical === 'users') console.log(`[dbproxy-diag4] RAW table=${JSON.stringify(logical)} op=${JSON.stringify(operation)} id=${JSON.stringify(body.id)} where=${JSON.stringify(body.where)}`);
     const { userId, admin } = await auth(c);
     requireScope(logical, operation, userId, admin, body);
 
