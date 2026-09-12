@@ -65,19 +65,24 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
   const MIN_BRANDED_DURATION = 650;
   const MAX_WAIT_DURATION = 15000;
 
-  // Keep the branded progress animation lightweight, but cap it and let readiness
-  // decide when the shell can be dismissed.
+  // Ease the bar up towards (but never reaching) a cap, fast at first and
+  // slower as it approaches it -- classic loading-bar feel -- instead of a
+  // fixed linear ramp scaled to the 15s worst-case, which barely moved before
+  // readiness (usually well under a second) snapped it straight to 100.
+  const PROGRESS_CAP = 92;
   useEffect(() => {
-    const startedAt = performance.now();
-    const animate = (ts: number) => {
-      const elapsed = ts - startedAt;
-      const raw = Math.min(elapsed / MAX_WAIT_DURATION, 1);
-      setProgress(Math.min(raw * 100, 99));
-      if (raw < 1 && visible) rafRef.current = requestAnimationFrame(animate);
+    const animate = () => {
+      setProgress(prev => {
+        if (prev >= PROGRESS_CAP) return prev;
+        const remaining = PROGRESS_CAP - prev;
+        const increment = Math.max(0.15, remaining * 0.04);
+        return Math.min(PROGRESS_CAP, prev + increment);
+      });
+      rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [visible]);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
