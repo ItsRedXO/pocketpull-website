@@ -47,8 +47,11 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
   }>({
     queryKey: ['admin-referrals', user.id],
     queryFn: async () => {
+      // TEMP diagnostic -- each step tagged so a surfaced error names the
+      // exact call that failed, rather than one opaque "FORBIDDEN" for the
+      // whole function. Remove the tags (keep the logic) once found.
       // Get user row fresh for latest referralCode
-      const userRow = await blink.db.users.get(user.id) as any;
+      const userRow = await blink.db.users.get(user.id).catch((e: any) => { throw new Error(`[step:get] ${e?.message || e}`); }) as any;
       let referralCode = (userRow?.referralCode as string) || '';
 
       // Self-heal: some accounts (mainly ones imported from the pre-Supabase
@@ -57,8 +60,8 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
       // the moment an admin actually looks -- guarantees every account has a
       // working code without needing another manual backfill later.
       if (!referralCode) {
-        referralCode = await generateUniqueReferralCode(user.id);
-        await blink.db.users.update(user.id, { referralCode });
+        referralCode = await generateUniqueReferralCode(user.id).catch((e: any) => { throw new Error(`[step:genCode] ${e?.message || e}`); });
+        await blink.db.users.update(user.id, { referralCode }).catch((e: any) => { throw new Error(`[step:update] ${e?.message || e}`); });
       }
 
       // Get referred users
@@ -66,7 +69,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
         where: { referredById: user.id },
         orderBy: { createdAt: 'desc' },
         limit: 100,
-      }) as any[];
+      }).catch((e: any) => { throw new Error(`[step:listReferred] ${e?.message || e}`); }) as any[];
 
       // Resolve deposit status for each referred user
       const referredUsers: ReferredUser[] = await Promise.all(
@@ -79,7 +82,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
             const rows = await blink.db.transactions.list({
               where: { userId: u.id, type: 'deposit' },
               limit: 50,
-            }) as any[];
+            }).catch((e: any) => { throw new Error(`[step:listDeposits:${u.id}] ${e?.message || e}`); }) as any[];
             hasDeposited5 = (rows || []).some((t: any) => Number(t.amount) >= 5);
           } else {
             hasDeposited5 = true;
