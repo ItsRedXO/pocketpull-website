@@ -4,23 +4,32 @@ import { BACKEND_BASE } from '../lib/backend';
 export interface SiteSimulationSettings {
   packsOpenedMin: number;
   packsOpenedMax: number;
+  /** The specific number Packs Opened will land on by the end of today (Pacific). */
+  packsOpenedTodayTarget: number;
+  /** True if an admin pinned today's target; false if it was auto-rolled. */
+  packsOpenedTodayOverridden: boolean;
   cardsWonMin: number;
   cardsWonMax: number;
+  /** The specific number Cards Won will land on by the end of today (Pacific). */
+  cardsWonTodayTarget: number;
+  /** True if an admin pinned today's target; false if it was auto-rolled. */
+  cardsWonTodayOverridden: boolean;
   livePlayersMin: number;
   livePlayersMax: number;
 }
 
 export const DEFAULT_SITE_SIMULATION_SETTINGS: SiteSimulationSettings = {
-  packsOpenedMin: 40000, packsOpenedMax: 80000,
-  cardsWonMin: 420, cardsWonMax: 10420,
+  packsOpenedMin: 40000, packsOpenedMax: 80000, packsOpenedTodayTarget: 80000, packsOpenedTodayOverridden: false,
+  cardsWonMin: 420, cardsWonMax: 10420, cardsWonTodayTarget: 10420, cardsWonTodayOverridden: false,
   livePlayersMin: 150, livePlayersMax: 250,
 };
 
 /**
- * Admin-configurable ranges for the homepage's simulated "live" numbers.
- * Public, unauthenticated read -- these are display ranges, not secrets.
- * Falls back to the shipped defaults if the request fails so the homepage
- * never blanks out because this one endpoint is briefly unavailable.
+ * Admin-configurable ranges (and today's specific rolled/pinned target) for
+ * the homepage's simulated "live" numbers. Public, unauthenticated read --
+ * these are display ranges, not secrets. Falls back to the shipped defaults
+ * if the request fails so the homepage never blanks out because this one
+ * endpoint is briefly unavailable.
  */
 export function useSiteSimulationSettings(): SiteSimulationSettings {
   const { data } = useQuery({

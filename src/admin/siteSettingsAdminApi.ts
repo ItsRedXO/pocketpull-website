@@ -19,7 +19,20 @@ export const fetchSiteSettings = async (): Promise<SiteSimulationSettings> => {
   return data as SiteSimulationSettings;
 };
 
-export const patchSiteSettings = async (fields: Partial<SiteSimulationSettings>) => {
+export interface SiteSettingsPatchInput {
+  packsOpenedMin?: number;
+  packsOpenedMax?: number;
+  cardsWonMin?: number;
+  cardsWonMax?: number;
+  livePlayersMin?: number;
+  livePlayersMax?: number;
+  /** Pin today's Packs Opened total to an exact number; null clears the pin (reverts to the auto daily roll). */
+  packsOpenedTodayOverride?: number | null;
+  /** Pin today's Cards Won total to an exact number; null clears the pin (reverts to the auto daily roll). */
+  cardsWonTodayOverride?: number | null;
+}
+
+export const patchSiteSettings = async (fields: SiteSettingsPatchInput) => {
   const res = await fetch(`${BACKEND_BASE}/admin/site-settings`, {
     method: 'PATCH',
     headers: await adminHeaders(),

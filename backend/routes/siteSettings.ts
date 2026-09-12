@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { resolveUserId } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { isAdminSecretCandidate } from '../lib/adminAuthorization';
-import { getSiteSettings, updateSiteSettings } from '../repositories/siteSettings';
+import { getSiteSettings, updateSiteSettings, type SiteSettingsUpdateInput } from '../repositories/siteSettings';
 
 const app = new Hono();
 
@@ -51,7 +51,32 @@ app.patch('/admin/site-settings', async c => {
   if (merged.cardsWonMax < merged.cardsWonMin) return c.json({ error: 'Cards Won max must be greater than or equal to min' }, 400);
   if (merged.livePlayersMax < merged.livePlayersMin) return c.json({ error: 'Live Players max must be greater than or equal to min' }, 400);
 
-  const settings = await updateSiteSettings(fields);
+  const updateInput: SiteSettingsUpdateInput = { ...fields };
+
+  if (body.packsOpenedTodayOverride !== undefined) {
+    if (body.packsOpenedTodayOverride === null) {
+      updateInput.packsOpenedTodayOverride = null;
+    } else {
+      const value = Number(body.packsOpenedTodayOverride);
+      if (!Number.isFinite(value) || value < merged.packsOpenedMin || value > merged.packsOpenedMax) {
+        return c.json({ error: `packsOpenedTodayOverride must be between ${merged.packsOpenedMin} and ${merged.packsOpenedMax}` }, 400);
+      }
+      updateInput.packsOpenedTodayOverride = Math.round(value);
+    }
+  }
+  if (body.cardsWonTodayOverride !== undefined) {
+    if (body.cardsWonTodayOverride === null) {
+      updateInput.cardsWonTodayOverride = null;
+    } else {
+      const value = Number(body.cardsWonTodayOverride);
+      if (!Number.isFinite(value) || value < merged.cardsWonMin || value > merged.cardsWonMax) {
+        return c.json({ error: `cardsWonTodayOverride must be between ${merged.cardsWonMin} and ${merged.cardsWonMax}` }, 400);
+      }
+      updateInput.cardsWonTodayOverride = Math.round(value);
+    }
+  }
+
+  const settings = await updateSiteSettings(updateInput);
   return c.json({ success: true, settings });
 });
 

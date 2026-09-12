@@ -10,11 +10,14 @@ import { getSimulatedLivePlayers } from '../lib/livePlayers';
 /**
  * Hook to manage global live counters for the hero section and platform activity.
  * - Packs Opened Today: Deterministic time-based curve, computed locally (see
- *     getDailyIncrementalValue) so the range is exact and verifiable. Range
- *     is admin-adjustable (see useSiteSimulationSettings / the admin panel's
- *     Site Settings tab). Resets at midnight Pacific. Only ever increases
- *     within a day.
- * - Cards Won Today: Admin-adjustable range, resets at midnight Pacific.
+ *     getDailyIncrementalValue) so the range is exact and verifiable. Ramps
+ *     from the admin-set min toward *today's* specific target -- a value
+ *     auto-rolled once per Pacific calendar day within [min,max] (or pinned
+ *     by an admin), so different days actually land on different totals
+ *     instead of every day climbing to the same fixed ceiling. See
+ *     useSiteSimulationSettings / the admin panel's Site Settings tab.
+ *     Resets at midnight Pacific. Only ever increases within a day.
+ * - Cards Won Today: Same admin-adjustable range + per-day target as above.
  * - Biggest Pull Today: Synchronized with #1 on leaderboard (itself capped at
  *     the real catalog's highest card value -- see leaderboard.ts).
  * - Live Players: Admin-adjustable range, simulated with a day/night curve
@@ -27,13 +30,15 @@ export function useLiveCounters() {
 
   // 1. Packs Opened (local deterministic curve; re-sampled periodically so it
   // still visibly ticks up like a live counter without any network call).
-  const [packsOpened, setPacksOpened] = useState(() => getDailyIncrementalValue(settings.packsOpenedMin, settings.packsOpenedMax - settings.packsOpenedMin));
+  // Ramps toward *today's* specific target (auto-rolled per day within
+  // [min,max], or admin-pinned) rather than always climbing to the same max.
+  const [packsOpened, setPacksOpened] = useState(() => getDailyIncrementalValue(settings.packsOpenedMin, settings.packsOpenedTodayTarget - settings.packsOpenedMin));
   useEffect(() => {
-    const recompute = () => setPacksOpened(getDailyIncrementalValue(settings.packsOpenedMin, settings.packsOpenedMax - settings.packsOpenedMin));
+    const recompute = () => setPacksOpened(getDailyIncrementalValue(settings.packsOpenedMin, settings.packsOpenedTodayTarget - settings.packsOpenedMin));
     recompute();
     const interval = setInterval(recompute, 5000);
     return () => clearInterval(interval);
-  }, [settings.packsOpenedMin, settings.packsOpenedMax]);
+  }, [settings.packsOpenedMin, settings.packsOpenedTodayTarget]);
 
   // Live Battles (real count from the centralized battle-stats endpoint, kept
   // as-is -- only packsOpened from this source was inaccurate/unpredictable).
@@ -59,10 +64,11 @@ export function useLiveCounters() {
 
   const liveBattles = realLiveBattles + simulatedBattlesCount;
 
-  // 2. Cards Won Today (admin-adjustable range, resets at midnight)
+  // 2. Cards Won Today (admin-adjustable range, resets at midnight; ramps
+  // toward today's specific auto-rolled/pinned target, same as Packs Opened).
   const cardsWonToday = useMemo(() => {
-    return getDailyIncrementalValue(settings.cardsWonMin, settings.cardsWonMax - settings.cardsWonMin);
-  }, [settings.cardsWonMin, settings.cardsWonMax]);
+    return getDailyIncrementalValue(settings.cardsWonMin, settings.cardsWonTodayTarget - settings.cardsWonMin);
+  }, [settings.cardsWonMin, settings.cardsWonTodayTarget]);
 
   // 3. Total Upgrades Today (Targets ~5,000/day)
   const totalUpgrades = useMemo(() => {
