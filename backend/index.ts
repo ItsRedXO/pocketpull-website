@@ -35,6 +35,7 @@ import storageRoutes from './routes/storage';
 import brawlRoutes from './routes/brawl';
 import adminBrawlRoutes from './routes/adminBrawl';
 import siteSettingsRoutes from './routes/siteSettings';
+import activityPingRoutes from './routes/activityPing';
 
 const app = new Hono();
 app.use('*', cors());
@@ -52,7 +53,7 @@ app.route('/', legacyCashoutAdminRoutes); app.route('/', inventoryRoutes); app.r
 app.route('/', authSupabaseRoutes);
 app.route('/', passwordResetRoutes);
 app.route('/', storageRoutes);
-app.route('/', brawlRoutes); app.route('/', adminBrawlRoutes); app.route('/', siteSettingsRoutes);
+app.route('/', brawlRoutes); app.route('/', adminBrawlRoutes); app.route('/', siteSettingsRoutes); app.route('/', activityPingRoutes);
 app.get('/referrals', async c => { try { const userId = await requireAuth(c); const page = Math.max(1, parseInt(c.req.query('page') || '1')); const limit = 10; const offset = (page - 1) * limit; const [users, total] = await Promise.all([listUsersByReferrer(userId, limit, offset), countUsersByReferrer(userId)]); const data = await Promise.all((users as any[]).map(async u => { let status: 'Reward Paid' | 'Deposit Pending' | 'Signed Up' = 'Signed Up', deposited = false; if (Number(u.referral_reward_paid || 0) > 0) { status = 'Reward Paid'; deposited = true; } else if (await hasDeposit(u.id, 5)) { status = 'Deposit Pending'; deposited = true; } else deposited = await hasDeposit(u.id); return { id: u.id, username: u.username || u.display_name || 'Trainer', email: Number(u.is_deleted || 0) > 0 ? 'Released' : (u.email || 'Hidden'), status, deposited, createdAt: u.created_at }; })); return c.json({ data, total, page, totalPages: Math.ceil(total / limit) }); } catch (err: any) { return c.json({ error: err.message }, 500); } });
 app.get('/pocketpull-logo.png', serveStatic({ path: './dist/favicon.ico' })); app.get('/favicon.png', serveStatic({ path: './dist/favicon.ico' })); app.use('*', serveStatic({ root: './dist' })); app.get('*', serveStatic({ path: './dist/index.html' }));
 export default app;

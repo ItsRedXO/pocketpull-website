@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Ban, UserX, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { UserRow, FilterTab } from './types';
+import { getPresenceStatus, PRESENCE_COLOR, PRESENCE_LABEL } from './presence';
 
 interface UserListProps {
   users: UserRow[];
@@ -144,6 +145,16 @@ export function UserList({
                     )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
+                        {!u.isDeleted && (() => {
+                          const status = getPresenceStatus(u.lastSeenAt, u.lastActiveAt);
+                          return (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ background: PRESENCE_COLOR[status], boxShadow: `0 0 4px ${PRESENCE_COLOR[status]}` }}
+                              title={PRESENCE_LABEL[status]}
+                            />
+                          );
+                        })()}
                         <p className={`text-[12px] font-display truncate ${u.isDeleted ? 'text-white/30' : 'text-white'}`}>
                           {u.username || u.displayName || 'Unknown'}
                         </p>

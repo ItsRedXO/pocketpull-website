@@ -227,6 +227,9 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
             <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display mb-2">Account Info</h4>
             <div className="space-y-1">
               <p className="text-[11px] text-white/60">Created: <span className="text-white/80">{new Date(user.createdAt).toLocaleDateString()}</span></p>
+              <p className="text-[11px] text-white/60">
+                Last Online: <span className="text-white/80">{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleDateString() : 'Never'}</span>
+              </p>
             </div>
           </div>
           <div className="rounded-xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.12)' }}>

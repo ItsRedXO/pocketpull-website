@@ -17,6 +17,8 @@ export interface UserRow {
   referralRewardPaid: boolean;
   role: string;
   avatarUrl: string | null;
+  lastSeenAt: string | null;
+  lastActiveAt: string | null;
 }
 
 export interface InventoryRow {

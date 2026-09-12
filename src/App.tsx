@@ -15,6 +15,7 @@ import { AuthModal } from './components/AuthModal';
 import { DepositModal } from './components/DepositModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { useAuth, useUserStats } from './hooks/useAuth';
+import { useActivityHeartbeat } from './hooks/useActivityHeartbeat';
 import { useBalance } from './hooks/useBalance';
 import { usePacks, useRecentPulls } from './hooks/usePacks';
 import { HeroSection } from './components/HeroSection';
@@ -44,6 +45,7 @@ export default function App() {
   const [infoModalType, setInfoModalType] = useState<InfoModalType | null>(null);
   const [provablyFairOpen, setProvablyFairOpen] = useState(false);
   const { user, isLoading: authLoading, signOut } = useAuth();
+  useActivityHeartbeat(!!user);
   const { stats, loading: statsLoading, updateBalance } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified);
   const { isLoading: balanceLoading } = useBalance(user?.id);
   const packsQuery = usePacks();

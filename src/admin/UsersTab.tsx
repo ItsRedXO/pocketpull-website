@@ -60,6 +60,8 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
           referralRewardPaid: Number(r.referralRewardPaid || r.referral_reward_paid || 0) > 0,
           role: (r.role as string) || '',
           avatarUrl: (r.avatarUrl || r.avatar_url || null) as string | null,
+          lastSeenAt: (r.lastSeenAt || r.last_seen_at || null) as string | null,
+          lastActiveAt: (r.lastActiveAt || r.last_active_at || null) as string | null,
         }));
     },
     staleTime: 0,
