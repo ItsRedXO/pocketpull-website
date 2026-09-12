@@ -40,7 +40,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
   const [saving, setSaving] = useState(false);
 
   // ── Fetch user's own referral code & referred users ──────────────────────
-  const { data, isLoading } = useQuery<{
+  const { data, isLoading, isError, error } = useQuery<{
     referralCode: string;
     referredUsers: ReferredUser[];
     totalCount: number;
@@ -162,6 +162,19 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
         <div className="flex items-center justify-center py-6">
           <div className="w-5 h-5 rounded-full border-2 border-[#00c8ff]/20 border-t-[#00c8ff] animate-spin" />
         </div>
+      </div>
+    );
+  }
+
+  // TEMP diagnostic -- this section was silently showing blank/0 for some
+  // users with no visible indication anything had failed. Surfacing the
+  // real error instead of falling back to empty defaults. Remove once the
+  // underlying cause is found and fixed.
+  if (isError) {
+    return (
+      <div className="rounded-2xl p-4" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)' }}>
+        <p className="text-[11px] text-red-300 font-bold mb-1">Referrals failed to load</p>
+        <p className="text-[10px] text-red-300/70 break-all">{(error as any)?.message || String(error)}</p>
       </div>
     );
   }
