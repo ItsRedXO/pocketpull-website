@@ -42,7 +42,18 @@ async function request<T>(tokenProvider: TokenProvider, body: Record<string, unk
 
 function tableClient(tokenProvider: TokenProvider, table: string) {
   const list = <T = any>(options: any = {}) => {
-    if (table === 'users' && options?.where && !options?.where?.id) {
+    // Public, unauthenticated lookup path -- only for the exact shape the
+    // admin-login and signup flows actually need (username/email/display
+    // name, no id). Was previously "any users where-clause without an id",
+    // which meant a where like {referredById} or {referralCode} silently
+    // got redirected here too, found none of the fields it recognizes, and
+    // returned null -- completely bypassing the real, authenticated /db
+    // query instead of erroring, so it looked like the data just didn't
+    // exist.
+    const where = options?.where || {};
+    const isPublicLookup = table === 'users' && where.id === undefined
+      && (where.username !== undefined || where.email !== undefined || where.displayName !== undefined || where.display_name !== undefined);
+    if (isPublicLookup) {
       return publicUserLookup(options) as Promise<T[]>;
     }
     return request<T[]>(tokenProvider, { table, operation: 'list', ...options });

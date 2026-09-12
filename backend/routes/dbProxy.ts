@@ -42,13 +42,11 @@ const mapRow = (row: any) => {
 async function auth(c: any): Promise<{ userId: string | null; admin: boolean }> {
   const userId = await resolveUserId(c);
   let admin = false;
-  let adminVia = 'none';
   const secret = c.req.header('X-Admin-Secret');
   if (secret && secret !== 'true') {
     try {
       const rows = await query<{ admin_pass: string }>('SELECT admin_pass FROM admin_credentials WHERE admin_pass=$1 LIMIT 1', [secret]);
       admin = rows.length > 0;
-      if (admin) adminVia = 'secret';
     } catch {}
   }
   if (!admin && userId) {
@@ -56,13 +54,8 @@ async function auth(c: any): Promise<{ userId: string | null; admin: boolean }> 
       const rows = await query<{ role: string; is_admin: number }>('SELECT role,is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
       const user = rows[0];
       admin = user?.role === 'admin' || user?.role === 'owner' || Number(user?.is_admin || 0) > 0;
-      if (admin) adminVia = 'role';
     } catch {}
   }
-  // TEMP diagnostic -- pin down why ReferralsSection's /db calls behave as
-  // non-admin for some users despite the same session listing all users
-  // fine elsewhere. Remove once the referral-code display bug is found.
-  console.log(`[dbproxy-diag] userId=${userId} admin=${admin} via=${adminVia} secretPresent=${!!secret} secretIsLiteralTrue=${secret === 'true'}`);
   return { userId, admin };
 }
 
@@ -162,7 +155,6 @@ app.post('/db', async (c) => {
     const logical = body.table as string;
     const operation = body.operation as string;
     const { userId, admin } = await auth(c);
-    if (logical === 'users') console.log(`[dbproxy-diag] table=${logical} op=${operation} where=${JSON.stringify(body.where)} admin=${admin} userId=${userId}`);
     requireScope(logical, operation, userId, admin, body);
 
     if ((logical === 'supportChats' || logical === 'supportMessages') && ['get', 'list', 'count'].includes(operation)) {
