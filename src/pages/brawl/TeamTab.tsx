@@ -8,8 +8,8 @@ import { PokemonPortrait } from './PokemonPortrait';
 import { EvolveModal } from './EvolveModal';
 import { groupIsMergeable } from './mergeEligibility';
 
-function PokemonCard({ mon, selected, order, index, onClick }: { mon: BrawlInstance; selected: boolean; order: number | null; index: number; onClick: () => void }) {
-  return <PokemonStatCard mon={mon} nickname={mon.nickname} selected={selected} order={order} index={index} onClick={onClick} />;
+function PokemonCard({ mon, selected, order, index, count, onClick }: { mon: BrawlInstance; selected: boolean; order: number | null; index: number; count?: number; onClick: () => void }) {
+  return <PokemonStatCard mon={mon} nickname={mon.nickname} selected={selected} order={order} index={index} count={count} onClick={onClick} />;
 }
 
 export function TeamTab() {
@@ -67,6 +67,10 @@ export function TeamTab() {
     if (group) group.push(mon); else benchGroups.set(mon.species_id, [mon]);
   }
   const mergeableGroups = Array.from(benchGroups.values()).filter(g => g.length > 1 && groupIsMergeable(g));
+  // One card per species (duplicates collapse into a single "(xN)" card),
+  // highest overall rating first -- otherwise strong Pokemon get buried
+  // among a long acquisition-order list of commons.
+  const benchDisplayGroups = Array.from(benchGroups.values()).sort((a, b) => b[0].overall_rating - a[0].overall_rating);
 
   return (
     <div>
@@ -121,7 +125,10 @@ export function TeamTab() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <AnimatePresence>
-            {bench.map((mon, i) => <PokemonCard key={mon.id} mon={mon} selected={false} order={null} index={i} onClick={() => toggle(mon.id)} />)}
+            {benchDisplayGroups.map((group, i) => {
+              const mon = group[0];
+              return <PokemonCard key={mon.species_id} mon={mon} selected={false} order={null} index={i} count={group.length} onClick={() => toggle(mon.id)} />;
+            })}
           </AnimatePresence>
         </div>
       )}

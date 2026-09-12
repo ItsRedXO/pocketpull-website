@@ -40,8 +40,8 @@ interface PokemonLike {
   is_legendary?: number; is_mythical?: number; star_level?: number; card_tier_override?: string | null;
 }
 
-export function PokemonStatCard({ mon, selected, order, index, onClick, nickname }: {
-  mon: PokemonLike; selected?: boolean; order?: number | null; index?: number; onClick?: () => void; nickname?: string | null;
+export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count }: {
+  mon: PokemonLike; selected?: boolean; order?: number | null; index?: number; onClick?: () => void; nickname?: string | null; count?: number;
 }) {
   const tier = getCardTier(mon);
   const style = TIER_STYLE[tier];
@@ -52,61 +52,68 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
   const portraitScale = Math.max(1, (mon.portrait_scale ?? 1.5) * 0.8);
 
   return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, y: 10, scale: 0.92 }}
-      animate={isLegendary
-        ? { opacity: 1, y: 0, scale: 1, boxShadow: [`0 4px 14px rgba(0,0,0,0.4), 0 0 10px ${style.glow}`, `0 4px 14px rgba(0,0,0,0.4), 0 0 22px ${style.glow}`, `0 4px 14px rgba(0,0,0,0.4), 0 0 10px ${style.glow}`] }
-        : { opacity: 1, y: 0, scale: 1 }}
-      transition={isLegendary
-        ? { opacity: { delay: Math.min(index ?? 0, 12) * 0.02 }, y: { delay: Math.min(index ?? 0, 12) * 0.02 }, boxShadow: { repeat: Infinity, duration: 2.2 } }
-        : { delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
-      whileHover={{ y: -4, scale: 1.03 }}
-      whileTap={{ scale: 0.96 }}
-      onClick={onClick}
-      className="relative rounded-2xl overflow-hidden flex flex-col items-center text-left w-full"
-      style={{
-        background: style.bg,
-        border: `3px solid ${selected ? '#00c8ff' : style.border}`,
-        boxShadow: selected ? '0 0 18px rgba(0,200,255,0.4)' : (isLegendary ? undefined : `0 4px 14px rgba(0,0,0,0.35), 0 0 10px ${style.glow}`),
-      }}
-    >
+    // The order badge sits partly above the card's own top edge (-top-2), so
+    // it lives in this unclipped wrapper as a sibling of the button rather
+    // than inside it -- the button needs overflow-hidden itself (for its
+    // rounded corners/shine gradient), which was clipping the badge's top.
+    <div className="relative w-full">
+      <motion.button
+        layout
+        initial={{ opacity: 0, y: 10, scale: 0.92 }}
+        animate={isLegendary
+          ? { opacity: 1, y: 0, scale: 1, boxShadow: [`0 4px 14px rgba(0,0,0,0.4), 0 0 10px ${style.glow}`, `0 4px 14px rgba(0,0,0,0.4), 0 0 22px ${style.glow}`, `0 4px 14px rgba(0,0,0,0.4), 0 0 10px ${style.glow}`] }
+          : { opacity: 1, y: 0, scale: 1 }}
+        transition={isLegendary
+          ? { opacity: { delay: Math.min(index ?? 0, 12) * 0.02 }, y: { delay: Math.min(index ?? 0, 12) * 0.02 }, boxShadow: { repeat: Infinity, duration: 2.2 } }
+          : { delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
+        whileHover={{ y: -4, scale: 1.03 }}
+        whileTap={{ scale: 0.96 }}
+        onClick={onClick}
+        className="relative rounded-2xl overflow-hidden flex flex-col items-center text-left w-full"
+        style={{
+          background: style.bg,
+          border: `3px solid ${selected ? '#00c8ff' : style.border}`,
+          boxShadow: selected ? '0 0 18px rgba(0,200,255,0.4)' : (isLegendary ? undefined : `0 4px 14px rgba(0,0,0,0.35), 0 0 10px ${style.glow}`),
+        }}
+      >
+        <div className="w-full flex items-center justify-between px-2.5 pt-2.5">
+          <span className="text-2xl font-black leading-none tracking-tight" style={{ color: style.text }}>{mon.overall_rating}</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide" style={{ background: `${typeColor(mon.primary_type)}dd`, color: '#fff' }}>
+            {mon.primary_type.slice(0, 3)}
+          </span>
+        </div>
+
+        <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
+          className="w-20 h-24 mt-1.5" />
+
+        <div className="text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1" style={{ color: style.text }}>
+          {nickname || mon.name}
+          {!!count && count > 1 && <span className="ml-1 font-bold opacity-70">(×{count})</span>}
+        </div>
+        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: style.subtext }}>
+          {TIER_LABEL[tier]}
+          {!!mon.star_level && (
+            <span className="flex items-center gap-px ml-0.5">
+              {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={8} fill="#facc15" className="text-[#facc15]" />)}
+            </span>
+          )}
+        </div>
+
+        <div className="w-full grid grid-cols-4 border-t" style={{ background: style.statBg, borderColor: 'rgba(0,0,0,0.25)' }}>
+          {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
+            <div key={label} className="py-2 text-center border-r last:border-r-0" style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
+              <div className="text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: style.labelColor }}>{label}</div>
+              <div className="text-sm font-black leading-none mt-1" style={{ color: style.text }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </motion.button>
+
       {selected && order != null && (
         <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 w-6 h-6 rounded-full bg-[#00c8ff] text-black text-xs font-black flex items-center justify-center border-2 border-[#0a0b0f] shadow">
           {order}
         </span>
       )}
-
-      <div className="w-full flex items-center justify-between px-2.5 pt-2.5">
-        <span className="text-2xl font-black leading-none tracking-tight" style={{ color: style.text }}>{mon.overall_rating}</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide" style={{ background: `${typeColor(mon.primary_type)}dd`, color: '#fff' }}>
-          {mon.primary_type.slice(0, 3)}
-        </span>
-      </div>
-
-      <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
-        className="w-20 h-24 mt-1.5" />
-
-      <div className="text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1" style={{ color: style.text }}>
-        {nickname || mon.name}
-      </div>
-      <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: style.subtext }}>
-        {TIER_LABEL[tier]}
-        {!!mon.star_level && (
-          <span className="flex items-center gap-px ml-0.5">
-            {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={8} fill="#facc15" className="text-[#facc15]" />)}
-          </span>
-        )}
-      </div>
-
-      <div className="w-full grid grid-cols-4 border-t" style={{ background: style.statBg, borderColor: 'rgba(0,0,0,0.25)' }}>
-        {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-          <div key={label} className="py-2 text-center border-r last:border-r-0" style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
-            <div className="text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: style.labelColor }}>{label}</div>
-            <div className="text-sm font-black leading-none mt-1" style={{ color: style.text }}>{val}</div>
-          </div>
-        ))}
-      </div>
-    </motion.button>
+    </div>
   );
 }
