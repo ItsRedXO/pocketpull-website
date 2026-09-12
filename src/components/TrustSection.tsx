@@ -54,7 +54,7 @@ export const TrustSection: React.FC = () => {
             viewport={{ once: true }}
             className="text-4xl md:text-5xl font-display uppercase tracking-tighter mb-4"
           >
-            Trusted by <span className="text-primary text-glow-blue">10,000+</span> Trainers
+            Trusted by <span className="text-primary text-glow-blue">Thousands</span> of Trainers Worldwide
           </motion.h2>
           <div className="h-1 w-16 bg-primary mx-auto neon-glow-blue rounded-full" />
         </div>
