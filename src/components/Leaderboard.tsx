@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Zap, Package, ArrowUp } from 'lucide-react';
+import { Trophy, Zap, Package, ArrowUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLeaderboard } from '../hooks/useLeaderboard';
 
 const TABS = [
@@ -31,7 +31,8 @@ export const Leaderboard: React.FC = () => {
   else if (activeTab === 'packs') allData = packs;
   else if (activeTab === 'upgrades') allData = upgrades;
 
-  const pageSize = 50;
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(allData.length / pageSize));
   const startIndex = (page - 1) * pageSize;
   const data = allData.slice(startIndex, startIndex + pageSize);
 
@@ -203,24 +204,36 @@ export const Leaderboard: React.FC = () => {
               </div>
 
               {/* Pagination Controls */}
-              <div className="flex justify-center gap-3 mt-10">
+              <div className="flex justify-center items-center gap-1.5 mt-10 flex-wrap px-2">
                 <button
-                  onClick={() => setPage(1)}
-                  className={`px-6 py-2 rounded-xl font-display text-[12px] uppercase tracking-wider transition-all duration-200 ${
-                    page === 1 ? 'bg-white/10 text-white border-white/20' : 'bg-white/5 text-white/40 border-white/5 hover:text-white/60'
-                  }`}
-                  style={{ border: '1px solid' }}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 disabled:opacity-20 disabled:hover:text-white/40"
+                  style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.05)' }}
+                  aria-label="Previous page"
                 >
-                  Page 1
+                  <ChevronLeft size={14} />
                 </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg font-display text-[11px] uppercase tracking-wider transition-all duration-200 ${
+                      page === p ? 'bg-white/10 text-white border-white/20' : 'bg-white/5 text-white/40 border-white/5 hover:text-white/60'
+                    }`}
+                    style={{ border: '1px solid' }}
+                  >
+                    {p}
+                  </button>
+                ))}
                 <button
-                  onClick={() => setPage(2)}
-                  className={`px-6 py-2 rounded-xl font-display text-[12px] uppercase tracking-wider transition-all duration-200 ${
-                    page === 2 ? 'bg-white/10 text-white border-white/20' : 'bg-white/5 text-white/40 border-white/5 hover:text-white/60'
-                  }`}
-                  style={{ border: '1px solid' }}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 disabled:opacity-20 disabled:hover:text-white/40"
+                  style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.05)' }}
+                  aria-label="Next page"
                 >
-                  Page 2
+                  <ChevronRight size={14} />
                 </button>
               </div>
             </motion.div>
