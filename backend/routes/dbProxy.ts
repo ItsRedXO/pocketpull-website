@@ -164,13 +164,18 @@ app.post('/db', async (c) => {
     const table: any = postgresBlinkDb.table(logical);
     if (operation === 'get') {
       const row = await table.get(body.id);
+      // TEMP diagnostic -- tracing why some users' referral codes still show
+      // blank in the admin panel after the list() routing fix. Remove once found.
+      if (logical === 'users') console.log(`[dbproxy-diag3] get id=${body.id} admin=${admin} found=${!!row} referralCode=${JSON.stringify(row?.referralCode)}`);
       await verifyOwnership(logical, row, userId, admin);
       return c.json({ data: row });
     }
     if (operation === 'list') {
       if (!admin && USER_SCOPED.has(logical)) body.where = { ...(body.where || {}), userId };
       if (!admin && logical === 'users') body.where = { ...(body.where || {}), id: userId };
-      return c.json({ data: await table.list({ where: body.where || {}, orderBy: body.orderBy, limit: body.limit, offset: body.offset }) });
+      const result = await table.list({ where: body.where || {}, orderBy: body.orderBy, limit: body.limit, offset: body.offset });
+      if (logical === 'users') console.log(`[dbproxy-diag3] list where=${JSON.stringify(body.where)} admin=${admin} count=${Array.isArray(result) ? result.length : 'N/A:' + JSON.stringify(result)}`);
+      return c.json({ data: result });
     }
     if (operation === 'count') {
       const where = body.where || {};
@@ -195,6 +200,7 @@ app.post('/db', async (c) => {
     }
     if (operation === 'update') {
       const row = await table.get(body.id);
+      if (logical === 'users') console.log(`[dbproxy-diag3] update id=${body.id} admin=${admin} data=${JSON.stringify(body.data)}`);
       await verifyOwnership(logical, row, userId, admin);
       return c.json({ data: await table.update(body.id, body.data || {}) });
     }
