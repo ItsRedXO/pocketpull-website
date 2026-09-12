@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useAllCards } from '../hooks/usePacks';
+import { useAllCards, useRecentPulls } from '../hooks/usePacks';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Rarity = 'common' | 'uncommon' | 'rare' | 'ultra' | 'secret' | 'god';
@@ -55,6 +55,32 @@ function makeFeedFromCards(cards: any[], count = 30): PullEntry[] {
     });
   }
   return out;
+}
+
+function realPullToEntry(p: any): PullEntry {
+  return {
+    id: `real-${p.id}`,
+    card: p.cardName,
+    rarity: (p.rarity as Rarity) || 'common',
+    image: p.cardImageUrl || '',
+    pulledAt: new Date(p.createdAt).getTime() || Date.now(),
+  };
+}
+
+// Blends real player pulls in among the simulated feed instead of the strip
+// being 100% made-up -- spread evenly across the strip rather than clustered
+// at one end, so real activity is visible no matter where the loop currently
+// scrolls to.
+function blendInitialFeed(cards: any[], realPulls: any[], count = 30): PullEntry[] {
+  const simulated = makeFeedFromCards(cards, count);
+  if (!realPulls.length) return simulated;
+  const real = realPulls.slice(0, count).map(realPullToEntry);
+  const merged = simulated.slice();
+  const step = Math.max(1, Math.floor(count / real.length));
+  real.forEach((entry, i) => {
+    merged[Math.min(count - 1, i * step)] = entry;
+  });
+  return merged;
 }
 
 // ─── Tile dimensions (single source of truth) ────────────────────────────────
@@ -167,10 +193,16 @@ const PullTile: React.FC<{ entry: PullEntry; isNew?: boolean }> = React.memo(({ 
 // ─── Main export ──────────────────────────────────────────────────────────────
 export const LiveTicker: React.FC = React.memo(() => {
   const { data: allCards = [], isLoading, isError, refetch } = useAllCards();
+  const { data: realPulls = [] } = useRecentPulls(FEED_SIZE);
   const [feed, setFeed] = useState<PullEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const trackRef  = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<any[]>([]);
+  const realPullsRef = useRef<any[]>([]);
+  const shownRealIdsRef = useRef<Set<string>>(new Set());
+  // Round-robins which slot gets overwritten so injecting a new pull only
+  // ever touches one tile's content instead of reordering the whole strip.
+  const replaceIndexRef = useRef(0);
 
   // Update cards ref
   useEffect(() => {
@@ -179,32 +211,55 @@ export const LiveTicker: React.FC = React.memo(() => {
     }
   }, [allCards]);
 
-  // Initialize feed when cards are loaded
+  useEffect(() => {
+    if (realPulls.length > 0) {
+      realPullsRef.current = realPulls;
+    }
+  }, [realPulls]);
+
+  // Initialize feed when cards are loaded, blending in real pulls if any are
+  // already available by then.
   useEffect(() => {
     if (allCards.length > 0 && feed.length === 0) {
-      setFeed(makeFeedFromCards(allCards, FEED_SIZE));
+      setFeed(blendInitialFeed(allCards, realPulls, FEED_SIZE));
+      for (const p of realPulls) shownRealIdsRef.current.add(p.id);
     }
-  }, [allCards, feed.length]);
+  }, [allCards, realPulls, feed.length]);
 
   // Timestamps update via timeAgo() on each render — no polling needed
 
-  // Inject a new live pull periodically
+  // Inject a new live pull periodically. Replaces one slot's content in
+  // place (same array length/order) rather than unshifting -- unshifting
+  // reordered every entry on each tick, which forced all ~90 tiles to
+  // remount and produced a visible skip/stutter in the scroll every 8-20s.
   useEffect(() => {
     const schedule = () => {
       const delay = 8000 + Math.random() * 12000;
       return setTimeout(() => {
-        if (cardsRef.current.length > 0) {
+        const unseenReal = realPullsRef.current.find(p => !shownRealIdsRef.current.has(p.id));
+        let nextEntry: PullEntry | null = null;
+        if (unseenReal && Math.random() < 0.6) {
+          shownRealIdsRef.current.add(unseenReal.id);
+          nextEntry = { ...realPullToEntry(unseenReal), pulledAt: Date.now() };
+        } else if (cardsRef.current.length > 0) {
           const card = cardsRef.current[Math.floor(Math.random() * cardsRef.current.length)];
-          setFeed(prev => [
-            { 
-              id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, 
-              card: card.cardName, 
-              rarity: (card.rarity as Rarity) || 'common',
-              image: card.cardImageUrl || '',
-              pulledAt: Date.now() 
-            }, 
-            ...prev.slice(0, FEED_SIZE - 1)
-          ]);
+          nextEntry = {
+            id: `live-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            card: card.cardName,
+            rarity: (card.rarity as Rarity) || 'common',
+            image: card.cardImageUrl || '',
+            pulledAt: Date.now(),
+          };
+        }
+        if (nextEntry) {
+          setFeed(prev => {
+            if (prev.length === 0) return prev;
+            const idx = replaceIndexRef.current % prev.length;
+            replaceIndexRef.current += 1;
+            const next = prev.slice();
+            next[idx] = nextEntry as PullEntry;
+            return next;
+          });
         }
         timerRef.current = schedule();
       }, delay);
@@ -302,10 +357,13 @@ export const LiveTicker: React.FC = React.memo(() => {
           }}
         >
           {copies.map((entry, i) => (
+            // Keyed by fixed slot position (copy segment + index within it),
+            // not by entry identity -- so replacing one slot's content only
+            // re-renders that slot instead of remounting the whole strip.
             <PullTile
-              key={`${entry.id}-${i}`}
+              key={`c${Math.floor(i / FEED_SIZE)}-s${i % FEED_SIZE}`}
               entry={entry}
-              isNew={i < FEED_SIZE && entry.id.toString().startsWith('live-') && entry.pulledAt > Date.now() - 15000}
+              isNew={i < FEED_SIZE && entry.pulledAt > Date.now() - 15000}
             />
           ))}
         </div>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
 import { formatDistanceToNow } from 'date-fns';
 
 export interface PackCatalog {
@@ -163,32 +164,22 @@ export function useRecentPulls(limit = 12) {
   return useQuery({
     queryKey: ['recent-pulls', limit],
     queryFn: async () => {
-      const pulls = await blink.db.inventory.list({
-        orderBy: { createdAt: 'desc' },
-        limit,
-      });
-      if (!Array.isArray(pulls)) throw new Error('Invalid recent pulls response');
-
-      // Get unique user IDs to fetch usernames
-      const userIds = [...new Set(pulls.map((p: any) => p.userId))];
-      const userResults = await Promise.allSettled(
-        userIds.map(id => blink.db.users.get(id))
-      );
-      const userMap = Object.fromEntries(
-        userResults
-          .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
-          .map(result => result.value)
-          .filter((u: any) => u && Number(u.isDeleted || u.is_deleted || 0) === 0 && Number(u.isBanned || u.is_banned || 0) === 0)
-          .map((u: any) => [u.id, u.username || u.displayName || 'Trainer'])
-      );
+      // A curated public endpoint (not blink.db.inventory/users, both of
+      // which require auth and would silently 401 for the anonymous
+      // visitors most of the homepage traffic actually is) -- see
+      // backend/routes/publicDbProxy.ts.
+      const res = await fetch(`${BACKEND_BASE}/recent-pulls?limit=${limit}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as any)?.error || 'Failed to load recent pulls');
+      const pulls = Array.isArray((data as any)?.pulls) ? (data as any).pulls : [];
 
       return pulls.map((p: any) => ({
           ...p,
-          user: userMap[p.userId] || 'Trainer',
           time: formatDistanceToNow(new Date(p.createdAt), { addSuffix: true }),
         }));
     },
     staleTime: 30000,
+    refetchInterval: 20000, // keeps the homepage ticker's real-pull source reasonably fresh
     refetchIntervalInBackground: false,
     refetchOnMount: 'always',
     refetchOnReconnect: true,
