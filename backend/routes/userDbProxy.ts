@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getBlinkDb, resolveUserId } from '../lib/auth';
 import { query } from '../lib/postgres';
+import { isAdminSecretCandidate } from '../lib/adminAuthorization';
 
 const app = new Hono();
 const snake = (key: string) => key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
@@ -15,10 +16,25 @@ async function identity(c: any) {
   const userId = await resolveUserId(c);
   let admin = false;
   const secret = c.req.header('X-Admin-Secret');
-  if (secret && secret !== 'true') {
+  if (isAdminSecretCandidate(secret)) {
     try {
       const rows = await blink.db.adminCredentials.list({});
       admin = rows.some((r: any) => (r.adminPass || r.admin_pass) === secret);
+    } catch {}
+  }
+  // Was missing this fallback -- an admin session that authenticates via its
+  // own account (role/is_admin on the users row) rather than the
+  // X-Admin-Secret header always resolved admin=false here, so this route's
+  // own "you can only touch your own row" restrictions applied to a real
+  // admin viewing anyone else's profile, throwing FORBIDDEN on get()/update()
+  // for every user but the admin's own account. dbProxy.ts (the general /db
+  // handler this route sits in front of) already checks both; this now does
+  // too, matching it.
+  if (!admin && userId) {
+    try {
+      const rows = await query<{ role: string; is_admin: number }>('SELECT role,is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
+      const user = rows[0];
+      admin = user?.role === 'admin' || user?.role === 'owner' || Number(user?.is_admin || 0) > 0;
     } catch {}
   }
   return { userId, admin };

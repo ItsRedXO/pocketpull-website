@@ -47,11 +47,8 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
   }>({
     queryKey: ['admin-referrals', user.id],
     queryFn: async () => {
-      // TEMP diagnostic -- each step tagged so a surfaced error names the
-      // exact call that failed, rather than one opaque "FORBIDDEN" for the
-      // whole function. Remove the tags (keep the logic) once found.
       // Get user row fresh for latest referralCode
-      const userRow = await blink.db.users.get(user.id).catch((e: any) => { throw new Error(`[step:get] ${e?.message || e}`); }) as any;
+      const userRow = await blink.db.users.get(user.id) as any;
       let referralCode = (userRow?.referralCode as string) || '';
 
       // Self-heal: some accounts (mainly ones imported from the pre-Supabase
@@ -60,8 +57,8 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
       // the moment an admin actually looks -- guarantees every account has a
       // working code without needing another manual backfill later.
       if (!referralCode) {
-        referralCode = await generateUniqueReferralCode(user.id).catch((e: any) => { throw new Error(`[step:genCode] ${e?.message || e}`); });
-        await blink.db.users.update(user.id, { referralCode }).catch((e: any) => { throw new Error(`[step:update] ${e?.message || e}`); });
+        referralCode = await generateUniqueReferralCode(user.id);
+        await blink.db.users.update(user.id, { referralCode });
       }
 
       // Get referred users
@@ -69,7 +66,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
         where: { referredById: user.id },
         orderBy: { createdAt: 'desc' },
         limit: 100,
-      }).catch((e: any) => { throw new Error(`[step:listReferred] ${e?.message || e}`); }) as any[];
+      }) as any[];
 
       // Resolve deposit status for each referred user
       const referredUsers: ReferredUser[] = await Promise.all(
@@ -82,7 +79,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
             const rows = await blink.db.transactions.list({
               where: { userId: u.id, type: 'deposit' },
               limit: 50,
-            }).catch((e: any) => { throw new Error(`[step:listDeposits:${u.id}] ${e?.message || e}`); }) as any[];
+            }) as any[];
             hasDeposited5 = (rows || []).some((t: any) => Number(t.amount) >= 5);
           } else {
             hasDeposited5 = true;
@@ -169,10 +166,9 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
     );
   }
 
-  // TEMP diagnostic -- this section was silently showing blank/0 for some
-  // users with no visible indication anything had failed. Surfacing the
-  // real error instead of falling back to empty defaults. Remove once the
-  // underlying cause is found and fixed.
+  // Show a real error instead of silently falling back to a blank code /
+  // 0 users, which previously looked identical to "this user just hasn't
+  // referred anyone" and made a real failure indistinguishable from that.
   if (isError) {
     return (
       <div className="rounded-2xl p-4" style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)' }}>
