@@ -82,9 +82,7 @@ async function getAdminHeaders(): Promise<Record<string, string>> {
   if (pass) headers['X-Admin-Secret'] = pass;
   return headers;
 }
-export interface AdminSeedStatus { active: { id: string; seedHash: string; periodStart: string } | null; pending: { id: string; seedHash: string; periodStart: string } | null; past: Array<{ id: string; seedHash: string; periodStart: string; periodEnd: string; revealedAt: string; revealedSeed: string }>; }
-export interface GenerateSeedResult { success: boolean; message: string; seedHash: string; seed?: string; alreadyPending?: boolean; }
-export interface CompleteRotationResult { success: boolean; message: string; oldSeedHash: string; newSeedHash: string; newSeed?: string; }
+export interface AdminSeedStatus { active: { id: string; seedHash: string; periodStart: string } | null; autoRotateEnabled: boolean; nextRotationAt: string; past: Array<{ id: string; seedHash: string; periodStart: string; periodEnd: string; revealedAt: string; revealedSeed: string }>; }
+export interface RotateNowResult { success: boolean; message: string; oldSeedHash: string; newSeedHash: string; }
 export const fetchAdminSeedStatus = async () => { const res = await fetch(`${BACKEND_BASE}/admin/provably-fair/status`, { headers: await getAdminHeaders() }); const data = await res.json() as any; if (!res.ok) throw new Error(data?.error || `API error ${res.status}`); return data as AdminSeedStatus; };
-export const adminGenerateSeed = async () => { const res = await fetch(`${BACKEND_BASE}/admin/provably-fair/generate-seed`, { method: 'POST', headers: await getAdminHeaders() }); const data = await res.json() as any; if (!res.ok) throw new Error(data?.error || `API error ${res.status}`); return data as GenerateSeedResult; };
-export const adminCompleteRotation = async (oldSeed: string) => { const res = await fetch(`${BACKEND_BASE}/admin/provably-fair/complete-rotation`, { method: 'POST', headers: await getAdminHeaders(), body: JSON.stringify({ oldSeed }) }); const data = await res.json() as any; if (!res.ok) throw new Error(data?.error || `API error ${res.status}`); return data as CompleteRotationResult; };
+export const adminRotateNow = async () => { const res = await fetch(`${BACKEND_BASE}/admin/provably-fair/rotate-now`, { method: 'POST', headers: await getAdminHeaders() }); const data = await res.json() as any; if (!res.ok) throw new Error(data?.error || `API error ${res.status}`); return data as RotateNowResult; };

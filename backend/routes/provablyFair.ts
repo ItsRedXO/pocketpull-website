@@ -20,6 +20,8 @@
 import { Hono } from 'hono';
 import { getBlinkDb, resolveUserId } from '../lib/auth';
 import { sha256, computeRoll } from '../lib/provablyFair';
+import { rotateServerSeed } from '../lib/provablyFairServerSeed';
+import { nextResetAt } from '../lib/dailyReset';
 
 const app = new Hono();
 
@@ -638,17 +640,16 @@ app.post('/admin/provably-fair/rotate', async (c) => {
   }
 });
 
-/** Admin seed status — returns active, pending, and past seeds. */
+/** Admin seed status — returns active, next auto-rotation time, and past seeds. */
 app.get('/admin/provably-fair/status', async (c) => {
   if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
 
   const blink = getBlinkDb();
   try {
-    const [activeRows, pendingRows, allRows] = await Promise.all([
+    const [activeRows, allRows] = await Promise.all([
       blink.db.serverSeeds.list({ where: { status: 'active' }, orderBy: { createdAt: 'desc' }, limit: 1 }),
-      blink.db.serverSeeds.list({ where: { status: 'pending' }, limit: 1 }),
       blink.db.serverSeeds.list({ orderBy: { createdAt: 'desc' }, limit: 50 }),
-    ]) as [any[], any[], any[]];
+    ]) as [any[], any[]];
 
     const revealedRows = allRows.filter((r: any) => r.status === 'revealed');
 
@@ -658,11 +659,8 @@ app.get('/admin/provably-fair/status', async (c) => {
         seedHash: activeRows[0].seedHash,
         periodStart: activeRows[0].periodStart || activeRows[0].period_start,
       } : null,
-      pending: pendingRows[0] ? {
-        id: pendingRows[0].id,
-        seedHash: pendingRows[0].seedHash,
-        periodStart: pendingRows[0].periodStart || pendingRows[0].period_start,
-      } : null,
+      autoRotateEnabled: true,
+      nextRotationAt: nextResetAt(new Date()).toISOString(),
       past: revealedRows.map((r: any) => ({
         id: r.id,
         seedHash: r.seedHash,
@@ -674,6 +672,28 @@ app.get('/admin/provably-fair/status', async (c) => {
     });
   } catch (err: any) {
     console.error('[provablyFair] status error:', err.message);
+    return c.json({ error: err.message }, 500);
+  }
+});
+
+/**
+ * Manual override: rotate immediately instead of waiting for the nightly
+ * automatic rotation. Single-step -- no seed to copy/paste, no env var to
+ * edit. See rotateServerSeed() for what this actually does.
+ */
+app.post('/admin/provably-fair/rotate-now', async (c) => {
+  if (!(await isAdminRequest(c))) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const result = await rotateServerSeed();
+    return c.json({
+      success: true,
+      message: 'Seed rotated. Previous seed revealed, new seed is now active.',
+      oldSeedHash: result.oldSeedHash,
+      newSeedHash: result.newSeedHash,
+    });
+  } catch (err: any) {
+    console.error('[provablyFair] rotate-now error:', err.message);
     return c.json({ error: err.message }, 500);
   }
 });
