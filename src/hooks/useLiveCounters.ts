@@ -4,29 +4,36 @@ import { realtime } from '../lib/realtime';
 import { getDailyIncrementalValue } from '../lib/simulation';
 import { startOfDayInZone } from '../lib/dailyReset';
 import { getLeaderboardData } from '../lib/leaderboard';
+import { useSiteSimulationSettings } from './useSiteSimulationSettings';
+import { getSimulatedLivePlayers } from '../lib/livePlayers';
 
 /**
  * Hook to manage global live counters for the hero section and platform activity.
- * - Packs Opened Today: Deterministic time-based curve (40k-80k/day), computed
- *     locally (see getDailyIncrementalValue) so the range is exact and
- *     verifiable -- previously sourced from a legacy external endpoint whose
- *     actual output drifted well outside its own documented range.
- *     Resets at midnight Pacific. Only ever increases within a day.
- * - Cards Won Today: Targeted ~10,000/day, resets at midnight Pacific.
+ * - Packs Opened Today: Deterministic time-based curve, computed locally (see
+ *     getDailyIncrementalValue) so the range is exact and verifiable. Range
+ *     is admin-adjustable (see useSiteSimulationSettings / the admin panel's
+ *     Site Settings tab). Resets at midnight Pacific. Only ever increases
+ *     within a day.
+ * - Cards Won Today: Admin-adjustable range, resets at midnight Pacific.
  * - Biggest Pull Today: Synchronized with #1 on leaderboard (itself capped at
  *     the real catalog's highest card value -- see leaderboard.ts).
- * - Live Players: Simulated 150-250 (fluctuating) + real presence count.
+ * - Live Players: Admin-adjustable range, simulated with a day/night curve
+ *     (see lib/livePlayers.ts) + real presence count.
  * - Total Upgrades: Targeted ~5,000/day, resets at midnight Pacific.
  * - Exchanges Today: Targeted ~3,000/day, resets at midnight Pacific.
  */
 export function useLiveCounters() {
+  const settings = useSiteSimulationSettings();
+
   // 1. Packs Opened (local deterministic curve; re-sampled periodically so it
   // still visibly ticks up like a live counter without any network call).
-  const [packsOpened, setPacksOpened] = useState(() => getDailyIncrementalValue(40000, 40000));
+  const [packsOpened, setPacksOpened] = useState(() => getDailyIncrementalValue(settings.packsOpenedMin, settings.packsOpenedMax - settings.packsOpenedMin));
   useEffect(() => {
-    const interval = setInterval(() => setPacksOpened(getDailyIncrementalValue(40000, 40000)), 5000);
+    const recompute = () => setPacksOpened(getDailyIncrementalValue(settings.packsOpenedMin, settings.packsOpenedMax - settings.packsOpenedMin));
+    recompute();
+    const interval = setInterval(recompute, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.packsOpenedMin, settings.packsOpenedMax]);
 
   // Live Battles (real count from the centralized battle-stats endpoint, kept
   // as-is -- only packsOpened from this source was inaccurate/unpredictable).
@@ -52,10 +59,10 @@ export function useLiveCounters() {
 
   const liveBattles = realLiveBattles + simulatedBattlesCount;
 
-  // 2. Cards Won Today (Targets ~10,000/day, resets at midnight)
+  // 2. Cards Won Today (admin-adjustable range, resets at midnight)
   const cardsWonToday = useMemo(() => {
-    return getDailyIncrementalValue(420, 10000);
-  }, []);
+    return getDailyIncrementalValue(settings.cardsWonMin, settings.cardsWonMax - settings.cardsWonMin);
+  }, [settings.cardsWonMin, settings.cardsWonMax]);
 
   // 3. Total Upgrades Today (Targets ~5,000/day)
   const totalUpgrades = useMemo(() => {
@@ -90,7 +97,6 @@ export function useLiveCounters() {
 
   // 7. Live Players Online (Simulated + Real)
   const [realPlayers, setRealPlayers] = useState(0);
-  const [simulatedOffset, setSimulatedOffset] = useState(180);
 
   useEffect(() => {
     const presenceChannel = realtime.channel('app-presence');
@@ -107,21 +113,18 @@ export function useLiveCounters() {
       }
     };
     void initPresence();
-
-    // Fluctuate simulated players every 15 seconds
-    const interval = setInterval(() => {
-      setSimulatedOffset(prev => {
-        const delta = Math.floor(Math.random() * 7) - 3; // -3 to +3
-        const next = prev + delta;
-        return Math.min(250, Math.max(150, next));
-      });
-    }, 15000);
-
-    return () => {
-      void presenceChannel.unsubscribe();
-      clearInterval(interval);
-    };
+    return () => { void presenceChannel.unsubscribe(); };
   }, []);
+
+  // Simulated player count: a continuous day/night curve within the
+  // admin-set range (see lib/livePlayers.ts), re-sampled periodically.
+  const [simulatedPlayers, setSimulatedPlayers] = useState(() => getSimulatedLivePlayers(settings.livePlayersMin, settings.livePlayersMax));
+  useEffect(() => {
+    const recompute = () => setSimulatedPlayers(getSimulatedLivePlayers(settings.livePlayersMin, settings.livePlayersMax));
+    recompute();
+    const interval = setInterval(recompute, 8000);
+    return () => clearInterval(interval);
+  }, [settings.livePlayersMin, settings.livePlayersMax]);
 
   return {
     packsOpened,
@@ -130,7 +133,7 @@ export function useLiveCounters() {
     exchangesToday,
     avgPullValue,
     biggestPull,
-    livePlayers: simulatedOffset + realPlayers,
+    livePlayers: simulatedPlayers + realPlayers,
     liveBattles
   };
 }
