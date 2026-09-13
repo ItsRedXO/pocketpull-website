@@ -52,7 +52,7 @@ function TierRow({ index, color, config, status, wins, onPlay, playing }: { inde
         <div className="flex-1 min-w-0">
           <h3 className="font-display text-sm uppercase tracking-wider text-white">
             {config.label}
-            {wins != null && <span className="ml-2 normal-case tracking-normal font-sans text-[11px] font-normal text-white/40">({wins} win{wins === 1 ? '' : 's'})</span>}
+            {!!wins && <span className="ml-2 normal-case tracking-normal font-sans text-[11px] font-normal text-[#facc15]">Wins: {wins}</span>}
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/50 mt-1">
             <span>{config.matches} match{config.matches > 1 ? 'es' : ''}</span>
