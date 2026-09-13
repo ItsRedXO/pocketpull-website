@@ -39,7 +39,7 @@ export interface BrawlProfile {
 export interface BattleTierConfig {
   id: string; label: string; matches: number; entryCost: number; cooldownMs: number;
   winReward?: number; lossReward?: number; totalReward?: number; lossConsolation?: number;
-  opponentOverallMin: number; opponentOverallMax: number;
+  opponentOverallMin: number; opponentOverallMax: number; strategyLevel: 0 | 1 | 2 | 3;
   unlockAfter: { counter: string; count: number } | null;
 }
 export interface SafariTierConfig {

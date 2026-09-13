@@ -26,37 +26,46 @@ export interface BattleTierConfig {
   opponentOverallMax: number;
   unlockAfter: UnlockRule | null;
   winCounterField: 'local_battles_played' | 'local_tournament_wins' | 'state_tournament_wins' | 'regional_tournament_wins' | 'elite_four_wins';
+  // How much the opponent's roster is deliberately built to counter the
+  // player's team (see opponentAI.ts) instead of picked at random: 0 for the
+  // casual tiers, then a step up for each tournament tier so the AI visibly
+  // plans harder the further the player climbs. Elite Four trainers should
+  // feel like they scouted your team; Local Tournament opponents should not.
+  strategyLevel: 0 | 1 | 2 | 3;
 }
 
-// Opponent bands below are tuned against the post-rescale overall_rating
-// distribution (see scaleBaseStat in rating.ts): real Gen 1 basics land
-// ~20-40, decent evolved mons ~45-60, and the dex ceiling (Mewtwo) is ~73 --
-// there's no more "80s/90s" territory now that every stat tops out at 100.
+// Opponent bands are tuned against the real overall_rating distribution (see
+// computeOverallRating/scaleBaseStat in rating.ts): weak basics land ~20-40,
+// solid fully-evolved non-legendaries ~55-76 (e.g. Charizard ~66, Tyranitar
+// ~76), and Legendaries/Mythicals are floored at 75 and run up into the
+// high-80s/90s (Mewtwo ~86+) -- so 80s/90s territory exists and is reserved
+// for the top tiers. Each tier's band both raises the floor and widens
+// upward, and strategyLevel escalates alongside it (see opponentAI.ts).
 export const BATTLE_TIERS: Record<BattleTierId, BattleTierConfig> = {
   local_battle: {
     id: 'local_battle', label: 'Local Battle', matches: 1, entryCost: 0, cooldownMs: 0,
     winReward: 150, lossReward: 50, opponentOverallMin: 15, opponentOverallMax: 38,
-    unlockAfter: null, winCounterField: 'local_battles_played',
+    unlockAfter: null, winCounterField: 'local_battles_played', strategyLevel: 0,
   },
   local_tournament: {
     id: 'local_tournament', label: 'Local Tournament', matches: 2, entryCost: 0, cooldownMs: 5 * 60 * 1000,
-    totalReward: 500, lossConsolation: 50, opponentOverallMin: 22, opponentOverallMax: 45,
-    unlockAfter: { counter: 'local_battles_played', count: 5 }, winCounterField: 'local_tournament_wins',
+    totalReward: 500, lossConsolation: 50, opponentOverallMin: 50, opponentOverallMax: 60,
+    unlockAfter: { counter: 'local_battles_played', count: 5 }, winCounterField: 'local_tournament_wins', strategyLevel: 0,
   },
   state_tournament: {
     id: 'state_tournament', label: 'State Tournament', matches: 3, entryCost: 250, cooldownMs: 15 * 60 * 1000,
-    totalReward: 1500, lossConsolation: 0, opponentOverallMin: 32, opponentOverallMax: 52,
-    unlockAfter: { counter: 'local_tournament_wins', count: 3 }, winCounterField: 'state_tournament_wins',
+    totalReward: 1500, lossConsolation: 0, opponentOverallMin: 60, opponentOverallMax: 75,
+    unlockAfter: { counter: 'local_tournament_wins', count: 3 }, winCounterField: 'state_tournament_wins', strategyLevel: 1,
   },
   regional_tournament: {
     id: 'regional_tournament', label: 'Regional Tournament', matches: 3, entryCost: 750, cooldownMs: 60 * 60 * 1000,
-    totalReward: 4500, lossConsolation: 0, opponentOverallMin: 42, opponentOverallMax: 60,
-    unlockAfter: { counter: 'state_tournament_wins', count: 3 }, winCounterField: 'regional_tournament_wins',
+    totalReward: 4500, lossConsolation: 0, opponentOverallMin: 65, opponentOverallMax: 80,
+    unlockAfter: { counter: 'state_tournament_wins', count: 3 }, winCounterField: 'regional_tournament_wins', strategyLevel: 2,
   },
   elite_four: {
     id: 'elite_four', label: 'Elite Four', matches: 4, entryCost: 2000, cooldownMs: 6 * 60 * 60 * 1000,
-    totalReward: 15000, lossConsolation: 0, opponentOverallMin: 55, opponentOverallMax: 73,
-    unlockAfter: { counter: 'regional_tournament_wins', count: 3 }, winCounterField: 'elite_four_wins',
+    totalReward: 15000, lossConsolation: 0, opponentOverallMin: 75, opponentOverallMax: 85,
+    unlockAfter: { counter: 'regional_tournament_wins', count: 3 }, winCounterField: 'elite_four_wins', strategyLevel: 3,
   },
 };
 

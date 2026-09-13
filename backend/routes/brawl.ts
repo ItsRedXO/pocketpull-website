@@ -10,9 +10,10 @@ import {
   getOrCreateProfile, completeIntro, incrementProfileCounters, getWalletBalance, applyBrawlWalletTransaction,
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds, listAllSpecies,
   speciesRowToBattleSpecies, applyStarBonus, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
-  getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus,
+  getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus, getOpponentCandidatesInRange,
   evolveInstances, starUpgradeInstance, type BrawlProfile,
 } from '../repositories/brawl';
+import { pickOpponentTeam, type PlayerTypeProfile } from '../lib/brawl/opponentAI';
 import { getChallengeStatus, selectChallenge, advanceChallenge, claimChallenge } from '../repositories/brawlChallenges';
 import { getShopStatus, getInventory, buyItem } from '../repositories/brawlItems';
 
@@ -272,6 +273,7 @@ app.post('/brawl/battle/play', async c => {
   const activeTeamRows = await getActiveTeamSpecies(userId);
   if (activeTeamRows.length !== 6) return c.json({ error: 'Set a full 6-Pokemon active team before battling' }, 400);
   const userBattleTeam = activeTeamRows.map(row => applyStarBonus(speciesRowToBattleSpecies(row), row.star_level));
+  const playerTypeProfile: PlayerTypeProfile[] = activeTeamRows.map(row => ({ primaryType: row.primary_type as PokeType, secondaryType: row.secondary_type as PokeType | null }));
 
   if (config.entryCost > 0) {
     try {
@@ -289,9 +291,20 @@ app.post('/brawl/battle/play', async c => {
   const tierRatingDelta = TIER_RATING_DELTA[config.id];
   const teamMonoType: PokeType | null = activeTeamRows.every(r => r.primary_type === activeTeamRows[0].primary_type) ? (activeTeamRows[0].primary_type as PokeType) : null;
 
+  // Opponent pool is fetched once per run (the overall_rating band is fixed
+  // per tier, not per match) and drafted from in memory for each match --
+  // both a perf win over the old per-match DB round trip and what lets
+  // pickOpponentTeam score every candidate's type matchup against the
+  // player's team without hitting the DB per candidate.
+  let candidatePool = await getOpponentCandidatesInRange(config.opponentOverallMin, config.opponentOverallMax);
+  if (candidatePool.length < 6) candidatePool = await getOpponentCandidatesInRange(Math.max(1, config.opponentOverallMin - 15), config.opponentOverallMax + 15);
+
   for (let i = 0; i < config.matches; i++) {
-    let opponentIds = await pickRandomSpeciesIds(6, { overallMin: config.opponentOverallMin, overallMax: config.opponentOverallMax });
-    if (opponentIds.length < 6) opponentIds = await pickRandomSpeciesIds(6, { overallMin: Math.max(1, config.opponentOverallMin - 15), overallMax: config.opponentOverallMax + 15 });
+    const drafted = pickOpponentTeam(
+      candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating })),
+      6, playerTypeProfile, config.strategyLevel,
+    );
+    const opponentIds = drafted.map(d => d.id);
     const opponentRows = await getSpeciesByIds(opponentIds);
     const opponentBattleTeam = opponentRows.map(speciesRowToBattleSpecies);
     const outcome = simulateBattle(userBattleTeam, opponentBattleTeam);

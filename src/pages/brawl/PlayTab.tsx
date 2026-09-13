@@ -2,10 +2,21 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Lock, Clock, Coins, Trophy, Swords } from 'lucide-react';
-import { getBrawlConfig, getBrawlProfile, playBrawlBattle, type BrawlBattlePlayResult } from '../../lib/brawlApi';
+import { getBrawlConfig, getBrawlProfile, playBrawlBattle, type BrawlBattlePlayResult, type BrawlProfile } from '../../lib/brawlApi';
 import { BattleReplay } from './BattleReplay';
 
 const TIER_COLORS = ['#8892a4', '#6890f0', '#9b5cff', '#f97316', '#facc15'];
+
+// Only the tournament tiers (not the single-match Local Battle) track a
+// meaningful "wins" count players climb toward -- these are also exactly the
+// counters that unlock the next tier up, so surfacing them doubles as
+// progress toward the next lock.
+const WIN_COUNTER_FIELD: Partial<Record<string, keyof BrawlProfile>> = {
+  local_tournament: 'local_tournament_wins',
+  state_tournament: 'state_tournament_wins',
+  regional_tournament: 'regional_tournament_wins',
+  elite_four: 'elite_four_wins',
+};
 
 function useCooldownLabel(cooldownEndsAt: string | null) {
   const [, setTick] = useState(0);
@@ -17,7 +28,7 @@ function useCooldownLabel(cooldownEndsAt: string | null) {
   return mins > 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m ${secs}s`;
 }
 
-function TierRow({ index, color, config, status, onPlay, playing }: { index: number; color: string; config: any; status: { unlocked: boolean; cooldownEndsAt: string | null } | undefined; onPlay: () => void; playing: boolean }) {
+function TierRow({ index, color, config, status, wins, onPlay, playing }: { index: number; color: string; config: any; status: { unlocked: boolean; cooldownEndsAt: string | null } | undefined; wins: number | null; onPlay: () => void; playing: boolean }) {
   const cooldownLabel = useCooldownLabel(status?.cooldownEndsAt || null);
   const locked = !status?.unlocked;
   const onCooldown = !!cooldownLabel;
@@ -39,11 +50,16 @@ function TierRow({ index, color, config, status, onPlay, playing }: { index: num
         className="flex-1 rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5"
         style={{ borderColor: locked ? 'rgba(255,255,255,0.06)' : `${color}35`, background: locked ? 'rgba(255,255,255,0.015)' : `linear-gradient(120deg, ${color}12 0%, rgba(255,255,255,0.02) 70%)`, opacity: locked ? 0.65 : 1 }}>
         <div className="flex-1 min-w-0">
-          <h3 className="font-display text-sm uppercase tracking-wider text-white">{config.label}</h3>
+          <h3 className="font-display text-sm uppercase tracking-wider text-white">
+            {config.label}
+            {wins != null && <span className="ml-2 normal-case tracking-normal font-sans text-[11px] font-normal text-white/40">({wins} win{wins === 1 ? '' : 's'})</span>}
+          </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/50 mt-1">
             <span>{config.matches} match{config.matches > 1 ? 'es' : ''}</span>
             <span>Entry: {config.entryCost > 0 ? `${config.entryCost} pokedollars` : 'Free'}</span>
             {config.cooldownMs > 0 && <span>Cooldown: {config.cooldownMs >= 3600000 ? `${config.cooldownMs / 3600000}h` : `${config.cooldownMs / 60000}m`}</span>}
+            <span>Opponents: {config.opponentOverallMin}-{config.opponentOverallMax} OVR</span>
+            {config.strategyLevel > 0 && <span>Scouted team comps</span>}
           </div>
           {locked && config.unlockAfter ? (
             <p className="text-[10px] text-white/30 mt-1">Unlocks after {config.unlockAfter.count} {config.unlockAfter.counter.replace(/_/g, ' ')}</p>
@@ -104,9 +120,13 @@ export function PlayTab() {
       <div className="relative">
         <div className="absolute left-5 top-5 bottom-5 w-px" style={{ background: 'linear-gradient(180deg, rgba(136,146,164,0.3), rgba(250,204,21,0.3))' }} />
         <div className="space-y-3">
-          {order.map((id, i) => (
-            <TierRow key={id} index={i + 1} color={TIER_COLORS[i]} config={config.battleTiers[id]} status={profile.tierStatus[id]} playing={playingTier === id} onPlay={() => handlePlay(id)} />
-          ))}
+          {order.map((id, i) => {
+            const winField = WIN_COUNTER_FIELD[id];
+            const wins = winField ? Number(profile.profile[winField] || 0) : null;
+            return (
+              <TierRow key={id} index={i + 1} color={TIER_COLORS[i]} config={config.battleTiers[id]} status={profile.tierStatus[id]} wins={wins} playing={playingTier === id} onPlay={() => handlePlay(id)} />
+            );
+          })}
         </div>
       </div>
 

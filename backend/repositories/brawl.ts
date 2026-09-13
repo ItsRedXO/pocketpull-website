@@ -60,6 +60,13 @@ export async function pickRandomSpeciesIds(count: number, opts: { overallMin?: n
   return rows.map(r => r.id);
 }
 
+// Full type + rating info (not just ids) for every species in an overall_rating
+// band, so opponentAI's team-comp scoring can run entirely in memory instead
+// of round-tripping the DB once per drafted Pokemon.
+export async function getOpponentCandidatesInRange(min: number, max: number): Promise<{ id: number; primary_type: PokeType; secondary_type: PokeType | null; overall_rating: number }[]> {
+  return query('SELECT id, primary_type, secondary_type, overall_rating FROM brawl_pokemon_species WHERE overall_rating >= $1 AND overall_rating <= $2', [min, max]);
+}
+
 const SPECIES_EDITABLE_COLUMNS = new Set(['name', 'primary_type', 'secondary_type', 'base_hp', 'base_attack', 'base_defense', 'base_sp_attack', 'base_sp_defense', 'base_speed', 'overall_rating', 'sprite_url', 'artwork_url', 'portrait_scale', 'portrait_offset_x', 'portrait_offset_y', 'card_tier_override']);
 export async function updateSpecies(id: number, fields: Record<string, unknown>): Promise<SpeciesRow | null> {
   const entries = Object.entries(fields).filter(([k]) => SPECIES_EDITABLE_COLUMNS.has(k));
