@@ -19,8 +19,13 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
   const { data: inventory = [] } = useQuery<InventoryRow[]>({
     queryKey: ['admin-inventory', user.id],
     queryFn: async () => {
+      // Matches the player's own "My Collection" (src/pages/Inventory.tsx):
+      // inventory rows are never deleted on sale, just flagged sold=1, so
+      // without this filter the admin panel showed every card a player had
+      // ever pulled -- including ones they'd long since sold -- instead of
+      // what they currently hold.
       const rows = await blink.db.inventory.list({
-        where: { userId: user.id },
+        where: { userId: user.id, sold: 0 },
         orderBy: { value: 'desc' },
         limit: 200,
       });
