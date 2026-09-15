@@ -255,6 +255,7 @@ function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; ob
 
 export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; onClose: () => void }) {
   const [matchIndex, setMatchIndex] = useState(0);
+  const [gameIndex, setGameIndex] = useState(0);
   const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [finished, setFinished] = useState(false);
@@ -262,11 +263,20 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   const theme = useMemo(() => ARENA_THEMES[Math.floor(Math.random() * ARENA_THEMES.length)], [matchIndex]);
 
   const match = matches[matchIndex];
-  const frames = match.frames;
+  const game = match.games[gameIndex];
+  const frames = game.frames;
   const currentFrame = frames[frameIndex];
-  const atMatchEnd = frameIndex >= frames.length - 1;
+  const atGameEnd = frameIndex >= frames.length - 1;
+  const isLastGameOfMatch = gameIndex >= match.games.length - 1;
   const tickDelayMs = Math.max(16, BASE_TICK_MS / speed);
-  const remainingSeconds = Math.max(0, (match.maxTicks - frameIndex) * BASE_TICK_MS / speed / 1000);
+  const remainingSeconds = Math.max(0, (game.maxTicks - frameIndex) * BASE_TICK_MS / speed / 1000);
+
+  // Race score through the games played so far in this match -- includes the
+  // in-progress game the instant its frames finish, so the scoreboard ticks
+  // up live as each round concludes rather than only once the whole match ends.
+  const gamesSettled = match.games.slice(0, gameIndex + (atGameEnd ? 1 : 0));
+  const scoreUser = gamesSettled.filter(g => g.result === 'win').length;
+  const scoreOpponent = gamesSettled.length - scoreUser;
 
   const feed = useMemo(() => frames.slice(0, frameIndex + 1).flatMap(f => f.faints.map(ft => `${ft.name} fainted!`)), [frames, frameIndex]);
   const lastAttack = useMemo(() => {
@@ -275,14 +285,15 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   }, [frames, frameIndex]);
 
   useEffect(() => {
-    if (!playing || atMatchEnd) return;
+    if (!playing || atGameEnd) return;
     const t = setTimeout(() => setFrameIndex(i => Math.min(frames.length - 1, i + 1)), tickDelayMs);
     return () => clearTimeout(t);
-  }, [playing, atMatchEnd, frames.length, frameIndex, tickDelayMs]);
+  }, [playing, atGameEnd, frames.length, frameIndex, tickDelayMs]);
 
   const handleSkip = () => setFrameIndex(frames.length - 1);
-  const handleNextMatch = () => {
-    if (matchIndex < matches.length - 1) { setMatchIndex(i => i + 1); setFrameIndex(0); setPlaying(true); }
+  const handleNextRound = () => {
+    if (!isLastGameOfMatch) { setGameIndex(i => i + 1); setFrameIndex(0); setPlaying(true); return; }
+    if (matchIndex < matches.length - 1) { setMatchIndex(i => i + 1); setGameIndex(0); setFrameIndex(0); setPlaying(true); }
     else setFinished(true);
   };
 
@@ -290,12 +301,17 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 overflow-hidden" style={{ background: '#0d0e14' }}>
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
-          <div className="text-xs font-bold uppercase tracking-widest text-white/60">{tierLabel} — Match {matchIndex + 1}/{matches.length}</div>
+          <div className="text-xs font-bold uppercase tracking-widest text-white/60">{tierLabel} — Trainer {matchIndex + 1}/{matches.length}</div>
           <button onClick={onClose} className="text-white/40 hover:text-white"><X size={16} /></button>
         </div>
 
         {!finished ? (
           <div className="relative p-4">
+            <div className="flex items-center justify-center gap-3 mb-1.5 flex-wrap">
+              <span className="text-[10px] uppercase tracking-widest text-white/30">Round {gameIndex + 1}/{match.games.length}</span>
+              <span className="text-sm font-bold tabular-nums"><span className="text-[#00c8ff]">{scoreUser}</span><span className="text-white/25 mx-0.5">–</span><span className="text-[#f87171]">{scoreOpponent}</span></span>
+              <span className="text-[9px] uppercase tracking-widest text-white/30">first to 3 wins</span>
+            </div>
             <div className="flex items-center justify-center gap-4 mb-2">
               <span className="text-[10px] uppercase tracking-widest text-white/30">KOs</span>
               <span className="text-sm font-bold text-[#00c8ff]">{currentFrame.koUser}</span>
@@ -307,7 +323,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
             </div>
 
             <div className="relative">
-              <Arena frame={currentFrame} obstacles={match.obstacles} tickSeconds={tickDelayMs / 1000} theme={theme} />
+              <Arena frame={currentFrame} obstacles={game.obstacles} tickSeconds={tickDelayMs / 1000} theme={theme} />
 
               {/* kill feed, top-right */}
               <div className="absolute top-3 right-3 flex flex-col gap-1 items-end max-w-[45%]">
@@ -350,11 +366,11 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                   ))}
                 </div>
               </div>
-              {!atMatchEnd ? (
+              {!atGameEnd ? (
                 <button onClick={handleSkip} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0"><FastForward size={13} /></button>
               ) : (
-                <button onClick={handleNextMatch} className="px-3 h-8 rounded-full bg-[#00c8ff] text-black text-[11px] font-bold uppercase shrink-0">
-                  {matchIndex < matches.length - 1 ? 'Next Match' : 'See Result'}
+                <button onClick={handleNextRound} className="px-3 h-8 rounded-full bg-[#00c8ff] text-black text-[11px] font-bold uppercase shrink-0">
+                  {!isLastGameOfMatch ? 'Next Round' : matchIndex < matches.length - 1 ? 'Next Trainer' : 'See Result'}
                 </button>
               )}
             </div>

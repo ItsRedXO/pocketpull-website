@@ -13,6 +13,7 @@ export interface UnlockRule {
 export interface BattleTierConfig {
   id: BattleTierId;
   label: string;
+  description: string;
   matches: number;
   entryCost: number;
   cooldownMs: number;
@@ -43,31 +44,41 @@ export interface BattleTierConfig {
 // upward, and strategyLevel escalates alongside it (see opponentAI.ts).
 export const BATTLE_TIERS: Record<BattleTierId, BattleTierConfig> = {
   local_battle: {
-    id: 'local_battle', label: 'Local Battle', matches: 1, entryCost: 0, cooldownMs: 0,
-    winReward: 150, lossReward: 50, opponentOverallMin: 15, opponentOverallMax: 38,
+    id: 'local_battle', label: 'Local Battle', description: 'A casual pickup match against a nearby trainer.',
+    matches: 1, entryCost: 0, cooldownMs: 0,
+    winReward: 150, lossReward: 50, opponentOverallMin: 40, opponentOverallMax: 50,
     unlockAfter: null, winCounterField: 'local_battles_played', strategyLevel: 0,
   },
   local_tournament: {
-    id: 'local_tournament', label: 'Local Tournament', matches: 2, entryCost: 0, cooldownMs: 5 * 60 * 1000,
+    id: 'local_tournament', label: 'Local Tournament', description: 'A small local bracket with tougher competition.',
+    matches: 2, entryCost: 0, cooldownMs: 5 * 60 * 1000,
     totalReward: 500, lossConsolation: 50, opponentOverallMin: 50, opponentOverallMax: 60,
     unlockAfter: { counter: 'local_battles_played', count: 5 }, winCounterField: 'local_tournament_wins', strategyLevel: 0,
   },
   state_tournament: {
-    id: 'state_tournament', label: 'State Tournament', matches: 3, entryCost: 250, cooldownMs: 15 * 60 * 1000,
+    id: 'state_tournament', label: 'State Tournament', description: 'Seasoned trainers with real strategy behind their teams.',
+    matches: 3, entryCost: 250, cooldownMs: 15 * 60 * 1000,
     totalReward: 1500, lossConsolation: 0, opponentOverallMin: 60, opponentOverallMax: 75,
     unlockAfter: { counter: 'local_tournament_wins', count: 3 }, winCounterField: 'state_tournament_wins', strategyLevel: 1,
   },
   regional_tournament: {
-    id: 'regional_tournament', label: 'Regional Tournament', matches: 3, entryCost: 750, cooldownMs: 60 * 60 * 1000,
+    id: 'regional_tournament', label: 'Regional Tournament', description: 'Regional-caliber trainers who scout your team before they battle.',
+    matches: 3, entryCost: 750, cooldownMs: 60 * 60 * 1000,
     totalReward: 4500, lossConsolation: 0, opponentOverallMin: 65, opponentOverallMax: 80,
     unlockAfter: { counter: 'state_tournament_wins', count: 3 }, winCounterField: 'regional_tournament_wins', strategyLevel: 2,
   },
   elite_four: {
-    id: 'elite_four', label: 'Elite Four', matches: 4, entryCost: 2000, cooldownMs: 6 * 60 * 60 * 1000,
+    id: 'elite_four', label: 'Elite Four', description: 'The best of the best. Every trainer here has scouted your whole roster.',
+    matches: 4, entryCost: 2000, cooldownMs: 6 * 60 * 60 * 1000,
     totalReward: 15000, lossConsolation: 0, opponentOverallMin: 75, opponentOverallMax: 85,
     unlockAfter: { counter: 'regional_tournament_wins', count: 3 }, winCounterField: 'elite_four_wins', strategyLevel: 3,
   },
 };
+
+// Each match in a tier is a best-of-5 race against that one trainer -- first
+// to this many individual battle wins takes the match -- rather than a
+// single battle deciding it.
+export const GAMES_TO_WIN_MATCH = 3;
 
 export const DAILY_BATTLE_CAP = 250;
 

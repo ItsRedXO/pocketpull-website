@@ -37,7 +37,7 @@ export interface BrawlProfile {
   daily_bonus_claimed_at: string | null;
 }
 export interface BattleTierConfig {
-  id: string; label: string; matches: number; entryCost: number; cooldownMs: number;
+  id: string; label: string; description: string; matches: number; entryCost: number; cooldownMs: number;
   winReward?: number; lossReward?: number; totalReward?: number; lossConsolation?: number;
   opponentOverallMin: number; opponentOverallMax: number; strategyLevel: 0 | 1 | 2 | 3;
   unlockAfter: { counter: string; count: number } | null;
@@ -111,7 +111,11 @@ export interface ArenaFrame {
   tick: number; pokemon: ArenaPokemonState[]; attacks: ArenaAttackEvent[]; faints: ArenaFaintEvent[]; koUser: number; koOpponent: number;
 }
 export interface ArenaObstacle { x1: number; y1: number; x2: number; y2: number; }
-export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: ArenaFrame[]; obstacles: ArenaObstacle[]; maxTicks: number; }
+// A "match" is a best-of race against one trainer: `games` holds each
+// individual battle played in that race (3-5 of them) until either side
+// reaches the winning score.
+export interface BrawlGameResult { result: 'win' | 'loss'; frames: ArenaFrame[]; obstacles: ArenaObstacle[]; maxTicks: number; }
+export interface BrawlMatchResult { index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; scoreUser: number; scoreOpponent: number; games: BrawlGameResult[]; }
 export interface RatingChangeResult { previousRating: number; newRating: number; }
 export interface BrawlBattlePlayResult {
   success: boolean; tier: string; status: 'won' | 'eliminated'; matchesWon: number; matchesTotal: number; reward: number; balance: number; matches: BrawlMatchResult[];

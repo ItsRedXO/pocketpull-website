@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
-import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, DAILY_BONUS_AMOUNT, DAILY_BONUS_COOLDOWN_MS, type BattleTierId } from '../lib/brawl/tiers';
+import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, DAILY_BONUS_AMOUNT, DAILY_BONUS_COOLDOWN_MS, GAMES_TO_WIN_MATCH, type BattleTierId } from '../lib/brawl/tiers';
 import { TIER_RATING_DELTA } from '../lib/brawl/leagues';
 import { simulateBattle } from '../lib/brawl/battleSim';
 import type { PokeType } from '../lib/brawl/typeChart';
@@ -305,7 +305,10 @@ app.post('/brawl/battle/play', async c => {
   }
 
   const run = await createRun(userId, config.id, config.entryCost, config.matches);
-  const matches: Array<{ index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; frames: unknown; obstacles: unknown; maxTicks: number }> = [];
+  const matches: Array<{
+    index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; scoreUser: number; scoreOpponent: number;
+    games: Array<{ result: 'win' | 'loss'; frames: unknown; obstacles: unknown; maxTicks: number }>;
+  }> = [];
   let matchesWon = 0;
   let ratingDelta = 0;
   const tierRatingDelta = TIER_RATING_DELTA[config.id];
@@ -327,15 +330,27 @@ app.post('/brawl/battle/play', async c => {
     const opponentIds = drafted.map(d => d.id);
     const opponentRows = await getSpeciesByIds(opponentIds);
     const opponentBattleTeam = opponentRows.map(speciesRowToBattleSpecies);
-    const outcome = simulateBattle(userBattleTeam, opponentBattleTeam);
-    const result: 'win' | 'loss' = outcome.winner === 'user' ? 'win' : 'loss';
-    await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, outcome.frames);
-    matches.push({ index: i, result, opponentSpeciesIds: opponentIds, frames: outcome.frames, obstacles: outcome.obstacles, maxTicks: outcome.maxTicks });
-    ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
-    if (result === 'win') {
-      await advanceChallenge(userId, 'win_matches');
-      if (teamMonoType) await advanceChallenge(userId, 'win_mono_type', { teamType: teamMonoType });
+
+    // Each match is a best-of race against this one trainer: replay
+    // independent battles (fresh HP each time) until either side reaches
+    // GAMES_TO_WIN_MATCH wins, rather than one battle deciding the match.
+    let scoreUser = 0, scoreOpponent = 0;
+    const games: Array<{ result: 'win' | 'loss'; frames: unknown; obstacles: unknown; maxTicks: number }> = [];
+    while (scoreUser < GAMES_TO_WIN_MATCH && scoreOpponent < GAMES_TO_WIN_MATCH) {
+      const outcome = simulateBattle(userBattleTeam, opponentBattleTeam);
+      const gameResult: 'win' | 'loss' = outcome.winner === 'user' ? 'win' : 'loss';
+      if (gameResult === 'win') scoreUser++; else scoreOpponent++;
+      games.push({ result: gameResult, frames: outcome.frames, obstacles: outcome.obstacles, maxTicks: outcome.maxTicks });
+      if (gameResult === 'win') {
+        await advanceChallenge(userId, 'win_matches');
+        if (teamMonoType) await advanceChallenge(userId, 'win_mono_type', { teamType: teamMonoType });
+      }
     }
+
+    const result: 'win' | 'loss' = scoreUser === GAMES_TO_WIN_MATCH ? 'win' : 'loss';
+    await addMatch(run.id, i, { opponentSpeciesIds: opponentIds }, result, { games, scoreUser, scoreOpponent });
+    matches.push({ index: i, result, opponentSpeciesIds: opponentIds, scoreUser, scoreOpponent, games });
+    ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
     if (result === 'loss') break;
     matchesWon++;
   }

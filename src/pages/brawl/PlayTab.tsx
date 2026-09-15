@@ -54,11 +54,11 @@ function TierRow({ index, color, config, status, wins, onPlay, playing }: { inde
             {config.label}
             {!!wins && <span className="ml-2 normal-case tracking-normal font-sans text-[11px] font-normal text-[#facc15]">Wins: {wins}</span>}
           </h3>
+          <p className="text-[11px] text-white/40 mt-1">{config.description}</p>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/50 mt-1">
             <span>{config.matches} match{config.matches > 1 ? 'es' : ''}</span>
             <span>Entry: {config.entryCost > 0 ? `${config.entryCost} pokedollars` : 'Free'}</span>
             {config.cooldownMs > 0 && <span>Cooldown: {config.cooldownMs >= 3600000 ? `${config.cooldownMs / 3600000}h` : `${config.cooldownMs / 60000}m`}</span>}
-            <span>Opponents: {config.opponentOverallMin}-{config.opponentOverallMax} OVR</span>
             {config.strategyLevel > 0 && <span>Scouted team comps</span>}
           </div>
           {locked && config.unlockAfter ? (
