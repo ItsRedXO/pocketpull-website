@@ -16,9 +16,14 @@ app.get('/recent-pulls', async c => {
   const limit = Math.min(50, Math.max(1, Number.isFinite(limitParam) ? limitParam : 12));
   try {
     const rows = await query<{ id: string; card_name: string; rarity: string; card_image_url: string | null; created_at: string; username: string | null }>(
+      // Inner join on an active pack excludes pulls from retired/test packs
+      // (e.g. dev "test" mystery packs whose cards are placeholder-named
+      // "Chase 1"/"Premium 1" rather than a real card name) from ever
+      // surfacing in the public live ticker.
       `SELECT i.id, i.card_name, i.rarity, i.card_image_url, i.created_at, u.username
        FROM inventory i
        JOIN users u ON u.id = i.user_id
+       JOIN packs_catalog p ON p.id = i.pack_id AND COALESCE(p.is_active,0)=1
        WHERE COALESCE(u.is_deleted,0)=0 AND COALESCE(u.is_banned,0)=0
        ORDER BY i.created_at DESC
        LIMIT $1`,
