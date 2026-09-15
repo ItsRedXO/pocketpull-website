@@ -390,11 +390,15 @@ export async function getActiveTeamSpecies(userId: string): Promise<(SpeciesRow 
 }
 
 export interface LeaderboardRow { user_id: string; username: string | null; avatar_url: string | null; league: string; league_rating: number; wins: number; losses: number; }
+// Ranked purely by win/loss record -- most wins first, fewest losses breaking
+// ties -- not the internal league_rating, which no longer has any
+// player-facing meaning (see BattleReplay/TrainerDetailModal, which dropped
+// showing it entirely).
 export async function getLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
   return query<LeaderboardRow>(
     `SELECT p.user_id, u.username, u.avatar_url, p.league, p.league_rating, p.wins, p.losses
      FROM brawl_profiles p JOIN users u ON u.id = p.user_id
-     ORDER BY p.league_rating DESC, p.wins DESC LIMIT $1`,
+     ORDER BY p.wins DESC, p.losses ASC LIMIT $1`,
     [limit],
   );
 }
@@ -408,7 +412,7 @@ export interface RankInfo { rank: number; total: number; }
 export async function getPlayerRank(userId: string): Promise<RankInfo> {
   const rows = await query<{ rank: string; total: string }>(
     `SELECT rank, total FROM (
-       SELECT user_id, ROW_NUMBER() OVER (ORDER BY league_rating DESC, wins DESC) AS rank, COUNT(*) OVER () AS total
+       SELECT user_id, ROW_NUMBER() OVER (ORDER BY wins DESC, losses ASC) AS rank, COUNT(*) OVER () AS total
        FROM brawl_profiles
      ) ranked WHERE user_id = $1`,
     [userId],
