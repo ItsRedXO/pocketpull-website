@@ -55,6 +55,8 @@ export const adjustAdminBrawlWallet = (userId: string, amount: number, reason?: 
 export const grantAdminBrawlInstance = (userId: string, speciesId: number) => adminPost<{ success: boolean; instanceId: string; roster: AdminBrawlInstance[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/instances`, { speciesId });
 export const deleteAdminBrawlInstance = (userId: string, instanceId: string) => adminDelete<{ success: boolean; roster: AdminBrawlInstance[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/instances/${encodeURIComponent(instanceId)}`);
 export const setAdminBrawlTeam = (userId: string, instanceIds: string[]) => adminPut<{ success: boolean; roster: AdminBrawlInstance[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/team`, { instanceIds });
+export const setAdminBrawlInstanceStar = (userId: string, instanceId: string, starLevel: number) =>
+  adminPatch<{ success: boolean; roster: AdminBrawlInstance[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/instances/${encodeURIComponent(instanceId)}/star`, { starLevel });
 export const getAdminBrawlSpecies = () => adminGet<{ species: AdminBrawlSpecies[] }>('/admin/brawl/species');
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare';
@@ -69,6 +71,13 @@ export interface AdminShopStatus {
   next: { itemKeys: string[]; items: AdminBrawlItemDef[] };
   nextRotateAt: string;
 }
+
+export interface AdminBrawlInventoryEntry { itemKey: string; quantity: number; item: AdminBrawlItemDef; }
+export const getAdminBrawlUserItems = (userId: string) => adminGet<{ inventory: AdminBrawlInventoryEntry[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/items`);
+export const grantAdminBrawlUserItem = (userId: string, itemKey: string, quantity = 1) =>
+  adminPost<{ success: boolean; inventory: AdminBrawlInventoryEntry[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/items`, { itemKey, quantity });
+export const removeAdminBrawlUserItem = (userId: string, itemKey: string) =>
+  adminDelete<{ success: boolean; inventory: AdminBrawlInventoryEntry[] }>(`/admin/brawl/users/${encodeURIComponent(userId)}/items/${encodeURIComponent(itemKey)}`);
 
 export const getAdminBrawlItems = () => adminGet<{ items: AdminBrawlItem[] }>('/admin/brawl/items');
 export const createAdminBrawlItem = (fields: Partial<AdminBrawlItem> & { key: string }) => adminPost<{ success: boolean; item: AdminBrawlItem }>('/admin/brawl/items', fields);

@@ -434,3 +434,11 @@ export async function adminDeleteInstance(userId: string, instanceId: string): P
   const rows = await query('DELETE FROM brawl_pokemon_instances WHERE id=$1 AND user_id=$2 RETURNING id', [instanceId, userId]);
   return rows.length > 0;
 }
+
+/** Directly overrides an instance's star level (0-MAX_STAR_LEVEL) -- unlike
+ * starUpgradeInstance this doesn't touch fodder, it's a raw admin correction/
+ * reset tool. */
+export async function adminSetInstanceStarLevel(userId: string, instanceId: string, starLevel: number): Promise<boolean> {
+  const rows = await query('UPDATE brawl_pokemon_instances SET star_level=$1 WHERE id=$2 AND user_id=$3 RETURNING id', [starLevel, instanceId, userId]);
+  return rows.length > 0;
+}

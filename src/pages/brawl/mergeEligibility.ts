@@ -18,6 +18,13 @@ export interface MergeEligibility {
  * show the merge chip on the bench grid and to drive the actual merge modal,
  * so the two can never disagree about what's eligible. */
 export function computeMergeEligibility(group: BrawlInstance[]): MergeEligibility {
+  // A modal can still be mounted (mid-animation, or showing its result) after
+  // its roster query refetches and the bench group it was watching empties
+  // out or disappears -- guard so that transient re-render doesn't crash the
+  // whole page instead of just letting the frozen-at-open snapshot stand.
+  if (group.length === 0) {
+    return { unstarred: [], evolveCost: Infinity, canEvolve: false, starTarget: undefined, fodderPool: [], canStarUp: false };
+  }
   const species = group[0];
   const unstarred = group.filter(i => i.star_level === 0).slice().sort((a, b) => a.acquired_at.localeCompare(b.acquired_at));
   const evolveCost = evolveCostFor(species.evolution_stage);

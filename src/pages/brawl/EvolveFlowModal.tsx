@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, Sparkles, SkipForward } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,8 +23,15 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
   const [stage, setStage] = useState<Stage>('flash');
   const [apiDone, setApiDone] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
-  const { unstarred, evolveCost, canEvolve } = useMemo(() => computeMergeEligibility(instances), [instances]);
+  // Freeze the bench group as it was when this modal opened -- confirming
+  // triggers a roster refetch, and a live `instances` prop can shrink to
+  // nothing (or even briefly empty out) while this modal is still showing
+  // its animation/result, which would otherwise recompute eligibility off
+  // of stale/empty data mid-flow.
+  const [frozenInstances] = useState(instances);
+  const { unstarred, evolveCost, canEvolve } = useMemo(() => computeMergeEligibility(frozenInstances), [frozenInstances]);
 
   // Advance flash -> silhouette -> reveal on a timer; skipping just jumps
   // straight to 'reveal' (which itself waits for the API if it's not back yet).
@@ -39,7 +46,8 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
   const revealReady = stage === 'reveal' && apiDone && !apiError;
 
   const handleConfirm = async () => {
-    if (!targetSpeciesId || !canEvolve) return;
+    if (!targetSpeciesId || !canEvolve || submittingRef.current) return;
+    submittingRef.current = true;
     setPhase('evolving'); setStage('flash'); setApiDone(false); setApiError(null);
     try {
       const chosen = unstarred.slice(0, evolveCost).map(i => i.id);
@@ -50,6 +58,8 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
     } catch (e: any) {
       setApiError(e.message || 'Evolve failed');
       setApiDone(true);
+    } finally {
+      submittingRef.current = false;
     }
   };
 

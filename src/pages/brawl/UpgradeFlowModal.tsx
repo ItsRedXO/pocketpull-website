@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Star, ArrowRight, Gift } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,8 +25,15 @@ export function UpgradeFlowModal({ speciesId, instances, speciesCatalog, onClose
   const species = speciesCatalog.get(speciesId);
   const [phase, setPhase] = useState<'confirm' | 'busy' | 'done'>('confirm');
   const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
-  const { starTarget, fodderPool, canStarUp } = useMemo(() => computeMergeEligibility(instances), [instances]);
+  // Freeze the bench group as it was when this modal opened. Confirming
+  // triggers a roster refetch, and if we kept reading live `instances` the
+  // star row and stat table would recompute mid-flow from the *already
+  // upgraded* data (e.g. showing "2 stars" for an upgrade that only went
+  // from 0 to 1) instead of the numbers the player actually confirmed.
+  const [frozenInstances] = useState(instances);
+  const { starTarget, fodderPool, canStarUp } = useMemo(() => computeMergeEligibility(frozenInstances), [frozenInstances]);
 
   if (!species || !starTarget) return null;
 
@@ -39,7 +46,8 @@ export function UpgradeFlowModal({ speciesId, instances, speciesCatalog, onClose
   ];
 
   const handleConfirm = async () => {
-    if (!canStarUp) return;
+    if (!canStarUp || submittingRef.current) return;
+    submittingRef.current = true;
     setPhase('busy'); setError(null);
     try {
       const fodder = fodderPool.slice(0, STAR_UPGRADE_FODDER_COUNT).map(i => i.id);
@@ -49,6 +57,8 @@ export function UpgradeFlowModal({ speciesId, instances, speciesCatalog, onClose
     } catch (e: any) {
       setError(e.message || 'Star upgrade failed');
       setPhase('confirm');
+    } finally {
+      submittingRef.current = false;
     }
   };
 
@@ -115,7 +125,7 @@ export function UpgradeFlowModal({ speciesId, instances, speciesCatalog, onClose
 
             <div className="flex items-start gap-1.5 text-[10px] text-white/30 px-1">
               <Gift size={11} className="mt-0.5 shrink-0" />
-              Each star unlocks one held-item slot (items are coming soon) and gives a small permanent stat boost.
+              Each star gives {species.name} a small permanent stat boost.
             </div>
 
             <div className="flex items-center gap-2 pt-1">

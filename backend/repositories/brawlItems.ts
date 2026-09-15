@@ -98,6 +98,26 @@ export async function buyItem(userId: string, itemKey: string): Promise<BuyResul
   return { balance, quantity: Number(result[0].quantity) };
 }
 
+// ---- Admin: per-user inventory grant/remove ------------------------------
+
+/** Grants `quantity` copies of an item to a specific player's inventory. */
+export async function adminAddInventory(userId: string, itemKey: string, quantity: number): Promise<InventoryEntry[]> {
+  const item = (await query<ItemRow>('SELECT * FROM brawl_items WHERE key=$1', [itemKey]))[0];
+  if (!item) throw new Error('UNKNOWN_ITEM');
+  await query(
+    `INSERT INTO brawl_item_inventory (user_id, item_key, quantity) VALUES ($1,$2,$3)
+     ON CONFLICT (user_id, item_key) DO UPDATE SET quantity = brawl_item_inventory.quantity + $3, updated_at = now()`,
+    [userId, itemKey, quantity],
+  );
+  return getInventory(userId);
+}
+
+/** Removes an item entirely from a player's inventory, regardless of quantity held. */
+export async function adminRemoveInventoryItem(userId: string, itemKey: string): Promise<InventoryEntry[]> {
+  await query('DELETE FROM brawl_item_inventory WHERE user_id=$1 AND item_key=$2', [userId, itemKey]);
+  return getInventory(userId);
+}
+
 // ---- Admin: catalog CRUD + shop slate management ------------------------
 
 const ITEM_EDITABLE_FIELDS = new Set(['name', 'description', 'rarity', 'kind', 'price', 'sprite_url', 'active']);

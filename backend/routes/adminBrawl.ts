@@ -5,11 +5,13 @@ import { isAdminSecretCandidate } from '../lib/adminAuthorization';
 import { computeOverallRating } from '../lib/brawl/rating';
 import {
   listAllSpecies, updateSpecies, searchBrawlUsers, getOrCreateProfile, getWalletBalance, listInstancesForUser,
-  adminSetProfileFields, applyBrawlWalletTransaction, insertInstances, adminDeleteInstance, setTeam,
+  adminSetProfileFields, applyBrawlWalletTransaction, insertInstances, adminDeleteInstance, adminSetInstanceStarLevel, setTeam,
+  MAX_STAR_LEVEL,
 } from '../repositories/brawl';
 import {
   listAllItems, adminCreateItem, adminUpdateItem, adminDeleteItem,
   adminGetShopStatus, adminSetShopSlate, adminRegenerateNextShop, adminRotateShopNow,
+  getInventory, adminAddInventory, adminRemoveInventoryItem,
 } from '../repositories/brawlItems';
 import {
   adminListChallengeTemplates, adminCreateChallengeTemplate, adminUpdateChallengeTemplate, adminDeleteChallengeTemplate,
@@ -160,6 +162,19 @@ app.delete('/admin/brawl/users/:userId/instances/:instanceId', async c => {
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
 });
 
+app.patch('/admin/brawl/users/:userId/instances/:instanceId/star', async c => {
+  const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const userId = c.req.param('userId');
+  const { starLevel } = await c.req.json().catch(() => ({}));
+  const level = Number(starLevel);
+  if (!Number.isInteger(level) || level < 0 || level > MAX_STAR_LEVEL) {
+    return c.json({ error: `starLevel must be an integer between 0 and ${MAX_STAR_LEVEL}` }, 400);
+  }
+  const updated = await adminSetInstanceStarLevel(userId, c.req.param('instanceId'), level);
+  if (!updated) return c.json({ error: 'Pokemon not found on this trainer' }, 404);
+  return c.json({ success: true, roster: await listInstancesForUser(userId) });
+});
+
 app.put('/admin/brawl/users/:userId/team', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   const userId = c.req.param('userId');
@@ -167,6 +182,36 @@ app.put('/admin/brawl/users/:userId/team', async c => {
   if (!Array.isArray(instanceIds) || instanceIds.length < 1 || instanceIds.length > 6) return c.json({ error: 'Select 1-6 Pokemon for the active team' }, 400);
   try { await setTeam(userId, instanceIds); } catch (e: any) { return c.json({ error: e.message === 'INVALID_TEAM_SELECTION' ? 'One or more selected Pokemon are not owned by this trainer' : 'Failed to update team' }, 400); }
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
+});
+
+// ---- A trainer's own item inventory (grant/remove/view) ----------------
+
+app.get('/admin/brawl/users/:userId/items', async c => {
+  const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  return c.json({ inventory: await getInventory(c.req.param('userId')) });
+});
+
+app.post('/admin/brawl/users/:userId/items', async c => {
+  const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const userId = c.req.param('userId');
+  const { itemKey, quantity } = await c.req.json().catch(() => ({}));
+  if (!itemKey || typeof itemKey !== 'string') return c.json({ error: 'itemKey is required' }, 400);
+  const qty = Number(quantity);
+  const finalQty = Number.isFinite(qty) && qty > 0 ? Math.round(qty) : 1;
+  try {
+    const inventory = await adminAddInventory(userId, itemKey, finalQty);
+    return c.json({ success: true, inventory });
+  } catch (e: any) {
+    if (e.message === 'UNKNOWN_ITEM') return c.json({ error: 'Unknown item key' }, 404);
+    throw e;
+  }
+});
+
+app.delete('/admin/brawl/users/:userId/items/:itemKey', async c => {
+  const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const userId = c.req.param('userId');
+  const inventory = await adminRemoveInventoryItem(userId, c.req.param('itemKey'));
+  return c.json({ success: true, inventory });
 });
 
 // ---- Items -----------------------------------------------------------
