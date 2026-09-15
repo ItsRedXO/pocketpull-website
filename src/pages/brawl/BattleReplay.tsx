@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, FastForward, X, Skull, Trophy, Coins, ArrowUp, ArrowDown, Clock } from 'lucide-react';
-import type { ArenaAttackEvent, ArenaFrame, ArenaObstacle, BrawlMatchResult, Effectiveness, RatingChangeResult } from '../../lib/brawlApi';
+import { Play, Pause, FastForward, X, Skull, Trophy, Coins, Clock } from 'lucide-react';
+import type { ArenaAttackEvent, ArenaFrame, ArenaObstacle, BrawlMatchResult, Effectiveness } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
 
 const EFFECTIVENESS_LABEL: Record<string, string> = { immune: 'No effect', 'not-very-effective': 'Not very effective', neutral: '', 'super-effective': 'Super effective!' };
@@ -253,7 +253,7 @@ function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; ob
   );
 }
 
-export function BattleReplay({ matches, tierLabel, status, reward, rating, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; rating: RatingChangeResult; onClose: () => void }) {
+export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { matches: BrawlMatchResult[]; tierLabel: string; status: 'won' | 'eliminated'; reward: number; onClose: () => void }) {
   const [matchIndex, setMatchIndex] = useState(0);
   const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -370,10 +370,6 @@ export function BattleReplay({ matches, tierLabel, status, reward, rating, onClo
                   <Coins size={14} /> +{reward} pokedollars
                 </div>
               )}
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/5 border border-white/15 text-white/80 font-bold text-sm">
-                {rating.newRating >= rating.previousRating ? <ArrowUp size={14} className="text-green-400" /> : <ArrowDown size={14} className="text-red-400" />}
-                {rating.newRating - rating.previousRating >= 0 ? '+' : ''}{rating.newRating - rating.previousRating} rating
-              </div>
             </div>
             <div><button onClick={onClose} className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold text-sm uppercase tracking-wider">Continue</button></div>
           </div>

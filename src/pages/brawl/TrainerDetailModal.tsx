@@ -36,7 +36,6 @@ export function TrainerDetailModal({ userId, onClose }: { userId: string; onClos
               </span>
               <div className="min-w-0">
                 <div className="text-lg font-bold text-white truncate">{trainer.username || 'Trainer'}</div>
-                <div className="flex items-center gap-1.5 text-[#9b5cff] text-xs font-bold"><Trophy size={12} /> {trainer.leagueRating} rating</div>
               </div>
             </div>
 

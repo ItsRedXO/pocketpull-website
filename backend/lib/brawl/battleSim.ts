@@ -236,6 +236,10 @@ function nextWaypoint(fighter: Fighter, target: Fighter, obstacles: ArenaObstacl
   return { x: fighter.routeCorner.x, y: fighter.routeCorner.y, blocked: true };
 }
 
+// Below this, an axis-only slide is close enough to zero movement that it
+// shouldn't count as "made progress" -- see moveFighterToward.
+const MIN_SLIDE_PROGRESS = 1;
+
 /** Steps the fighter one tick toward (wx, wy). Three things keep this from
  * producing the "stuck in place" / "bouncing off the wall" behavior a plain
  * fixed-length step can fall into:
@@ -243,7 +247,14 @@ function nextWaypoint(fighter: Fighter, target: Fighter, obstacles: ArenaObstacl
  *     MOVE_STEP, instead of always taking a full step and potentially
  *     landing past a route corner and into the obstacle it was routing around.
  *  2. If the direct step would land inside an obstacle, tries sliding along
- *     just the X or just the Y axis instead of freezing outright.
+ *     just the X or just the Y axis instead of freezing outright -- but only
+ *     accepts that slide if it actually covers a meaningful distance. When
+ *     the waypoint sits almost straight through the wall (nearly
+ *     perpendicular to it), the "clear" axis's own component of the step is
+ *     a near-zero nudge; accepting that as success reset stuckTicks every
+ *     tick forever, which is exactly the "grinding against the wall for a
+ *     dozen seconds" bug this is guarding against -- it never technically
+ *     stayed still, so the stuck-escape below never got a chance to fire.
  *  3. If even that fails for several ticks in a row (a fighter genuinely
  *     wedged against cover), forces a fresh route and nudges it in a random
  *     open direction to break the deadlock. */
@@ -265,11 +276,11 @@ function moveFighterToward(fighter: Fighter, wx: number, wy: number, obstacles: 
       fighter.x = nx; fighter.y = ny; fighter.stuckTicks = 0;
       return;
     }
-    if (!insideAnyObstacle(nx, fighter.y, obstacles)) {
+    if (Math.abs(nx - fighter.x) >= MIN_SLIDE_PROGRESS && !insideAnyObstacle(nx, fighter.y, obstacles)) {
       fighter.x = nx; fighter.stuckTicks = 0;
       return;
     }
-    if (!insideAnyObstacle(fighter.x, ny, obstacles)) {
+    if (Math.abs(ny - fighter.y) >= MIN_SLIDE_PROGRESS && !insideAnyObstacle(fighter.x, ny, obstacles)) {
       fighter.y = ny; fighter.stuckTicks = 0;
       return;
     }
