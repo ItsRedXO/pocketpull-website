@@ -39,7 +39,7 @@ export function PokeBrawlPage() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="min-h-screen px-3 md:px-5 py-8" style={{ background: '#0a0b0f' }}>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <div className="text-center mb-6">
           <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tighter" style={{ textShadow: '0 0 40px rgba(155,92,255,0.6), 0 0 80px rgba(0,200,255,0.2)' }}>
             Poke Brawl
@@ -61,8 +61,8 @@ export function PokeBrawlPage() {
           <IntroFlow onComplete={handleIntroComplete} />
         ) : (
           <>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-              <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1" role="tablist">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 gap-3">
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0" role="tablist">
                 {SUB_TABS.map(t => (
                   <button key={t.id} disabled={t.disabled} onClick={() => !t.disabled && setSubTab(t.id)}
                     className={`relative flex items-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap rounded-lg shrink-0 ${
@@ -77,7 +77,7 @@ export function PokeBrawlPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
                 <DailyBonusButton dailyBonus={profileData?.dailyBonus} />
                 {profileData?.rank && (
                   <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
