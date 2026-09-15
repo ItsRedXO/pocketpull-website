@@ -11,7 +11,7 @@ import {
   listInstancesForUser, insertInstances, setTeam, getActiveTeamSpecies, pickRandomSpeciesIds, getSpeciesByIds, listAllSpecies,
   speciesRowToBattleSpecies, applyStarBonus, countRunsToday, lastRunForTier, createRun, addMatch, completeRun, insertSafariPull,
   getLeaderboard, getPlayerRank, applyRatingChange, getTrainerProfile, claimDailyBonus, getOpponentCandidatesInRange,
-  evolveInstances, starUpgradeInstance, type BrawlProfile,
+  evolveInstances, starUpgradeInstance, listEvolutionItemLinks, evolveInstanceWithItem, type BrawlProfile,
 } from '../repositories/brawl';
 import { pickOpponentTeam, type PlayerTypeProfile } from '../lib/brawl/opponentAI';
 import { getChallengeStatus, selectChallenge, advanceChallenge, claimChallenge } from '../repositories/brawlChallenges';
@@ -39,7 +39,7 @@ app.get('/brawl/config', async c => c.json({ battleTiers: BATTLE_TIERS, safariTi
 // Full species catalog (not just what the player owns) -- the merge/evolve UI
 // needs to show the name/art of an evolution target the player doesn't have
 // a copy of yet.
-app.get('/brawl/species', async c => c.json({ species: await listAllSpecies() }));
+app.get('/brawl/species', async c => c.json({ species: await listAllSpecies(), evolutionItems: await listEvolutionItemLinks() }));
 
 app.get('/brawl/profile', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;
@@ -136,6 +136,26 @@ app.post('/brawl/roster/evolve', async c => {
     return c.json({ success: true, newInstanceId: result.newInstanceId, roster: await listInstancesForUser(userId) });
   } catch (e: any) {
     return c.json({ error: EVOLVE_ERROR_MESSAGES[e.message] || 'Evolution failed' }, 400);
+  }
+});
+
+app.post('/brawl/roster/evolve-with-item', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const { instanceId, itemKey } = await c.req.json().catch(() => ({}));
+  if (typeof instanceId !== 'string' || typeof itemKey !== 'string') return c.json({ error: 'Invalid request' }, 400);
+  try {
+    const result = await evolveInstanceWithItem(userId, instanceId, itemKey);
+    await advanceChallenge(userId, 'evolve_pokemon');
+    return c.json({ success: true, newInstanceId: result.newInstanceId, targetSpeciesId: result.targetSpeciesId, roster: await listInstancesForUser(userId) });
+  } catch (e: any) {
+    const messages: Record<string, string> = {
+      INSTANCE_NOT_FOUND: 'Pokemon not found in your roster',
+      INSTANCE_ON_TEAM: 'Remove that Pokemon from your active team before evolving it',
+      INSTANCE_HAS_STARS: "Starred Pokemon can't be evolved this way",
+      INVALID_EVOLUTION_ITEM: "That item doesn't evolve this Pokemon",
+      INSUFFICIENT_ITEM: "You don't have that item",
+    };
+    return c.json({ error: messages[e.message] || 'Evolution failed' }, 400);
   }
 });
 

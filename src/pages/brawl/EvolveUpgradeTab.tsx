@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Star, Sparkles } from 'lucide-react';
-import { getBrawlRoster, getBrawlSpeciesCatalog, type BrawlInstance, type BrawlSpecies } from '../../lib/brawlApi';
+import { getBrawlRoster, getBrawlSpeciesCatalog, getBrawlItemInventory, type BrawlInstance, type BrawlSpecies } from '../../lib/brawlApi';
 import { PokemonStatCard } from './PokemonStatCard';
-import { EvolveFlowModal } from './EvolveFlowModal';
+import { EvolveFlowModal, type ItemEvolutionOption } from './EvolveFlowModal';
 import { UpgradeFlowModal } from './UpgradeFlowModal';
 import { computeMergeEligibility } from './mergeEligibility';
 
@@ -11,6 +11,7 @@ export function EvolveUpgradeTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['brawl-roster'], queryFn: getBrawlRoster });
   const { data: catalogData } = useQuery({ queryKey: ['brawl-species-catalog'], queryFn: getBrawlSpeciesCatalog, staleTime: 60 * 60_000 });
+  const { data: inventoryData } = useQuery({ queryKey: ['brawl-item-inventory'], queryFn: getBrawlItemInventory });
   const speciesCatalog = useMemo(() => new Map((catalogData?.species || []).map(s => [s.id, s] as [number, BrawlSpecies])), [catalogData]);
   const roster = data?.roster || [];
   const [evolveSpeciesId, setEvolveSpeciesId] = useState<number | null>(null);
@@ -26,19 +27,36 @@ export function EvolveUpgradeTab() {
     return groups;
   }, [roster]);
 
+  // Every stone-evolution the player can actually perform right now, keyed
+  // by source species id -- they own the item (qty > 0) and the mapping
+  // exists (see brawl_species_evolution_items / getBrawlSpeciesCatalog).
+  const itemOptionsBySpecies = useMemo(() => {
+    const byKey = new Map((inventoryData?.inventory || []).map(e => [e.itemKey, e]));
+    const map = new Map<number, ItemEvolutionOption[]>();
+    for (const link of catalogData?.evolutionItems || []) {
+      const entry = byKey.get(link.itemKey);
+      if (!entry || entry.quantity < 1) continue;
+      const list = map.get(link.fromSpeciesId) || [];
+      list.push({ toSpeciesId: link.toSpeciesId, itemKey: link.itemKey, itemName: entry.item.name, itemSpriteUrl: entry.item.spriteUrl, ownedQty: entry.quantity });
+      map.set(link.fromSpeciesId, list);
+    }
+    return map;
+  }, [catalogData, inventoryData]);
+
   const { evolveGroups, upgradeGroups } = useMemo(() => {
     const evolve: BrawlInstance[][] = [];
     const upgrade: BrawlInstance[][] = [];
     for (const group of benchGroups.values()) {
-      if (group.length < 2) continue;
-      const { canEvolve, canStarUp } = computeMergeEligibility(group);
-      if (canEvolve) evolve.push(group);
-      if (canStarUp) upgrade.push(group);
+      const speciesId = group[0].species_id;
+      const hasItemOption = (itemOptionsBySpecies.get(speciesId) || []).length > 0;
+      const canEvolveByDuplicate = group.length >= 2 && computeMergeEligibility(group).canEvolve;
+      if (canEvolveByDuplicate || hasItemOption) evolve.push(group);
+      if (group.length >= 2 && computeMergeEligibility(group).canStarUp) upgrade.push(group);
     }
     evolve.sort((a, b) => b[0].overall_rating - a[0].overall_rating);
     upgrade.sort((a, b) => b[0].overall_rating - a[0].overall_rating);
     return { evolveGroups: evolve, upgradeGroups: upgrade };
-  }, [benchGroups]);
+  }, [benchGroups, itemOptionsBySpecies]);
 
   if (isLoading) return <div className="text-white/40 text-sm py-16 text-center">Loading roster…</div>;
 
@@ -46,6 +64,7 @@ export function EvolveUpgradeTab() {
     setEvolveSpeciesId(null);
     setUpgradeSpeciesId(null);
     qc.invalidateQueries({ queryKey: ['brawl-roster'] });
+    qc.invalidateQueries({ queryKey: ['brawl-item-inventory'] });
   };
 
   return (
@@ -56,7 +75,7 @@ export function EvolveUpgradeTab() {
           <h3 className="font-display text-sm uppercase tracking-widest text-[#00c8ff]">Evolve</h3>
         </div>
         <p className="text-[11px] text-white/40 mb-3 max-w-xl">
-          Evolving trades in duplicate copies of a Pokémon on your bench for its next evolution stage. Pick a Pokémon below, then confirm which copies get used before anything happens.
+          Evolving trades in duplicate copies of a Pokémon on your bench -- or, for certain Pokémon, one copy plus a matching evolution stone -- for its next stage. Pick a Pokémon below, then confirm before anything happens.
         </p>
         {evolveGroups.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -91,7 +110,7 @@ export function EvolveUpgradeTab() {
       {evolveGroups.length === 0 && upgradeGroups.length === 0 && (
         <div className="flex items-start gap-1.5 text-[10px] text-white/30 px-1 mt-5">
           <Sparkles size={11} className="mt-0.5 shrink-0" />
-          Collect more than one of the same Pokémon on your bench to unlock evolving and star upgrades.
+          Collect more than one of the same Pokémon on your bench (or a matching evolution stone) to unlock evolving and star upgrades.
         </div>
       )}
 
@@ -100,6 +119,7 @@ export function EvolveUpgradeTab() {
           speciesId={evolveSpeciesId}
           instances={benchGroups.get(evolveSpeciesId) || []}
           speciesCatalog={speciesCatalog}
+          itemOptions={itemOptionsBySpecies.get(evolveSpeciesId) || []}
           onClose={closeAndRefresh}
         />
       )}

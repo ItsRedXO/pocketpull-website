@@ -2,36 +2,45 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, Sparkles, SkipForward } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { evolveBrawlRoster, type BrawlInstance, type BrawlSpecies } from '../../lib/brawlApi';
+import { evolveBrawlRoster, evolveBrawlRosterWithItem, type BrawlInstance, type BrawlSpecies } from '../../lib/brawlApi';
 import { PokemonPortrait } from './PokemonPortrait';
 import { computeMergeEligibility } from './mergeEligibility';
 
 type Stage = 'flash' | 'silhouette' | 'reveal';
+type Mode = 'item' | 'duplicate';
+
+export interface ItemEvolutionOption { toSpeciesId: number; itemKey: string; itemName: string; itemSpriteUrl: string | null; ownedQty: number; }
 
 /** Silhouette look during the mid-animation crossfade -- flattens the
  * artwork to a stark black shape so the "who's evolving" beat reads even
  * before the target's real colors are known. */
 const SILHOUETTE_FILTER = 'brightness(0) drop-shadow(0 0 18px rgba(155,92,255,0.8))';
 
-export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose }: {
-  speciesId: number; instances: BrawlInstance[]; speciesCatalog: Map<number, BrawlSpecies>; onClose: () => void;
+export function EvolveFlowModal({ speciesId, instances, speciesCatalog, itemOptions, onClose }: {
+  speciesId: number; instances: BrawlInstance[]; speciesCatalog: Map<number, BrawlSpecies>; itemOptions: ItemEvolutionOption[]; onClose: () => void;
 }) {
   const qc = useQueryClient();
   const species = speciesCatalog.get(speciesId);
-  const [targetSpeciesId, setTargetSpeciesId] = useState<number | null>(species?.evolves_to[0] ?? null);
+
+  // Freeze both the bench group and the item options as they were when this
+  // modal opened. Confirming triggers roster/inventory refetches -- e.g. the
+  // stone just spent drops out of `itemOptions` once inventory updates -- and
+  // reading those live would blank out the target species mid-animation
+  // instead of showing what was actually confirmed.
+  const [frozenInstances] = useState(instances);
+  const [frozenItemOptions] = useState(itemOptions);
+
+  const [duplicateTargetId, setDuplicateTargetId] = useState<number | null>(species?.evolves_to[0] ?? null);
+  const [mode, setMode] = useState<Mode>(frozenItemOptions.length > 0 ? 'item' : 'duplicate');
+  const [selectedItemKey, setSelectedItemKey] = useState<string | null>(frozenItemOptions[0]?.itemKey ?? null);
   const [phase, setPhase] = useState<'confirm' | 'evolving'>('confirm');
   const [stage, setStage] = useState<Stage>('flash');
   const [apiDone, setApiDone] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
-  // Freeze the bench group as it was when this modal opened -- confirming
-  // triggers a roster refetch, and a live `instances` prop can shrink to
-  // nothing (or even briefly empty out) while this modal is still showing
-  // its animation/result, which would otherwise recompute eligibility off
-  // of stale/empty data mid-flow.
-  const [frozenInstances] = useState(instances);
   const { unstarred, evolveCost, canEvolve } = useMemo(() => computeMergeEligibility(frozenInstances), [frozenInstances]);
+  const selectedItemOption = frozenItemOptions.find(o => o.itemKey === selectedItemKey) ?? null;
 
   // Advance flash -> silhouette -> reveal on a timer; skipping just jumps
   // straight to 'reveal' (which itself waits for the API if it's not back yet).
@@ -42,16 +51,39 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
   }, [phase, stage]);
 
   if (!species) return null;
+  const targetSpeciesId = mode === 'item' ? (selectedItemOption?.toSpeciesId ?? null) : duplicateTargetId;
   const targetSpecies = targetSpeciesId != null ? speciesCatalog.get(targetSpeciesId) : null;
   const revealReady = stage === 'reveal' && apiDone && !apiError;
 
   const handleConfirm = async () => {
-    if (!targetSpeciesId || !canEvolve || submittingRef.current) return;
+    if (submittingRef.current) return;
+    if (mode === 'item') {
+      if (!selectedItemOption) return;
+      const sourceInstance = frozenInstances.find(i => i.star_level === 0 && !Number(i.is_on_team));
+      if (!sourceInstance) return;
+      submittingRef.current = true;
+      setPhase('evolving'); setStage('flash'); setApiDone(false); setApiError(null);
+      try {
+        await evolveBrawlRosterWithItem(sourceInstance.id, selectedItemOption.itemKey);
+        await qc.invalidateQueries({ queryKey: ['brawl-roster'] });
+        qc.invalidateQueries({ queryKey: ['brawl-item-inventory'] });
+        qc.invalidateQueries({ queryKey: ['brawl-challenges'] });
+        setApiDone(true);
+      } catch (e: any) {
+        setApiError(e.message || 'Evolve failed');
+        setApiDone(true);
+      } finally {
+        submittingRef.current = false;
+      }
+      return;
+    }
+
+    if (!duplicateTargetId || !canEvolve) return;
     submittingRef.current = true;
     setPhase('evolving'); setStage('flash'); setApiDone(false); setApiError(null);
     try {
       const chosen = unstarred.slice(0, evolveCost).map(i => i.id);
-      await evolveBrawlRoster(speciesId, targetSpeciesId, chosen);
+      await evolveBrawlRoster(speciesId, duplicateTargetId, chosen);
       await qc.invalidateQueries({ queryKey: ['brawl-roster'] });
       qc.invalidateQueries({ queryKey: ['brawl-challenges'] });
       setApiDone(true);
@@ -85,21 +117,46 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
                   <PokemonPortrait artworkUrl={species.artwork_url} alt={species.name} scale={species.portrait_scale} offsetX={species.portrait_offset_x} offsetY={species.portrait_offset_y} className="w-20 h-20" />
                   <span className="text-xs font-bold text-white capitalize">{species.name}</span>
                 </div>
-                <ArrowRight size={20} className="text-white/30 shrink-0" />
+                {mode === 'item' && selectedItemOption ? (
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                      {selectedItemOption.itemSpriteUrl ? (
+                        <img src={selectedItemOption.itemSpriteUrl} alt={selectedItemOption.itemName} className="w-6 h-6 object-contain" style={{ imageRendering: 'pixelated' }} />
+                      ) : <Sparkles size={14} className="text-[#facc15]" />}
+                    </div>
+                    <ArrowRight size={14} className="text-white/30" />
+                  </div>
+                ) : (
+                  <ArrowRight size={20} className="text-white/30 shrink-0" />
+                )}
                 <div className="flex flex-col items-center gap-1">
                   {targetSpecies && <PokemonPortrait artworkUrl={targetSpecies.artwork_url} alt={targetSpecies.name} scale={targetSpecies.portrait_scale} offsetX={targetSpecies.portrait_offset_x} offsetY={targetSpecies.portrait_offset_y} className="w-20 h-20" />}
                   <span className="text-xs font-bold text-white capitalize">{targetSpecies?.name || '?'}</span>
                 </div>
               </div>
 
-              {species.evolves_to.length > 1 && (
+              {mode === 'item' && frozenItemOptions.length > 1 && (
+                <div className="flex gap-1.5 justify-center flex-wrap">
+                  {frozenItemOptions.map(opt => {
+                    const s = speciesCatalog.get(opt.toSpeciesId);
+                    return (
+                      <button key={opt.itemKey} onClick={() => setSelectedItemKey(opt.itemKey)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase capitalize border ${selectedItemKey === opt.itemKey ? 'border-[#00c8ff] text-[#00c8ff] bg-[#00c8ff]/10' : 'border-white/10 text-white/50'}`}>
+                        {s?.name || opt.itemKey} ({opt.itemName})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {mode === 'duplicate' && species.evolves_to.length > 1 && (
                 <div className="flex gap-1.5 justify-center flex-wrap">
                   {species.evolves_to.map(id => {
                     const s = speciesCatalog.get(id);
                     if (!s) return null;
                     return (
-                      <button key={id} onClick={() => setTargetSpeciesId(id)}
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase capitalize border ${targetSpeciesId === id ? 'border-[#00c8ff] text-[#00c8ff] bg-[#00c8ff]/10' : 'border-white/10 text-white/50'}`}>
+                      <button key={id} onClick={() => setDuplicateTargetId(id)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase capitalize border ${duplicateTargetId === id ? 'border-[#00c8ff] text-[#00c8ff] bg-[#00c8ff]/10' : 'border-white/10 text-white/50'}`}>
                         {s.name}
                       </button>
                     );
@@ -107,12 +164,31 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
                 </div>
               )}
 
-              <p className="text-center text-sm text-white">
-                Are you sure you want to evolve <span className="font-bold capitalize">{species.name}</span>?
-              </p>
-              <p className="text-center text-[11px] text-white/40">
-                This uses {evolveCost} duplicate copies of {species.name} from your bench.
-              </p>
+              {mode === 'item' && selectedItemOption ? (
+                <>
+                  <p className="text-center text-sm text-white">
+                    Are you sure you want to evolve <span className="font-bold capitalize">{species.name}</span> using a <span className="font-bold">{selectedItemOption.itemName}</span>?
+                  </p>
+                  <p className="text-center text-[11px] text-white/40">
+                    This uses 1 {selectedItemOption.itemName} and 1 {species.name} from your bench.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-center text-sm text-white">
+                    Are you sure you want to evolve <span className="font-bold capitalize">{species.name}</span>?
+                  </p>
+                  <p className="text-center text-[11px] text-white/40">
+                    This uses {evolveCost} duplicate copies of {species.name} from your bench.
+                  </p>
+                </>
+              )}
+
+              {frozenItemOptions.length > 0 && canEvolve && (
+                <button onClick={() => setMode(m => (m === 'item' ? 'duplicate' : 'item'))} className="block mx-auto text-[10px] text-[#00c8ff] hover:underline">
+                  {mode === 'item' ? `Use ${evolveCost} duplicate copies instead` : 'Use an evolution stone instead'}
+                </button>
+              )}
 
               {apiError && <p className="text-red-400 text-xs text-center">{apiError}</p>}
 
@@ -120,8 +196,8 @@ export function EvolveFlowModal({ speciesId, instances, speciesCatalog, onClose 
                 <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/5 text-white/60 hover:bg-white/10">
                   Cancel
                 </button>
-                <button disabled={!canEvolve} onClick={handleConfirm}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider ${canEvolve ? 'bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black' : 'bg-white/5 text-white/25 cursor-default'}`}>
+                <button disabled={mode === 'item' ? !selectedItemOption : !canEvolve} onClick={handleConfirm}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider ${(mode === 'item' ? !!selectedItemOption : canEvolve) ? 'bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black' : 'bg-white/5 text-white/25 cursor-default'}`}>
                   Yes
                 </button>
               </div>

@@ -261,6 +261,57 @@ export async function evolveInstances(userId: string, sourceSpeciesId: number, t
   });
 }
 
+export interface EvolutionItemLink { fromSpeciesId: number; toSpeciesId: number; itemKey: string; }
+/** Every species pair with a stone-based evolution shortcut (see migration
+ * 039) -- the client needs the full list up front to know which owned
+ * species have an item-based evolve option available, without a query per
+ * species. */
+export async function listEvolutionItemLinks(): Promise<EvolutionItemLink[]> {
+  return query<EvolutionItemLink>(
+    'SELECT from_species_id AS "fromSpeciesId", to_species_id AS "toSpeciesId", item_key AS "itemKey" FROM brawl_species_evolution_items',
+  );
+}
+
+export interface EvolveWithItemResult { newInstanceId: string; targetSpeciesId: number; }
+/**
+ * Alternate evolution path for species with a registered stone requirement:
+ * consumes exactly 1 copy of the source species plus 1 of the matching item
+ * from the player's inventory -- unlike evolveInstances, no duplicates are
+ * needed, mirroring how stone evolutions work in the actual games.
+ */
+export async function evolveInstanceWithItem(userId: string, instanceId: string, itemKey: string): Promise<EvolveWithItemResult> {
+  return transaction(async client => {
+    const instance = (await client.query(
+      'SELECT id, species_id, is_on_team, star_level FROM brawl_pokemon_instances WHERE id=$1 AND user_id=$2 FOR UPDATE',
+      [instanceId, userId],
+    )).rows[0];
+    if (!instance) throw new Error('INSTANCE_NOT_FOUND');
+    if (instance.is_on_team) throw new Error('INSTANCE_ON_TEAM');
+    if (instance.star_level > 0) throw new Error('INSTANCE_HAS_STARS');
+
+    const mapping = (await client.query(
+      'SELECT to_species_id FROM brawl_species_evolution_items WHERE from_species_id=$1 AND item_key=$2',
+      [instance.species_id, itemKey],
+    )).rows[0];
+    if (!mapping) throw new Error('INVALID_EVOLUTION_ITEM');
+
+    const inv = (await client.query(
+      'SELECT quantity FROM brawl_item_inventory WHERE user_id=$1 AND item_key=$2 FOR UPDATE',
+      [userId, itemKey],
+    )).rows[0];
+    if (!inv || Number(inv.quantity) < 1) throw new Error('INSUFFICIENT_ITEM');
+
+    const remaining = Number(inv.quantity) - 1;
+    if (remaining <= 0) await client.query('DELETE FROM brawl_item_inventory WHERE user_id=$1 AND item_key=$2', [userId, itemKey]);
+    else await client.query('UPDATE brawl_item_inventory SET quantity=$1, updated_at=now() WHERE user_id=$2 AND item_key=$3', [remaining, userId, itemKey]);
+
+    await client.query('DELETE FROM brawl_pokemon_instances WHERE id=$1', [instanceId]);
+    const newInstanceId = uid();
+    await client.query('INSERT INTO brawl_pokemon_instances (id, user_id, species_id, source) VALUES ($1,$2,$3,$4)', [newInstanceId, userId, mapping.to_species_id, 'evolved_item']);
+    return { newInstanceId, targetSpeciesId: mapping.to_species_id };
+  });
+}
+
 export interface StarUpgradeResult { newStarLevel: number; }
 /**
  * Bumps `targetInstanceId`'s star level by one, consuming 4 other (off-team,
