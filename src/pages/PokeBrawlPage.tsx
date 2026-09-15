@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users, Swords, Trees, ShoppingBag, Target, BarChart3, Coins, Lock, TrendingUp } from 'lucide-react';
+import { Users, Swords, Trees, ShoppingBag, Sparkles, Target, BarChart3, Coins, Lock, TrendingUp } from 'lucide-react';
 import { getBrawlProfile } from '../lib/brawlApi';
 import { useAuth } from '../hooks/useAuth';
 import { IntroFlow } from './brawl/IntroFlow';
@@ -9,17 +9,19 @@ import { TeamTab } from './brawl/TeamTab';
 import { PlayTab } from './brawl/PlayTab';
 import { SafariZoneTab } from './brawl/SafariZoneTab';
 import { ItemsTab } from './brawl/ItemsTab';
+import { EvolveUpgradeTab } from './brawl/EvolveUpgradeTab';
 import { ChallengesTab } from './brawl/ChallengesTab';
 import { LeaderboardsTab } from './brawl/LeaderboardsTab';
 import { DailyBonusButton } from './brawl/DailyBonusButton';
 
-type SubTab = 'team' | 'play' | 'safari' | 'items' | 'challenges' | 'leaderboards';
+type SubTab = 'team' | 'play' | 'safari' | 'items' | 'evolve' | 'challenges' | 'leaderboards';
 
 const SUB_TABS: { id: SubTab; label: string; icon: React.FC<{ size?: number; className?: string }>; disabled?: boolean }[] = [
   { id: 'team', label: 'Team', icon: Users },
   { id: 'play', label: 'Play', icon: Swords },
   { id: 'safari', label: 'Safari Zone', icon: Trees },
   { id: 'items', label: 'Items', icon: ShoppingBag },
+  { id: 'evolve', label: 'Evolve & Upgrade', icon: Sparkles },
   { id: 'challenges', label: 'Challenges', icon: Target },
   { id: 'leaderboards', label: 'Leaderboards', icon: BarChart3 },
 ];
@@ -98,6 +100,7 @@ export function PokeBrawlPage() {
                   {subTab === 'play' && <PlayTab />}
                   {subTab === 'safari' && <SafariZoneTab />}
                   {subTab === 'items' && <ItemsTab />}
+                  {subTab === 'evolve' && <EvolveUpgradeTab />}
                   {subTab === 'challenges' && <ChallengesTab />}
                   {subTab === 'leaderboards' && <LeaderboardsTab />}
                 </motion.div>

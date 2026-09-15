@@ -88,6 +88,7 @@ export function EvolveModal({ speciesId, instances, speciesCatalog, onClose }: {
           </div>
         ) : (
           <div className="p-4 space-y-3">
+            <p className="text-[11px] text-white/40">Confirm below to use these duplicate copies — nothing happens until you tap Evolve or Upgrade.</p>
             {error && <p className="text-red-400 text-xs">{error}</p>}
 
             {species.evolves_to.length > 0 && (
