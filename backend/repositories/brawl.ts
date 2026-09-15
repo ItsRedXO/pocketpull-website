@@ -438,13 +438,15 @@ export async function getTrainerProfile(userId: string): Promise<TrainerProfile 
   );
   if (!rows[0]) return null;
   const team = await getActiveTeamSpecies(userId);
+  // brawl_challenge_state may not have a row yet for a trainer who has never
+  // opened the Challenges tab -- 0 completed is the correct answer there, not
+  // a query error, so this intentionally doesn't getOrCreateRow() it.
+  const challengeRows = await query<{ completed_count: number }>('SELECT completed_count FROM brawl_challenge_state WHERE user_id=$1', [userId]);
   return {
     userId: rows[0].user_id, username: rows[0].username, avatarUrl: rows[0].avatar_url,
     leagueRating: rows[0].league_rating, wins: rows[0].wins, losses: rows[0].losses,
     regionalTournamentWins: rows[0].regional_tournament_wins, eliteFourWins: rows[0].elite_four_wins,
-    // Challenges/objectives haven't shipped yet (see ChallengesTab's "coming soon"
-    // state) -- always 0 until that system exists, not a placeholder for real data.
-    challengesCompleted: 0,
+    challengesCompleted: Number(challengeRows[0]?.completed_count || 0),
     team,
   };
 }

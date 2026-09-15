@@ -174,7 +174,7 @@ export async function claimChallenge(userId: string): Promise<ChallengeClaimResu
 
     const nextAvailableAt = new Date(Date.now() + CHALLENGE_COOLDOWN_MS).toISOString();
     await client.query(
-      'UPDATE brawl_challenge_state SET selected=NULL, offered=$1, progress=0, next_available_at=$2, last_completed=$3, updated_at=now() WHERE user_id=$4',
+      'UPDATE brawl_challenge_state SET selected=NULL, offered=$1, progress=0, next_available_at=$2, last_completed=$3, completed_count=completed_count+1, updated_at=now() WHERE user_id=$4',
       [JSON.stringify([]), nextAvailableAt, JSON.stringify(lastCompleted), userId],
     );
     return { label: challenge.label, reward: challenge.reward, pokemon: lastCompleted.pokemon };

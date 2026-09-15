@@ -1,10 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { X, Trophy, ShoppingBag, Award, Target } from 'lucide-react';
+import { X, Trophy, Award, Target } from 'lucide-react';
 import { getBrawlTrainer } from '../../lib/brawlApi';
-import { typeColor } from './typeColors';
-import { PokemonPortrait } from './PokemonPortrait';
+import { PokemonStatCard } from './PokemonStatCard';
 
 export function TrainerDetailModal({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { data, isLoading, isError } = useQuery({ queryKey: ['brawl-trainer', userId], queryFn: () => getBrawlTrainer(userId) });
@@ -66,9 +65,9 @@ export function TrainerDetailModal({ userId, onClose }: { userId: string; onClos
                 <div className="text-[9px] uppercase tracking-wider text-white/30 leading-tight">Elite Four Wins</div>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.03] py-2.5 text-center flex flex-col items-center gap-1">
-                <Target size={14} className="text-white/30" />
-                <div className="text-lg font-bold text-white/50">{trainer.challengesCompleted}</div>
-                <div className="text-[9px] uppercase tracking-wider text-white/30 leading-tight">Challenges (soon)</div>
+                <Target size={14} className="text-[#00c8ff]" />
+                <div className="text-lg font-bold text-white">{trainer.challengesCompleted}</div>
+                <div className="text-[9px] uppercase tracking-wider text-white/30 leading-tight">Challenges Completed</div>
               </div>
             </div>
 
@@ -78,23 +77,10 @@ export function TrainerDetailModal({ userId, onClose }: { userId: string; onClos
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
                 {trainer.team.map((mon, i) => (
-                  <motion.div key={mon.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                    whileHover={{ y: -3, scale: 1.03 }}
-                    className="rounded-xl border p-2 flex flex-col items-center"
-                    style={{ borderColor: `${typeColor(mon.primary_type)}40`, background: `${typeColor(mon.primary_type)}0d` }}>
-                    <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={mon.portrait_scale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y} className="w-14 h-14 rounded-lg" />
-                    <div className="text-[10px] font-bold text-white capitalize mt-1 truncate w-full text-center">{mon.name}</div>
-                    <span className="text-[7px] px-1.5 py-0.5 rounded-full uppercase font-bold mt-1" style={{ background: `${typeColor(mon.primary_type)}30`, color: typeColor(mon.primary_type) }}>{mon.primary_type}</span>
-                    <div className="text-[9px] text-[#00c8ff] font-bold mt-1">OVR {mon.overall_rating}</div>
-                  </motion.div>
+                  <PokemonStatCard key={mon.id} mon={mon} index={i} />
                 ))}
               </div>
             )}
-
-            <div className="text-[11px] font-bold uppercase tracking-widest text-white/40 mb-2">Items</div>
-            <div className="flex items-center gap-2 text-white/30 text-xs rounded-xl border border-dashed border-white/10 px-3 py-3">
-              <ShoppingBag size={14} /> Coming soon
-            </div>
           </motion.div>
         )}
       </motion.div>

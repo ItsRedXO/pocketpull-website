@@ -90,7 +90,7 @@ export interface TrainerProfile {
   userId: string; username: string | null; avatarUrl: string | null;
   leagueRating: number; wins: number; losses: number;
   regionalTournamentWins: number; eliteFourWins: number; challengesCompleted: number;
-  team: BrawlSpecies[];
+  team: (BrawlSpecies & { star_level: number })[];
 }
 export const getBrawlTrainer = (userId: string) => get<{ trainer: TrainerProfile }>(`/brawl/trainer/${encodeURIComponent(userId)}`);
 export const pullSafariZone = (tier: number) => post<{ success: boolean; pulled: BrawlSpecies[]; instanceIds: string[]; balance: number }>('/brawl/safari/pull', { tier });
