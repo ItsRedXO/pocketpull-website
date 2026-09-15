@@ -94,6 +94,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     setTab(newTab);
   };
 
+  // Same as switchTab, but for the two paths into the forgot-password form
+  // that start from an email someone already typed on the login form --
+  // resetForm() would otherwise blank it right back out, so the "reset"
+  // screen shows up asking them to type the address they just entered.
+  const switchToForgotPassword = () => {
+    const typedEmail = email;
+    resetForm();
+    setEmail(typedEmail);
+    setTab('forgot');
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { setError('Please fill in all fields'); return; }
@@ -268,7 +279,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                         {' '}
                         <button
                           type="button"
-                          onClick={() => switchTab('forgot')}
+                          onClick={switchToForgotPassword}
                           className="underline font-bold"
                         >
                           Reset it now
@@ -334,7 +345,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                 </div>
                 <button
                   type="button"
-                  onClick={() => switchTab('forgot')}
+                  onClick={switchToForgotPassword}
                   className="text-xs text-right w-full transition-colors"
                   style={{ color: 'rgba(0,200,255,0.6)' }}
                 >

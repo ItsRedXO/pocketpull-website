@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blink } from '../lib/blink';
 import { supabase } from '../lib/supabase';
@@ -20,6 +20,31 @@ async function resolveLoginEmail(identifier: string): Promise<string> {
   const match = Array.isArray(payload?.users) ? payload.users[0] : null;
   if (!match?.email) throw new Error('INVALID_CREDENTIALS');
   return match.email;
+}
+
+/**
+ * Used only after both sign-in attempts below have already failed *twice in
+ * a row for the same email* (see failedLoginRef in useAuth), to tell apart
+ * two very different situations that would otherwise show the same generic
+ * "invalid credentials" message: a typo/no such account at all, vs. a real
+ * account whose password just doesn't match -- most commonly a returning
+ * user whose password never made it across the Blink -> Supabase migration
+ * (see silentlyMigrateToSupabase above) and who needs to reset it.
+ *
+ * There's no signal that distinguishes "migration desync" from "plain typo"
+ * on the first failure -- both look identical from here. Gating this on a
+ * second consecutive miss is what keeps an ordinary mistyped password from
+ * being told to go reset itself.
+ */
+async function accountExistsForEmail(email: string): Promise<boolean> {
+  try {
+    const params = new URLSearchParams({ email });
+    const response = await fetch(`${BACKEND_BASE}/auth/user-lookup?${params.toString()}`);
+    const payload = await response.json().catch(() => ({}));
+    return Array.isArray(payload?.users) && payload.users.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -144,6 +169,14 @@ export function useAuth() {
   const user = supabaseUser || (supabaseResolved ? blinkState.user : null);
   const isLoading = !supabaseResolved || (!supabaseUser && blinkState.isLoading);
 
+  // Tracks consecutive plain-credentials failures per email so PASSWORD_MISMATCH
+  // (see accountExistsForEmail above) only fires on a *repeat* miss for the same
+  // address, not the first one -- a single failure is far more likely to be an
+  // ordinary typo than an actual migration-password desync, and both look
+  // identical from here. Persists across renders via useRef since signIn is
+  // recreated every render; reset on any address change or successful sign-in.
+  const failedLoginRef = useRef<{ email: string; count: number }>({ email: '', count: 0 });
+
   const signIn = async (emailOrUsername: string, password: string) => {
     const identifier = emailOrUsername.trim();
     if (!identifier || !password) throw new Error('INVALID_CREDENTIALS');
@@ -151,15 +184,35 @@ export function useAuth() {
 
     if (supabase) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (!error) return; // onAuthStateChange picks this up
+      if (!error) { failedLoginRef.current = { email: '', count: 0 }; return; } // onAuthStateChange picks this up
     }
 
     // Falls through for: accounts not yet migrated, or whose Blink password
     // changed more recently than their Supabase identity was last synced
     // (password resets remain Blink-only for now -- see sendPasswordReset).
-    const result = await blink.auth.signInWithEmail(email, password);
-    void establishSupabaseSession(email, password);
-    return result;
+    try {
+      const result = await blink.auth.signInWithEmail(email, password);
+      failedLoginRef.current = { email: '', count: 0 };
+      void establishSupabaseSession(email, password);
+      return result;
+    } catch (err) {
+      // Leave BANNED_ACCOUNT / rate-limit errors untouched -- only a plain
+      // "wrong credentials" failure gets reinterpreted below.
+      const message = err instanceof Error ? err.message : '';
+      const isPlainCredentialsFailure = !message.includes('BANNED_ACCOUNT') && !message.toLowerCase().includes('rate');
+
+      if (isPlainCredentialsFailure) {
+        failedLoginRef.current = failedLoginRef.current.email === email
+          ? { email, count: failedLoginRef.current.count + 1 }
+          : { email, count: 1 };
+        // A real account exists for this email but neither Supabase nor
+        // Blink accepted the password typed twice in a row -- surface a
+        // distinct code so the UI can point the user at resetting their
+        // password instead of implying a typo.
+        if (failedLoginRef.current.count >= 2 && (await accountExistsForEmail(email))) throw new Error('PASSWORD_MISMATCH');
+      }
+      throw err;
+    }
   };
 
   const signUp = async (email: string, password: string, username: string, referralCode?: string, dateOfBirth?: string) => {
