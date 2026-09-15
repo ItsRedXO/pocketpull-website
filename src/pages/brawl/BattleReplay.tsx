@@ -338,17 +338,17 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
               </div>
 
               {/* move info box, bottom-right */}
-              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 max-w-[48%] sm:max-w-[260px] rounded-lg border border-white/10 bg-black/70 px-2 py-1.5 sm:px-3 sm:py-2">
+              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 max-w-[128px] sm:max-w-[260px] rounded-lg border border-white/10 bg-gray-300/10 backdrop-blur-sm px-1.5 py-1 sm:px-3 sm:py-2">
                 {lastAttack ? (
                   <>
-                    <div className="text-[11px] text-white">used <span className="font-bold">{lastAttack.move}</span></div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(lastAttack.moveType)}30`, color: typeColor(lastAttack.moveType) }}>{lastAttack.moveType}</span>
-                      <span className="text-[10px] text-white/50">{lastAttack.damage} dmg</span>
-                      {EFFECTIVENESS_LABEL[lastAttack.effectiveness] && <span className="text-[10px] font-bold" style={{ color: EFFECTIVENESS_COLOR[lastAttack.effectiveness] }}>{EFFECTIVENESS_LABEL[lastAttack.effectiveness]}</span>}
+                    <div className="text-[9px] sm:text-[11px] text-white">used <span className="font-bold">{lastAttack.move}</span></div>
+                    <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                      <span className="text-[7px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(lastAttack.moveType)}30`, color: typeColor(lastAttack.moveType) }}>{lastAttack.moveType}</span>
+                      <span className="text-[8px] sm:text-[10px] text-white/50">{lastAttack.damage} dmg</span>
+                      {EFFECTIVENESS_LABEL[lastAttack.effectiveness] && <span className="text-[8px] sm:text-[10px] font-bold" style={{ color: EFFECTIVENESS_COLOR[lastAttack.effectiveness] }}>{EFFECTIVENESS_LABEL[lastAttack.effectiveness]}</span>}
                     </div>
                   </>
-                ) : <div className="text-[11px] text-white/30">Battle starting…</div>}
+                ) : <div className="text-[9px] sm:text-[11px] text-white/30">Battle starting…</div>}
               </div>
             </div>
 
