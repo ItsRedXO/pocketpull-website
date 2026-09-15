@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X, Trophy, Award, Target } from 'lucide-react';
@@ -12,14 +12,21 @@ export function TrainerDetailModal({ userId, onClose }: { userId: string; onClos
   const winPct = games > 0 ? Math.round(((trainer?.wins ?? 0) / games) * 100) : 0;
   const initials = (trainer?.username || 'T').trim().slice(0, 1).toUpperCase();
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3" onClick={onClose}>
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-4xl rounded-2xl border border-white/10 overflow-hidden" style={{ background: '#0d0e14' }}
+        className="w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col max-h-[90vh] overflow-y-auto overscroll-contain"
+        style={{ background: '#0d0e14', WebkitOverflowScrolling: 'touch' }}
         onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 border-b border-white/5" style={{ background: '#0d0e14' }}>
           <div className="text-xs font-bold uppercase tracking-widest text-white/60">Trainer Profile</div>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X size={16} /></button>
+          <button onClick={onClose} className="text-white/40 hover:text-white p-1 -m-1"><X size={16} /></button>
         </div>
 
         {isLoading ? (
