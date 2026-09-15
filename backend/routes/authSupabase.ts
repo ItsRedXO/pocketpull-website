@@ -310,8 +310,8 @@ app.post('/auth/complete-supabase-signup', async (c) => {
 
   const referralCode = Math.random().toString(36).slice(2, 10).toUpperCase();
   await query(
-    `INSERT INTO users (id, email, username, display_name, avatar_url, balance, matched_balance, email_verified, role, is_banned, is_deleted, referral_code, referred_by_id, referral_reward_paid, auth_user_id, date_of_birth)
-     VALUES ($1,$2,$3,$3,'',0,0,1,'',0,0,$4,$5,0,$6,$7)`,
+    `INSERT INTO users (id, email, username, display_name, avatar_url, balance, matched_balance, email_verified, role, is_banned, is_deleted, referral_code, referred_by_id, referral_reward_paid, auth_user_id, date_of_birth, created_at)
+     VALUES ($1,$2,$3,$3,'',0,0,1,'',0,0,$4,$5,0,$6,$7,now())`,
     [userId, claims.email, username, referralCode, referredById, claims.authUserId, dateOfBirth]
   );
 

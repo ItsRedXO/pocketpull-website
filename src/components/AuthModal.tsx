@@ -9,6 +9,18 @@ interface AuthModalProps {
   defaultTab?: 'login' | 'signup' | 'forgot';
 }
 
+/** The code stashed by App.tsx when someone lands on a `?ref=` link, if any --
+ * read fresh (not just once at mount) so it's picked up whenever the signup
+ * form actually needs it, not just if it happened to already be set before
+ * this component's first render. */
+function getPendingReferralCode(): string {
+  try {
+    return localStorage.getItem('pending_referral_code') || '';
+  } catch {
+    return '';
+  }
+}
+
 /** True if the given YYYY-MM-DD date of birth is 18+ years ago as of today. */
 function isAtLeast18(dateOfBirth: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return false;
@@ -42,7 +54,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [referralCode, setReferralCode] = useState('');
+  const [referralCode, setReferralCode] = useState(getPendingReferralCode);
+
+  // The modal is mounted once and toggled open/closed (see App.tsx), so the
+  // useState initializer above only ever runs on the very first render --
+  // which, for a fresh page load off a `?ref=` link, races the App.tsx effect
+  // that actually writes pending_referral_code to localStorage and loses.
+  // Re-check every time the modal opens instead: by then that effect has long
+  // since run. Never overwrites a code the person already typed themselves.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setReferralCode(current => current || getPendingReferralCode());
+  }, [isOpen]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +81,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     setConfirmPassword('');
     setUsername('');
     setDateOfBirth('');
-    setReferralCode('');
+    setReferralCode(getPendingReferralCode());
     setError('');
     setSuccess('');
     setShowPassword(false);
@@ -85,6 +108,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
         setError('Your account has been banned. Please contact support.');
       } else if (message.includes('rate') || message.includes('RATE_LIMITED')) {
         setError('Too many attempts. Please try again later.');
+      } else if (message === 'PASSWORD_MISMATCH') {
+        setError('That password didn\'t work for this account. Please reset your password.');
       } else {
         setError('Invalid email/username or password.');
       }
@@ -236,7 +261,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                   style={{ background: 'rgba(255,50,50,0.1)', border: '1px solid rgba(255,50,50,0.2)' }}
                 >
                   <AlertCircle size={14} className="shrink-0" />
-                  {error}
+                  <span>
+                    {error}
+                    {error === "That password didn't work for this account. Please reset your password." && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          onClick={() => switchTab('forgot')}
+                          className="underline font-bold"
+                        >
+                          Reset it now
+                        </button>
+                      </>
+                    )}
+                  </span>
                 </motion.div>
               )}
               {success && (

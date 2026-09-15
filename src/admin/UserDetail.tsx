@@ -250,7 +250,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
           <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
             <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display mb-2">Account Info</h4>
             <div className="space-y-1">
-              <p className="text-[11px] text-white/60">Created: <span className="text-white/80">{new Date(user.createdAt).toLocaleDateString()}</span></p>
+              <p className="text-[11px] text-white/60">Created: <span className="text-white/80">{user.createdAt && !Number.isNaN(new Date(user.createdAt).getTime()) ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</span></p>
               <p className="text-[11px] text-white/60">
                 Last Online: <span className="text-white/80">{lastOnlineDisplay ? new Date(lastOnlineDisplay).toLocaleDateString() : 'N/A'}</span>
               </p>

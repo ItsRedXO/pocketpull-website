@@ -73,6 +73,11 @@ app.post('/db', async (c, next) => {
     if (body.operation === 'create') {
       const data = { ...(body.data || {}) };
       if (data.id !== userId) return c.json({ error: 'FORBIDDEN' }, 403);
+      // users.created_at has no DB default (see 001_initial_schema.sql), and
+      // this is the legacy Blink self-heal path (useUserStats' on-the-fly
+      // row creation) which never passes one -- stamp it here so it can't
+      // silently land NULL again the way it did before 041's backfill.
+      if (data.createdAt === undefined && data.created_at === undefined) data.createdAt = new Date().toISOString();
       const keys = Object.keys(data);
       const columns = keys.map(snake);
       const values = Object.values(data).map((value) => value && typeof value === 'object' ? JSON.stringify(value) : value);
