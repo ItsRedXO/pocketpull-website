@@ -73,6 +73,10 @@ export const EVOLVE_COST_STAGE_1 = 3;
 export const EVOLVE_COST_STAGE_2_PLUS = 5;
 export const STAR_UPGRADE_FODDER_COUNT = 4;
 export const MAX_STAR_LEVEL = 3;
+// Mirrors backend/repositories/brawl.ts applyStarBonus -- kept in sync so the
+// upgrade confirm screen can preview the exact stat increase before the
+// player commits, without a round-trip to the server.
+export const STAR_STAT_BONUS_PER_LEVEL = 0.05;
 export const evolveBrawlRoster = (sourceSpeciesId: number, targetSpeciesId: number, instanceIds: string[]) =>
   post<{ success: boolean; newInstanceId: string; roster: BrawlInstance[] }>('/brawl/roster/evolve', { sourceSpeciesId, targetSpeciesId, instanceIds });
 export const starUpgradeBrawlRoster = (targetInstanceId: string, fodderInstanceIds: string[]) =>

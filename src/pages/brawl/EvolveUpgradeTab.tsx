@@ -2,23 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Star, Sparkles } from 'lucide-react';
 import { getBrawlRoster, getBrawlSpeciesCatalog, type BrawlInstance, type BrawlSpecies } from '../../lib/brawlApi';
-import { PokemonPortrait } from './PokemonPortrait';
-import { EvolveModal } from './EvolveModal';
+import { PokemonStatCard } from './PokemonStatCard';
+import { EvolveFlowModal } from './EvolveFlowModal';
+import { UpgradeFlowModal } from './UpgradeFlowModal';
 import { computeMergeEligibility } from './mergeEligibility';
-
-function MergeChip({ mon, count, accent, onClick }: { mon: BrawlInstance; count: number; accent: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick}
-      className="shrink-0 flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl border transition-colors"
-      style={{ borderColor: `${accent}4d`, background: `${accent}1a` }}>
-      <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={mon.portrait_scale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y} className="w-8 h-8" />
-      <div className="text-left">
-        <div className="text-xs font-bold text-white capitalize leading-tight">{mon.name}</div>
-        <div className="text-[10px] leading-tight" style={{ color: accent }}>×{count} owned</div>
-      </div>
-    </button>
-  );
-}
 
 export function EvolveUpgradeTab() {
   const qc = useQueryClient();
@@ -26,7 +13,8 @@ export function EvolveUpgradeTab() {
   const { data: catalogData } = useQuery({ queryKey: ['brawl-species-catalog'], queryFn: getBrawlSpeciesCatalog, staleTime: 60 * 60_000 });
   const speciesCatalog = useMemo(() => new Map((catalogData?.species || []).map(s => [s.id, s] as [number, BrawlSpecies])), [catalogData]);
   const roster = data?.roster || [];
-  const [mergeSpeciesId, setMergeSpeciesId] = useState<number | null>(null);
+  const [evolveSpeciesId, setEvolveSpeciesId] = useState<number | null>(null);
+  const [upgradeSpeciesId, setUpgradeSpeciesId] = useState<number | null>(null);
 
   const benchGroups = useMemo(() => {
     const groups = new Map<number, BrawlInstance[]>();
@@ -54,20 +42,26 @@ export function EvolveUpgradeTab() {
 
   if (isLoading) return <div className="text-white/40 text-sm py-16 text-center">Loading roster…</div>;
 
+  const closeAndRefresh = () => {
+    setEvolveSpeciesId(null);
+    setUpgradeSpeciesId(null);
+    qc.invalidateQueries({ queryKey: ['brawl-roster'] });
+  };
+
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-8">
         <div className="flex items-center gap-2 mb-1.5">
           <ArrowRight size={15} className="text-[#00c8ff]" />
           <h3 className="font-display text-sm uppercase tracking-widest text-[#00c8ff]">Evolve</h3>
         </div>
         <p className="text-[11px] text-white/40 mb-3 max-w-xl">
-          Evolving trades in duplicate copies of a Pokémon on your bench for its next evolution stage. You'll see exactly which copies get used and confirm before anything happens.
+          Evolving trades in duplicate copies of a Pokémon on your bench for its next evolution stage. Pick a Pokémon below, then confirm which copies get used before anything happens.
         </p>
         {evolveGroups.length > 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {evolveGroups.map(group => (
-              <MergeChip key={group[0].species_id} mon={group[0]} count={group.length} accent="#00c8ff" onClick={() => setMergeSpeciesId(group[0].species_id)} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {evolveGroups.map((group, i) => (
+              <PokemonStatCard key={group[0].species_id} mon={group[0]} index={i} count={group.length} onClick={() => setEvolveSpeciesId(group[0].species_id)} />
             ))}
           </div>
         ) : (
@@ -81,12 +75,12 @@ export function EvolveUpgradeTab() {
           <h3 className="font-display text-sm uppercase tracking-widest text-[#facc15]">Upgrade</h3>
         </div>
         <p className="text-[11px] text-white/40 mb-3 max-w-xl">
-          Star upgrades consume duplicate copies of a Pokémon to permanently boost its stats. You'll see exactly which copies get used and confirm before anything happens.
+          Star upgrades consume duplicate copies of a Pokémon to permanently boost its stats. Pick a Pokémon below, then confirm which copies get used before anything happens.
         </p>
         {upgradeGroups.length > 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {upgradeGroups.map(group => (
-              <MergeChip key={group[0].species_id} mon={group[0]} count={group.length} accent="#facc15" onClick={() => setMergeSpeciesId(group[0].species_id)} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {upgradeGroups.map((group, i) => (
+              <PokemonStatCard key={group[0].species_id} mon={group[0]} index={i} count={group.length} onClick={() => setUpgradeSpeciesId(group[0].species_id)} />
             ))}
           </div>
         ) : (
@@ -101,12 +95,21 @@ export function EvolveUpgradeTab() {
         </div>
       )}
 
-      {mergeSpeciesId != null && (
-        <EvolveModal
-          speciesId={mergeSpeciesId}
-          instances={benchGroups.get(mergeSpeciesId) || []}
+      {evolveSpeciesId != null && (
+        <EvolveFlowModal
+          speciesId={evolveSpeciesId}
+          instances={benchGroups.get(evolveSpeciesId) || []}
           speciesCatalog={speciesCatalog}
-          onClose={() => { setMergeSpeciesId(null); qc.invalidateQueries({ queryKey: ['brawl-roster'] }); }}
+          onClose={closeAndRefresh}
+        />
+      )}
+
+      {upgradeSpeciesId != null && (
+        <UpgradeFlowModal
+          speciesId={upgradeSpeciesId}
+          instances={benchGroups.get(upgradeSpeciesId) || []}
+          speciesCatalog={speciesCatalog}
+          onClose={closeAndRefresh}
         />
       )}
     </div>
