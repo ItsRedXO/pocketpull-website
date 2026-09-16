@@ -63,6 +63,9 @@ export interface ReferralData { id: string; username: string; email: string; sta
 export interface FetchReferralsResult { data: ReferralData[]; total: number; page: number; totalPages: number; }
 export const fetchReferrals = async (page = 1) => get<FetchReferralsResult>(`/referrals?page=${page}`);
 
+export interface RedeemPromoCodeResult { success: true; amount: number; balance: number; code: string; }
+export const redeemPromoCode = (code: string) => post<RedeemPromoCodeResult>('/redeem-code', { code });
+
 export interface ProvablyFairOpening { id: string; packName: string; cardName: string; rarity: string; cost: number; createdAt: string; serverSeedHash: string; oddsVersionHash: string; }
 export interface ProvablyFairVerifyData { id: string; packName: string; cardName: string; rarity: string; cost: number; createdAt: string; clientSeed: string; nonce: number; rollValue: number; serverSeedHash: string; oddsVersionHash: string; isRevealed: boolean; revealedSeed?: string; verified?: boolean; recomputedRoll?: number; }
 export interface SeedHistoryEntry { seedHash: string; revealedSeed: string; periodStart: string; periodEnd: string; revealedAt: string; }

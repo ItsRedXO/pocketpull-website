@@ -1,7 +1,7 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 
-export type ProfileTab = 'profile' | 'security' | 'history' | 'referrals' | 'settings';
+export type ProfileTab = 'profile' | 'security' | 'codes' | 'history' | 'referrals' | 'settings';
 
 interface TabConfig {
   id: ProfileTab;

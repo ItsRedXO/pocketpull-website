@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, User, Shield, History, PackageOpen, Users, Settings } from 'lucide-react';
+import { ArrowLeft, User, Shield, History, PackageOpen, Users, Settings, Ticket } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { uploadFile } from '../lib/upload';
 import { useAuth, useUserStats } from '../hooks/useAuth';
@@ -258,6 +258,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
   const tabs = [
     { id: 'profile' as ProfileTab, label: 'Profile', icon: User },
     { id: 'security' as ProfileTab, label: 'Security', icon: Shield },
+    { id: 'codes' as ProfileTab, label: 'Codes', icon: Ticket },
     { id: 'history' as ProfileTab, label: 'History', icon: History },
     { id: 'referrals' as ProfileTab, label: 'Referrals', icon: Users },
     { id: 'settings' as ProfileTab, label: 'Settings', icon: Settings },

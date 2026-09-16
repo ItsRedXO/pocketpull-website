@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { ProfileTab } from './ProfileTabs';
 import { EditProfileTab } from './tabs/EditProfileTab';
 import { SecurityTab } from './tabs/SecurityTab';
+import { CodesTab } from './tabs/CodesTab';
 import { HistoryTab } from './tabs/HistoryTab';
 import { ReferralsTab } from './tabs/ReferralsTab';
 import { SettingsTab } from './tabs/SettingsTab';
@@ -100,6 +101,8 @@ export const ProfileTabContent: React.FC<ProfileTabContentProps> = (props) => {
           savingPassword={props.savingPassword}
         />
       )}
+
+      {activeTab === 'codes' && <CodesTab />}
 
       {activeTab === 'history' && (
         <HistoryTab
