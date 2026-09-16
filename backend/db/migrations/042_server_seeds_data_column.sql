@@ -1,0 +1,11 @@
+-- rotateServerSeed() (backend/lib/provablyFairServerSeed.ts) reveals the old
+-- seed via `data = jsonb_set(COALESCE(data,'{}'::jsonb), '{revealedSeed}', ...)`,
+-- and the legacy Blink-shaped admin routes write revealedSeed the same way
+-- through postgresBlinkDb's generic `data` JSON column -- but server_seeds
+-- never actually had a `data` column (001_initial_schema.sql only gave it
+-- id/seed/seed_hash/active/created_at/revealed_at). Every rotation attempt,
+-- nightly or manual "Rotate Now", has been failing with
+-- "column \"data\" does not exist" since the nightly scheduler shipped,
+-- which is why the admin panel still showed the seed created at launch with
+-- zero rotation history two weeks later.
+ALTER TABLE server_seeds ADD COLUMN IF NOT EXISTS data jsonb NOT NULL DEFAULT '{}'::jsonb;
