@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Mail, Search, X, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, Search, X, RefreshCw, CheckCircle, AlertCircle, PenSquare, Send, Loader2 } from 'lucide-react';
 import { blink } from '../lib/blink';
+import { BACKEND_BASE } from '../lib/backend';
+
+function adminHeaders(): Record<string, string> {
+  const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  return adminSecret ? { 'X-Admin-Secret': adminSecret } : {};
+}
 
 interface OutboundEmail {
   id: string;
@@ -81,6 +87,73 @@ function Meta({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 rounded-lg border border-white/5 bg-white/[0.03] p-3"><p className="mb-1 text-[10px] uppercase tracking-wider text-white/35">{label}</p><p className="break-words text-white/75">{value}</p></div>;
 }
 
+function ComposeModal({ onClose, onSent, showToast }: { onClose: () => void; onSent: () => void; showToast?: (msg: string, ok?: boolean) => void }) {
+  const [to, setTo] = useState('');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    if (sending) return;
+    if (!to.trim() || !subject.trim() || !message.trim()) {
+      showToast?.('Recipient, subject, and message are all required', false);
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch(`${BACKEND_BASE}/admin/emails/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), message }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Failed to send (${res.status})`);
+      showToast?.('Email sent.');
+      onSent();
+      onClose();
+    } catch (error: any) {
+      showToast?.(error?.message || 'Failed to send email', false);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0d0f1a] shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">New message</p>
+            <h2 className="font-display text-xl text-white">Compose Email</h2>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white" aria-label="Close compose"><X size={18} /></button>
+        </div>
+        <div className="max-h-[calc(90vh-140px)] space-y-3 overflow-y-auto p-5">
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/40">To</span>
+            <input value={to} onChange={e => setTo(e.target.value)} placeholder="user@example.com (comma-separate for multiple)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#9b5cff]/50" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/40">Subject</span>
+            <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#9b5cff]/50" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/40">Message</span>
+            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Write your message..." rows={10} className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#9b5cff]/50" />
+          </label>
+          <p className="text-[11px] text-white/30">Sent from support@pocketpulltcg.com via Resend. The message is wrapped in the standard PocketPull TCG email template.</p>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-white/10 px-5 py-4">
+          <button onClick={onClose} className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:bg-white/10">Cancel</button>
+          <button onClick={() => void send()} disabled={sending} className="inline-flex items-center gap-2 rounded-lg border border-[#9b5cff]/25 bg-[#9b5cff]/15 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#c4a0ff] hover:bg-[#9b5cff]/25 disabled:opacity-40">
+            {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function mapEmailRow(r: any): OutboundEmail {
   const data = r?.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : {};
   const metadata = r?.metadata && typeof r.metadata === 'object' && !Array.isArray(r.metadata) ? r.metadata : {};
@@ -107,6 +180,7 @@ export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => vo
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
   const [selected, setSelected] = useState<OutboundEmail | null>(null);
+  const [composing, setComposing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,7 +207,10 @@ export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => vo
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Delivery records</p><h1 className="font-display text-2xl uppercase text-white">Email Center</h1></div>
-        <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh</button>
+        <div className="flex gap-2">
+          <button onClick={() => setComposing(true)} className="inline-flex items-center gap-2 rounded-lg border border-[#9b5cff]/25 bg-[#9b5cff]/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#c4a0ff] hover:bg-[#9b5cff]/25"><PenSquare size={13} /> Compose</button>
+          <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh</button>
+        </div>
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_180px_150px]">
         <label className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search recipient or subject" className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white outline-none focus:border-[#9b5cff]/50" /></label>
@@ -146,6 +223,7 @@ export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => vo
       </div>
       <p className="text-[11px] text-white/30">Showing {filtered.length} of {emails.length} recorded email attempts. Select a row to inspect its captured content.</p>
       {selected && <EmailDetail email={selected} onClose={() => setSelected(null)} />}
+      {composing && <ComposeModal onClose={() => setComposing(false)} onSent={() => void load()} showToast={showToast} />}
     </section>
   );
 };
