@@ -36,8 +36,27 @@ const TIER_LABEL: Record<CardTier, string> = { bronze: 'Bronze', silver: 'Silver
 interface PokemonLike {
   name: string; artwork_url: string | null; primary_type: string; overall_rating: number;
   base_attack: number; base_defense: number; base_hp: number; base_speed: number;
+  base_sp_attack?: number; base_sp_defense?: number;
   portrait_scale?: number; portrait_offset_x?: number; portrait_offset_y?: number;
   is_legendary?: number; is_mythical?: number; star_level?: number; card_tier_override?: string | null;
+}
+
+// Purely a cosmetic label derived from real base stats -- there's no
+// archetype field in the data model, so this reads the stat spread instead
+// of inventing new persisted state.
+function getArchetype(mon: PokemonLike): string {
+  const { base_attack: atk, base_defense: def, base_hp: hp, base_speed: spd } = mon;
+  const spAtk = mon.base_sp_attack ?? atk;
+  const spDef = mon.base_sp_defense ?? def;
+  const total = atk + def + hp + spd || 1;
+  if (spd / total >= 0.32) return 'Speedster';
+  if (hp / total >= 0.34) return 'Tank';
+  if (def / total >= 0.32 && def >= atk) return 'Defender';
+  if (atk / total >= 0.34 && def / total <= 0.18) return 'Glass Cannon';
+  if (spAtk > atk && spDef >= def) return 'Support';
+  if (atk >= def * 1.15 && def / total >= 0.2) return 'Bruiser';
+  if (atk > def) return 'Offensive';
+  return 'Balanced';
 }
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count }: {
@@ -90,13 +109,17 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
           {nickname || mon.name}
           {!!count && count > 1 && <span className="ml-1 font-bold opacity-70">(×{count})</span>}
         </div>
-        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] mb-2" style={{ color: style.subtext }}>
+        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: style.subtext }}>
           {TIER_LABEL[tier]}
           {!!mon.star_level && (
             <span className="flex items-center gap-px ml-0.5">
               {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={8} fill="#facc15" className="text-[#facc15]" />)}
             </span>
           )}
+        </div>
+        <div className="mb-2 mt-1 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide leading-none"
+          style={{ background: style.statBg, color: style.text }}>
+          {getArchetype(mon)}
         </div>
 
         <div className="w-full grid grid-cols-4 border-t" style={{ background: style.statBg, borderColor: 'rgba(0,0,0,0.25)' }}>

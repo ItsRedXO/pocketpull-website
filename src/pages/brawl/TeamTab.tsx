@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Star, Users } from 'lucide-react';
+import { Check, Star, Users, Search, ArrowUpDown, LayoutGrid, Rows3 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBrawlRoster, setBrawlTeam, type BrawlInstance } from '../../lib/brawlApi';
 import { PokemonStatCard } from './PokemonStatCard';
+
+type SortKey = 'power' | 'name';
 
 function PokemonCard({ mon, selected, order, index, count, onClick }: { mon: BrawlInstance; selected: boolean; order: number | null; index: number; count?: number; onClick: () => void }) {
   return <PokemonStatCard mon={mon} nickname={mon.nickname} selected={selected} order={order} index={index} count={count} onClick={onClick} />;
@@ -17,6 +19,9 @@ export function TeamTab() {
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [benchSearch, setBenchSearch] = useState('');
+  const [benchSort, setBenchSort] = useState<SortKey>('power');
+  const [benchDense, setBenchDense] = useState(false);
 
   useEffect(() => {
     if (!initialized && roster.length) {
@@ -63,7 +68,9 @@ export function TeamTab() {
   // One card per species (duplicates collapse into a single "(xN)" card),
   // highest overall rating first -- otherwise strong Pokemon get buried
   // among a long acquisition-order list of commons.
-  const benchDisplayGroups = Array.from(benchGroups.values()).sort((a, b) => b[0].overall_rating - a[0].overall_rating);
+  const benchDisplayGroups = Array.from(benchGroups.values())
+    .filter(group => group[0].name.toLowerCase().includes(benchSearch.trim().toLowerCase()))
+    .sort((a, b) => benchSort === 'name' ? a[0].name.localeCompare(b[0].name) : b[0].overall_rating - a[0].overall_rating);
 
   return (
     <div>
@@ -85,14 +92,35 @@ export function TeamTab() {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-2 mb-3">
-        <Users size={15} className="text-white/40" />
-        <h3 className="font-display text-sm uppercase tracking-widest text-white/50">Bench ({bench.length})</h3>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <Users size={15} className="text-white/40" />
+          <h3 className="font-display text-sm uppercase tracking-widest text-white/50">Bench ({bench.length})</h3>
+        </div>
+        {bench.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+              <input value={benchSearch} onChange={e => setBenchSearch(e.target.value)} placeholder="Search Pokémon..."
+                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#00c8ff]/50 w-40" />
+            </div>
+            <button onClick={() => setBenchSort(s => s === 'power' ? 'name' : 'power')}
+              className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white/60 hover:text-white hover:bg-white/10">
+              <ArrowUpDown size={12} /> Sort: {benchSort === 'power' ? 'Power' : 'Name'}
+            </button>
+            <button onClick={() => setBenchDense(d => !d)}
+              className="flex items-center justify-center bg-white/5 border border-white/10 rounded-lg p-1.5 text-white/60 hover:text-white hover:bg-white/10">
+              {benchDense ? <Rows3 size={14} /> : <LayoutGrid size={14} />}
+            </button>
+          </div>
+        )}
       </div>
       {bench.length === 0 ? (
         <p className="text-white/30 text-xs">Everything you own is on your active team. Safari Zone and the shop will grow your bench.</p>
+      ) : benchDisplayGroups.length === 0 ? (
+        <p className="text-white/30 text-xs">No Pokémon match "{benchSearch}".</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className={`grid gap-3 ${benchDense ? 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-8' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
           <AnimatePresence>
             {benchDisplayGroups.map((group, i) => {
               const mon = group[0];
