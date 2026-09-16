@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
 import { PokemonPortrait } from './PokemonPortrait';
 import { typeColor } from './typeColors';
+import { typeBackground } from './typeBackgrounds';
 
 export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
 
@@ -24,12 +25,16 @@ export function getCardTier(mon: { overall_rating: number; is_legendary?: number
   return 'bronze';
 }
 
-const SHINE = 'linear-gradient(120deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 32%)';
-const TIER_STYLE: Record<CardTier, { bg: string; border: string; glow: string; text: string; subtext: string; statBg: string; labelColor: string }> = {
-  bronze: { bg: `${SHINE}, linear-gradient(160deg, #9a6a3c 0%, #5c3a1c 55%, #3a230f 100%)`, border: '#d9995c', glow: 'rgba(217,153,92,0.4)', text: '#fff8ef', subtext: '#e8c39a', statBg: 'rgba(0,0,0,0.32)', labelColor: '#e8c39a' },
-  silver: { bg: `${SHINE}, linear-gradient(160deg, #eef1f5 0%, #c2c9d3 45%, #8b95a3 100%)`, border: '#ffffff', glow: 'rgba(226,231,238,0.5)', text: '#1a1d24', subtext: '#4b5563', statBg: 'rgba(0,0,0,0.1)', labelColor: '#4b5563' },
-  gold: { bg: `${SHINE}, linear-gradient(160deg, #ffe9a3 0%, #f0b93d 45%, #ad7511 100%)`, border: '#ffe38a', glow: 'rgba(255,224,130,0.6)', text: '#2a1c00', subtext: '#6b4a0c', statBg: 'rgba(0,0,0,0.14)', labelColor: '#6b4a0c' },
-  legendary: { bg: `${SHINE}, linear-gradient(155deg, #6a2bd9 0%, #d63aa5 50%, #ffbe3d 100%)`, border: '#ffd23f', glow: 'rgba(255,150,220,0.65)', text: '#fff', subtext: 'rgba(255,255,255,0.85)', statBg: 'rgba(0,0,0,0.28)', labelColor: 'rgba(255,255,255,0.8)' },
+// The card's interior is now a photographic type background (see
+// typeBackgrounds.ts) instead of a flat tier gradient, so tier only drives
+// the frame: border color, glow, and the small tier-label/archetype accent
+// color. `accent` is picked to stay legible over the dark scrim we lay on
+// top of every background image, unlike the old per-tier dark/light text.
+const TIER_STYLE: Record<CardTier, { border: string; glow: string; accent: string }> = {
+  bronze: { border: '#d9995c', glow: 'rgba(217,153,92,0.4)', accent: '#e8c39a' },
+  silver: { border: '#ffffff', glow: 'rgba(226,231,238,0.5)', accent: '#e5e7eb' },
+  gold: { border: '#ffe38a', glow: 'rgba(255,224,130,0.6)', accent: '#ffd76a' },
+  legendary: { border: '#ffd23f', glow: 'rgba(255,150,220,0.65)', accent: '#ffd23f' },
 };
 const TIER_LABEL: Record<CardTier, string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', legendary: 'Legendary' };
 
@@ -90,26 +95,33 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         onClick={onClick}
         className="relative rounded-2xl overflow-hidden flex flex-col items-center text-left w-full"
         style={{
-          background: style.bg,
           border: `3px solid ${selected ? '#00c8ff' : style.border}`,
           boxShadow: selected ? '0 0 18px rgba(0,200,255,0.4)' : (isLegendary ? undefined : `0 4px 14px rgba(0,0,0,0.35), 0 0 10px ${style.glow}`),
         }}
       >
-        <div className="w-full flex items-center justify-between px-2.5 pt-2.5">
-          <span className="text-2xl font-black leading-none tracking-tight" style={{ color: style.text }}>{mon.overall_rating}</span>
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          {/* Scaled up so only a cropped, less-detailed slice of the landscape
+              shows -- at 1:1 the source art is busy enough to compete with
+              the Pokemon sitting on top of it, which should stay the focus. */}
+          <img src={typeBackground(mon.primary_type)} alt="" aria-hidden className="w-full h-full object-cover" style={{ transform: 'scale(1.6)', transformOrigin: 'center 35%' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(10,11,15,0.4) 0%, rgba(10,11,15,0.35) 40%, rgba(10,11,15,0.55) 65%, rgba(10,11,15,0.88) 100%)' }} />
+        </div>
+
+        <div className="relative z-10 w-full flex items-center justify-between px-2.5 pt-2.5">
+          <span className="text-2xl font-black leading-none tracking-tight text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{mon.overall_rating}</span>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide" style={{ background: `${typeColor(mon.primary_type)}dd`, color: '#fff' }}>
             {mon.primary_type.slice(0, 3)}
           </span>
         </div>
 
         <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
-          className="w-20 h-24 mt-1.5" />
+          className="relative z-10 w-20 h-24 mt-1.5" />
 
-        <div className="text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1" style={{ color: style.text }}>
+        <div className="relative z-10 text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1 text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
           {nickname || mon.name}
           {!!count && count > 1 && <span className="ml-1 font-bold opacity-70">(×{count})</span>}
         </div>
-        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: style.subtext }}>
+        <div className="relative z-10 flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: style.accent }}>
           {TIER_LABEL[tier]}
           {!!mon.star_level && (
             <span className="flex items-center gap-px ml-0.5">
@@ -117,16 +129,16 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
             </span>
           )}
         </div>
-        <div className="mb-2 mt-1 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide leading-none"
-          style={{ background: style.statBg, color: style.text }}>
+        <div className="relative z-10 mb-2 mt-1 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide leading-none border"
+          style={{ background: 'rgba(0,0,0,0.4)', color: style.accent, borderColor: style.accent }}>
           {getArchetype(mon)}
         </div>
 
-        <div className="w-full grid grid-cols-4 border-t" style={{ background: style.statBg, borderColor: 'rgba(0,0,0,0.25)' }}>
+        <div className="relative z-10 w-full grid grid-cols-4 border-t" style={{ background: 'rgba(0,0,0,0.55)', borderColor: 'rgba(255,255,255,0.15)' }}>
           {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-            <div key={label} className="py-2 text-center border-r last:border-r-0" style={{ borderColor: 'rgba(0,0,0,0.2)' }}>
-              <div className="text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: style.labelColor }}>{label}</div>
-              <div className="text-sm font-black leading-none mt-1" style={{ color: style.text }}>{val}</div>
+            <div key={label} className="py-2 text-center border-r last:border-r-0" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+              <div className="text-[8px] font-extrabold uppercase tracking-wide leading-none text-white/60">{label}</div>
+              <div className="text-sm font-black leading-none mt-1 text-white">{val}</div>
             </div>
           ))}
         </div>
