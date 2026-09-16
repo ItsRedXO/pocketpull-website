@@ -13,3 +13,11 @@
 *.otf filter=lfs diff=lfs merge=lfs -text
 *.pdf filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text
+
+# Railway's Docker build (Dockerfile.backend, "COPY . .") checks out this repo
+# without resolving Git LFS pointers, so any LFS-tracked file lands in the
+# built image as a tiny pointer stub instead of real bytes -- confirmed live
+# on production for public/brawl/backgrounds/*.png (server returned the raw
+# 132-byte pointer text with a 200 and an image/png content-type). Assets the
+# running app actually serves at runtime need to be real git blobs, not LFS.
+public/brawl/**/*.png filter= diff= merge= -text
