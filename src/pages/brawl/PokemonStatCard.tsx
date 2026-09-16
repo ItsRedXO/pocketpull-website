@@ -41,27 +41,8 @@ const TIER_LABEL: Record<CardTier, string> = { bronze: 'Bronze', silver: 'Silver
 interface PokemonLike {
   name: string; artwork_url: string | null; primary_type: string; overall_rating: number;
   base_attack: number; base_defense: number; base_hp: number; base_speed: number;
-  base_sp_attack?: number; base_sp_defense?: number;
   portrait_scale?: number; portrait_offset_x?: number; portrait_offset_y?: number;
   is_legendary?: number; is_mythical?: number; star_level?: number; card_tier_override?: string | null;
-}
-
-// Purely a cosmetic label derived from real base stats -- there's no
-// archetype field in the data model, so this reads the stat spread instead
-// of inventing new persisted state.
-function getArchetype(mon: PokemonLike): string {
-  const { base_attack: atk, base_defense: def, base_hp: hp, base_speed: spd } = mon;
-  const spAtk = mon.base_sp_attack ?? atk;
-  const spDef = mon.base_sp_defense ?? def;
-  const total = atk + def + hp + spd || 1;
-  if (spd / total >= 0.32) return 'Speedster';
-  if (hp / total >= 0.34) return 'Tank';
-  if (def / total >= 0.32 && def >= atk) return 'Defender';
-  if (atk / total >= 0.34 && def / total <= 0.18) return 'Glass Cannon';
-  if (spAtk > atk && spDef >= def) return 'Support';
-  if (atk >= def * 1.15 && def / total >= 0.2) return 'Bruiser';
-  if (atk > def) return 'Offensive';
-  return 'Balanced';
 }
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count }: {
@@ -108,7 +89,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         </div>
 
         <div className="relative z-10 w-full flex items-center justify-between px-2.5 pt-2.5">
-          <span className="text-2xl font-black leading-none tracking-tight text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{mon.overall_rating}</span>
+          <span className="text-3xl font-black leading-none tracking-tight text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{mon.overall_rating}</span>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide" style={{ background: `${typeColor(mon.primary_type)}dd`, color: '#fff' }}>
             {mon.primary_type.slice(0, 3)}
           </span>
@@ -117,21 +98,17 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
           className="relative z-10 w-20 h-24 mt-1.5" />
 
-        <div className="relative z-10 text-base font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1 text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+        <div className="relative z-10 text-lg font-extrabold capitalize truncate w-full text-center px-2 leading-tight mt-1 text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
           {nickname || mon.name}
           {!!count && count > 1 && <span className="ml-1 font-bold opacity-70">(×{count})</span>}
         </div>
-        <div className="relative z-10 flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: style.accent }}>
+        <div className="relative z-10 mb-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: style.accent }}>
           {TIER_LABEL[tier]}
           {!!mon.star_level && (
             <span className="flex items-center gap-px ml-0.5">
               {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={8} fill="#facc15" className="text-[#facc15]" />)}
             </span>
           )}
-        </div>
-        <div className="relative z-10 mb-2 mt-1 px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase tracking-wide leading-none border"
-          style={{ background: 'rgba(0,0,0,0.4)', color: style.accent, borderColor: style.accent }}>
-          {getArchetype(mon)}
         </div>
 
         <div className="relative z-10 w-full grid grid-cols-4 border-t" style={{ background: 'rgba(0,0,0,0.55)', borderColor: 'rgba(255,255,255,0.15)' }}>
