@@ -70,6 +70,14 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
     // than inside it -- the button needs overflow-hidden itself (for the
     // window's rounded corners), which was clipping the badge's top.
     <div className="relative w-full">
+      {/* padding-top (relative to width) forces the exact 2:3 ratio of the
+          frame art via the box model instead of the `aspect-ratio` CSS
+          property -- inside a CSS grid cell with framer-motion's own inline
+          transforms in play, aspect-ratio sizing wasn't reliable in
+          production and let the frame `<img>` (object-fit defaults to
+          `fill`) get stretched/squashed to whatever height the grid row
+          actually gave it. */}
+      <div style={{ paddingTop: '150%' }} />
       <motion.button
         layout
         initial={{ opacity: 0, y: 10, scale: 0.92 }}
@@ -83,8 +91,8 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         whileTap={{ scale: 0.96 }}
         onClick={onClick}
         aria-label={`${nickname || mon.name}, ${TIER_LABEL[tier]} tier, power ${mon.overall_rating}`}
-        className="relative w-full text-left"
-        style={{ aspectRatio: '2 / 3', borderRadius: '5%', boxShadow: selected ? '0 0 0 3px #00c8ff, 0 0 20px rgba(0,200,255,0.5)' : undefined }}
+        className="absolute inset-0 w-full h-full text-left"
+        style={{ borderRadius: '5%', boxShadow: selected ? '0 0 0 3px #00c8ff, 0 0 20px rgba(0,200,255,0.5)' : undefined }}
       >
         <div className="absolute overflow-hidden rounded-md" style={LAYOUT.window}>
           {/* Scaled up so only a cropped, less-detailed slice of the landscape
@@ -101,7 +109,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
           </div>
         </div>
 
-        <img src={CARD_FRAMES[tier]} alt="" aria-hidden className="absolute inset-0 w-full h-full pointer-events-none select-none" style={{ zIndex: 2 }} />
+        <img src={CARD_FRAMES[tier]} alt="" aria-hidden className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none" style={{ zIndex: 2 }} />
 
         <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.power, zIndex: 3 }}>
           <span className="text-xl sm:text-2xl font-black leading-none text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{mon.overall_rating}</span>
