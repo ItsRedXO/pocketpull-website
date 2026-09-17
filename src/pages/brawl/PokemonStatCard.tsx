@@ -47,8 +47,8 @@ interface PokemonLike {
 // draw our own text/art into.
 const LAYOUT = {
   window: { top: '20%', left: '9%', right: '9%', bottom: '40%' },
-  power: { top: '11%', left: '4%', width: '30%', height: '8%' },
-  type: { top: '9.5%', left: '65%', width: '31%', height: '9%' },
+  power: { top: '10%', left: '4%', width: '30%', height: '7%' },
+  type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
   name: { top: '61.5%', left: '3%', width: '94%', height: '8%' },
   stats: { top: '80.5%', left: '8.5%', width: '83%', height: '10.5%' },
 };
@@ -94,19 +94,23 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         className="absolute inset-0 w-full h-full text-left"
         style={{ borderRadius: '5%', boxShadow: selected ? '0 0 0 3px #00c8ff, 0 0 20px rgba(0,200,255,0.5)' : undefined }}
       >
-        <div className="absolute overflow-hidden rounded-md" style={LAYOUT.window}>
-          {/* Scaled up so only a cropped, less-detailed slice of the landscape
-              shows -- at 1:1 the source art is busy enough to compete with
-              the Pokemon sitting on top of it, which should stay the focus. */}
-          <img src={typeBackground(mon.primary_type)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" style={{ transform: 'scale(1.6)', transformOrigin: 'center 35%' }} />
-          {/* PokemonPortrait's own wrapper hardcodes position:relative inline
-              (it wins over any position class we'd pass via className), so it
-              needs an absolutely-positioned parent here rather than being
-              absolutely positioned itself. */}
-          <div className="absolute inset-0">
-            <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
-              className="w-full h-full" />
-          </div>
+        {/* Full-bleed background -- fills the entire card edge to edge (the
+            frame's opaque border then sits on top and covers the outer
+            edges), instead of being confined to just the transparent window.
+            object-cover on a 2:3 tall card mostly crops the landscape's
+            width, so no extra manual scale is needed here. */}
+        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: '5%' }}>
+          <img src={typeBackground(mon.primary_type)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 35%' }} />
+        </div>
+
+        {/* Portrait stays confined to the window so it doesn't overlap the
+            header/name/stat text; PokemonPortrait's own wrapper hardcodes
+            position:relative inline (it wins over any position class we'd
+            pass via className), so it needs an absolutely-positioned parent
+            here rather than being absolutely positioned itself. */}
+        <div className="absolute" style={LAYOUT.window}>
+          <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
+            className="w-full h-full" />
         </div>
 
         <img src={CARD_FRAMES[tier]} alt="" aria-hidden className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none" style={{ zIndex: 2 }} />
