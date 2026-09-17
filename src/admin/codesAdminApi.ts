@@ -23,6 +23,12 @@ async function adminSend<T>(path: string, method: 'POST' | 'PATCH', body: unknow
   if (!res.ok) throw new Error(data?.error || `API error ${res.status}`);
   return data as T;
 }
+async function adminDelete<T>(path: string): Promise<T> {
+  const res = await fetch(`${BACKEND_BASE}${path}`, { method: 'DELETE', headers: await adminHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `API error ${res.status}`);
+  return data as T;
+}
 
 export interface PromoCode {
   id: string;
@@ -65,6 +71,7 @@ export interface PromoCodeRedemption {
   redeemedAt: string;
 }
 export const fetchPromoCodeRedemptions = (id: string) => adminGet<{ redemptions: PromoCodeRedemption[] }>(`/admin/promo-codes/${encodeURIComponent(id)}/redemptions`);
+export const deletePromoCode = (id: string) => adminDelete<{ success: boolean }>(`/admin/promo-codes/${encodeURIComponent(id)}`);
 
 export interface DealSettings {
   depositMatchPercent: number;

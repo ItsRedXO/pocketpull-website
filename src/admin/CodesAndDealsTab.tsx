@@ -1,14 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ticket, Percent, Users, Save, Plus, RefreshCw, Shuffle, Pencil, X, Ban, CheckCircle2, Loader2, User } from 'lucide-react';
+import { Ticket, Percent, Users, Save, Plus, RefreshCw, Shuffle, Pencil, X, Ban, CheckCircle2, Loader2, User, Trash2 } from 'lucide-react';
 import {
-  fetchPromoCodes, createPromoCode, updatePromoCode, fetchDealSettings, patchDealSettings, fetchPromoCodeRedemptions,
+  fetchPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, fetchDealSettings, patchDealSettings, fetchPromoCodeRedemptions,
   type PromoCode, type DealSettings,
 } from './codesAdminApi';
 
 interface Props { showToast: (msg: string, ok?: boolean) => void; }
 
 const inputClass = 'px-3 py-2 rounded-lg text-[13px] text-white bg-white/5 border border-white/10 focus:outline-none focus:border-[#9b5cff]/50 placeholder-white/25 w-full';
+
+// Expiration is a pure calendar date (no meaningful time-of-day), stored as
+// UTC midnight -- toLocaleDateString() applies the viewer's local timezone
+// and can roll it back a day (e.g. 2026-09-18T00:00:00Z displays as 9/17 for
+// anyone west of UTC), which drifted from what the edit form's raw
+// slice(0,10) showed. Reading the UTC components directly keeps every
+// display of this date in agreement, independent of the viewer's timezone.
+function formatExpiryDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+}
 
 function randomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -81,9 +92,26 @@ function DealsSection({ showToast }: Props) {
   );
 }
 
-function CodeDetailModal({ code, onClose }: { code: PromoCode; onClose: () => void }) {
+function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClose: () => void; showToast: (msg: string, ok?: boolean) => void }) {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['admin-promo-code-redemptions', code.id], queryFn: () => fetchPromoCodeRedemptions(code.id) });
   const redemptions = data?.redemptions || [];
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deletePromoCode(code.id);
+      showToast('Code deleted', true);
+      qc.invalidateQueries({ queryKey: ['admin-promo-codes'] });
+      onClose();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to delete code', false);
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
@@ -93,7 +121,21 @@ function CodeDetailModal({ code, onClose }: { code: PromoCode; onClose: () => vo
             <h3 className="font-mono font-black text-lg text-[#00c8ff]">{code.code}</h3>
             <p className="text-[11px] text-white/40">{code.description || 'No description'}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5"><X size={16} /></button>
+          <div className="flex items-center gap-1">
+            {confirmingDelete ? (
+              <>
+                <span className="text-[10px] text-white/40 mr-1">Delete this code?</span>
+                <button onClick={handleDelete} disabled={deleting}
+                  className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 disabled:opacity-40">
+                  {deleting ? 'Deleting...' : 'Confirm'}
+                </button>
+                <button onClick={() => setConfirmingDelete(false)} disabled={deleting} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5"><X size={14} /></button>
+              </>
+            ) : (
+              <button onClick={() => setConfirmingDelete(true)} title="Delete code" className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10"><Trash2 size={16} /></button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5"><X size={16} /></button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 py-4 border-b border-white/5">
@@ -111,7 +153,7 @@ function CodeDetailModal({ code, onClose }: { code: PromoCode; onClose: () => vo
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Expires</p>
-            <p className="text-sm font-bold text-white">{code.expiresAt ? new Date(code.expiresAt).toLocaleDateString() : 'Never'}</p>
+            <p className="text-sm font-bold text-white">{code.expiresAt ? formatExpiryDate(code.expiresAt) : 'Never'}</p>
           </div>
           <div className="col-span-2 sm:col-span-4">
             <p className="text-[9px] uppercase tracking-widest text-white/30">Created</p>
@@ -287,6 +329,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3">Reward</th>
                   <th className="px-4 py-3">Uses</th>
+                  <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3">Expires</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3" />
@@ -301,7 +344,8 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                     <td className="px-4 py-3 text-white/60">{c.description || '—'}</td>
                     <td className="px-4 py-3 text-white font-bold">${c.rewardAmount.toFixed(2)}</td>
                     <td className="px-4 py-3 text-white/60">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / ∞'}</td>
-                    <td className="px-4 py-3 text-white/60">{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '—'}</td>
+                    <td className="px-4 py-3 text-white/60">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-white/60">{c.expiresAt ? formatExpiryDate(c.expiresAt) : '—'}</td>
                     <td className="px-4 py-3">
                       <button onClick={() => toggleActive(c)}
                         className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border ${c.isActive ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-white/5 text-white/30 border-white/10'}`}>
@@ -319,7 +363,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
         )}
       </div>
 
-      {viewingCode && <CodeDetailModal code={viewingCode} onClose={() => setViewingCode(null)} />}
+      {viewingCode && <CodeDetailModal code={viewingCode} onClose={() => setViewingCode(null)} showToast={showToast} />}
     </section>
   );
 };

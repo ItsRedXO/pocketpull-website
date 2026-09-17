@@ -81,6 +81,21 @@ export async function updatePromoCode(id: string, fields: UpdatePromoCodeInput):
   return rows[0] ? mapCode(rows[0]) : null;
 }
 
+export type DeletePromoCodeResult = { success: true } | { success: false; error: string };
+
+// Hard delete is only safe for a code nobody has used yet -- redemptions
+// carry a real credited transaction (the money was already paid out and
+// stays in the ledger regardless), so dropping the code out from under a
+// redemption row would blow away the "who used this" history for no
+// financial reason. A used code should be deactivated instead.
+export async function deletePromoCode(id: string): Promise<DeletePromoCodeResult> {
+  const rows = await query<{ use_count: number }>('SELECT use_count FROM promo_codes WHERE id=$1', [id]);
+  if (!rows[0]) return { success: false, error: 'Code not found' };
+  if (Number(rows[0].use_count) > 0) return { success: false, error: 'This code has been redeemed — deactivate it instead of deleting so its history stays intact.' };
+  await query('DELETE FROM promo_codes WHERE id=$1', [id]);
+  return { success: true };
+}
+
 export interface PromoCodeRedemption {
   userId: string;
   username: string | null;

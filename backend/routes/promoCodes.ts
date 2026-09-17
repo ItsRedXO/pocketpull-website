@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { isAdminSecretCandidate } from '../lib/adminAuthorization';
-import { listPromoCodes, createPromoCode, updatePromoCode, redeemPromoCode, listPromoCodeRedemptions } from '../repositories/promoCodes';
+import { listPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, redeemPromoCode, listPromoCodeRedemptions } from '../repositories/promoCodes';
 import { getDealSettings, updateDealSettings } from '../repositories/dealSettings';
 
 const app = new Hono();
@@ -84,6 +84,13 @@ app.patch('/admin/promo-codes/:id', async c => {
   const updated = await updatePromoCode(id, fields);
   if (!updated) return c.json({ error: 'Code not found' }, 404);
   return c.json({ success: true, promoCode: updated });
+});
+
+app.delete('/admin/promo-codes/:id', async c => {
+  const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const result = await deletePromoCode(c.req.param('id'));
+  if (!result.success) return c.json({ error: result.error }, 409);
+  return c.json({ success: true });
 });
 
 app.get('/admin/promo-codes/:id/redemptions', async c => {
