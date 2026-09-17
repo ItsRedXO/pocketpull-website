@@ -97,65 +97,76 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
           <img src={typeBackground(mon.primary_type)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 35%' }} />
         </div>
 
-        {/* Portrait stays confined to the window so it doesn't overlap the
-            header/name/stat text; PokemonPortrait's own wrapper hardcodes
-            position:relative inline (it wins over any position class we'd
-            pass via className), so it needs an absolutely-positioned parent
-            here rather than being absolutely positioned itself. */}
-        <div className="absolute" style={LAYOUT.window}>
-          <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
-            className="w-full h-full" />
-        </div>
+        {/* The frame art has its own baked-in transparent/glow margin
+            (measured: ~2% left/right, ~3.5% top, ~7% bottom -- asymmetric,
+            so a single scale can't zero out every side at once). Scaling
+            this whole group up around its own center pushes the visible
+            metal border out toward the card's true edge, and everything
+            inside it (window, frame, text) stays aligned to each other
+            since they all scale together as one unit. No overflow-hidden
+            here: at this scale the sides/top slightly overshoot the card's
+            own box, but that spills into the grid's gap-3 gutter between
+            cards rather than getting clipped or overlapping a neighbor. */}
+        <div className="absolute inset-0" style={{ transform: 'scale(1.16)', transformOrigin: 'center' }}>
+          {/* Portrait stays confined to the window so it doesn't overlap the
+              header/name/stat text; PokemonPortrait's own wrapper hardcodes
+              position:relative inline (it wins over any position class we'd
+              pass via className), so it needs an absolutely-positioned parent
+              here rather than being absolutely positioned itself. */}
+          <div className="absolute" style={LAYOUT.window}>
+            <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
+              className="w-full h-full" />
+          </div>
 
-        {/* Selection/legendary glow is a drop-shadow on the frame image
-            itself rather than a box-shadow on the card -- drop-shadow
-            follows the artwork's actual alpha shape (which has its own
-            built-in margin/glow baked in), so the glow hugs the frame's real
-            silhouette instead of drawing a rectangle around the card that
-            visibly mismatches where the border art actually sits. */}
-        <motion.img
-          src={CARD_FRAMES[tier]} alt="" aria-hidden
-          className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-          style={{ zIndex: 2 }}
-          animate={isLegendary
-            ? { filter: [
-                `drop-shadow(0 0 6px rgba(255,92,92,0.55))${selectionGlow ? ' ' + selectionGlow : ''}`,
-                `drop-shadow(0 0 16px rgba(255,92,92,0.9))${selectionGlow ? ' ' + selectionGlow : ''}`,
-                `drop-shadow(0 0 6px rgba(255,92,92,0.55))${selectionGlow ? ' ' + selectionGlow : ''}`,
-              ] }
-            : { filter: selectionGlow || 'none' }}
-          transition={isLegendary ? { repeat: Infinity, duration: 2.2 } : { duration: 0.15 }}
-        />
+          {/* Selection/legendary glow is a drop-shadow on the frame image
+              itself rather than a box-shadow on the card -- drop-shadow
+              follows the artwork's actual alpha shape, so it hugs the
+              frame's real silhouette instead of drawing a rectangle that
+              mismatches where the border art actually sits. */}
+          <motion.img
+            src={CARD_FRAMES[tier]} alt="" aria-hidden
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            style={{ zIndex: 2 }}
+            animate={isLegendary
+              ? { filter: [
+                  `drop-shadow(0 0 6px rgba(255,92,92,0.55))${selectionGlow ? ' ' + selectionGlow : ''}`,
+                  `drop-shadow(0 0 16px rgba(255,92,92,0.9))${selectionGlow ? ' ' + selectionGlow : ''}`,
+                  `drop-shadow(0 0 6px rgba(255,92,92,0.55))${selectionGlow ? ' ' + selectionGlow : ''}`,
+                ] }
+              : { filter: selectionGlow || 'none' }}
+            transition={isLegendary ? { repeat: Infinity, duration: 2.2 } : { duration: 0.15 }}
+          />
 
-        <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.power, zIndex: 3 }}>
-          <span className="text-xl sm:text-2xl font-black leading-none text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{mon.overall_rating}</span>
-        </div>
+          <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.power, zIndex: 3 }}>
+            <span className="text-xl sm:text-2xl font-black leading-none text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{mon.overall_rating}</span>
+          </div>
 
-        <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.type, zIndex: 3 }}>
-          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide text-white" style={{ background: `${typeColor(mon.primary_type)}e6` }}>
-            {mon.primary_type.slice(0, 3)}
-          </span>
-        </div>
-
-        <div className="absolute flex items-center justify-center gap-1 px-2" style={{ ...LAYOUT.name, zIndex: 3 }}>
-          <span className="text-sm sm:text-base font-extrabold capitalize truncate text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
-            {nickname || mon.name}
-          </span>
-          {!!count && count > 1 && <span className="text-xs font-bold text-white/70 shrink-0">(×{count})</span>}
-          {!!mon.star_level && (
-            <span className="flex items-center gap-px shrink-0">
-              {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={9} fill="#facc15" className="text-[#facc15]" />)}
+          <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.type, zIndex: 3 }}>
+            <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide text-white" style={{ background: `${typeColor(mon.primary_type)}e6` }}>
+              {mon.primary_type.slice(0, 3)}
             </span>
-          )}
-        </div>
+          </div>
 
-        <div className="absolute grid grid-cols-4" style={{ ...LAYOUT.stats, zIndex: 3 }}>
-          {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-            <div key={label} className="flex flex-col items-center justify-center">
-              <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
-              <div className="text-[11px] sm:text-xs font-black leading-none mt-1 text-white">{val}</div>
-            </div>
-          ))}
+          <div className="absolute flex items-center justify-center gap-1 px-2" style={{ ...LAYOUT.name, zIndex: 3 }}>
+            <span className="text-sm sm:text-base font-extrabold capitalize truncate text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+              {nickname || mon.name}
+            </span>
+            {!!count && count > 1 && <span className="text-xs font-bold text-white/70 shrink-0">(×{count})</span>}
+            {!!mon.star_level && (
+              <span className="flex items-center gap-px shrink-0">
+                {Array.from({ length: mon.star_level }, (_, i) => <Star key={i} size={9} fill="#facc15" className="text-[#facc15]" />)}
+              </span>
+            )}
+          </div>
+
+          <div className="absolute grid grid-cols-4" style={{ ...LAYOUT.stats, zIndex: 3 }}>
+            {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
+              <div key={label} className="flex flex-col items-center justify-center">
+                <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
+                <div className="text-[11px] sm:text-xs font-black leading-none mt-1 text-white">{val}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </motion.button>
 
