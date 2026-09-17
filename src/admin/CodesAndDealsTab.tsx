@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Ticket, Percent, Users, Save, Plus, RefreshCw, Shuffle, Pencil, X, Ban, CheckCircle2 } from 'lucide-react';
+import { Ticket, Percent, Users, Save, Plus, RefreshCw, Shuffle, Pencil, X, Ban, CheckCircle2, Loader2, User } from 'lucide-react';
 import {
-  fetchPromoCodes, createPromoCode, updatePromoCode, fetchDealSettings, patchDealSettings,
+  fetchPromoCodes, createPromoCode, updatePromoCode, fetchDealSettings, patchDealSettings, fetchPromoCodeRedemptions,
   type PromoCode, type DealSettings,
 } from './codesAdminApi';
 
@@ -81,6 +81,81 @@ function DealsSection({ showToast }: Props) {
   );
 }
 
+function CodeDetailModal({ code, onClose }: { code: PromoCode; onClose: () => void }) {
+  const { data, isLoading } = useQuery({ queryKey: ['admin-promo-code-redemptions', code.id], queryFn: () => fetchPromoCodeRedemptions(code.id) });
+  const redemptions = data?.redemptions || [];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
+      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#0d0e14] overflow-hidden max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div>
+            <h3 className="font-mono font-black text-lg text-[#00c8ff]">{code.code}</h3>
+            <p className="text-[11px] text-white/40">{code.description || 'No description'}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5"><X size={16} /></button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 py-4 border-b border-white/5">
+          <div>
+            <p className="text-[9px] uppercase tracking-widest text-white/30">Reward</p>
+            <p className="text-sm font-bold text-white">${code.rewardAmount.toFixed(2)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-widest text-white/30">Uses</p>
+            <p className="text-sm font-bold text-white">{code.useCount}{code.maxUses !== null ? ` / ${code.maxUses}` : ' / ∞'}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-widest text-white/30">Status</p>
+            <p className={`text-sm font-bold ${code.isActive ? 'text-green-400' : 'text-white/40'}`}>{code.isActive ? 'Active' : 'Inactive'}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-widest text-white/30">Expires</p>
+            <p className="text-sm font-bold text-white">{code.expiresAt ? new Date(code.expiresAt).toLocaleDateString() : 'Never'}</p>
+          </div>
+          <div className="col-span-2 sm:col-span-4">
+            <p className="text-[9px] uppercase tracking-widest text-white/30">Created</p>
+            <p className="text-sm font-bold text-white">{new Date(code.createdAt).toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-5 py-3 flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-white/40 font-bold sticky top-0 bg-[#0d0e14]">
+            <User size={12} /> Redeemed By ({redemptions.length})
+          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10"><Loader2 size={20} className="animate-spin text-white/30" /></div>
+          ) : redemptions.length === 0 ? (
+            <div className="text-white/30 text-xs text-center py-8">No one has redeemed this code yet.</div>
+          ) : (
+            <table className="w-full text-left text-[12px]">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-wider text-white/30">
+                  <th className="px-5 py-2">User</th>
+                  <th className="px-5 py-2">Amount</th>
+                  <th className="px-5 py-2">Redeemed</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {redemptions.map(r => (
+                  <tr key={r.userId}>
+                    <td className="px-5 py-2.5">
+                      <div className="text-white font-medium">{r.username || 'Trainer'}</div>
+                      <div className="text-white/30 text-[10px]">{r.email || r.userId}</div>
+                    </td>
+                    <td className="px-5 py-2.5 text-green-400 font-bold">${r.amount.toFixed(2)}</td>
+                    <td className="px-5 py-2.5 text-white/50">{new Date(r.redeemedAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
   const qc = useQueryClient();
   const { data, isLoading, isFetching, refetch } = useQuery({ queryKey: ['admin-promo-codes'], queryFn: fetchPromoCodes, staleTime: 0 });
@@ -89,6 +164,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [viewingCode, setViewingCode] = useState<PromoCode | null>(null);
 
   const startEdit = (c: PromoCode) => {
     setEditingId(c.id);
@@ -219,7 +295,9 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
               <tbody className="divide-y divide-white/5">
                 {codes.map(c => (
                   <tr key={c.id} className="hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 font-mono font-bold text-[#00c8ff]">{c.code}</td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => setViewingCode(c)} className="font-mono font-bold text-[#00c8ff] hover:underline">{c.code}</button>
+                    </td>
                     <td className="px-4 py-3 text-white/60">{c.description || '—'}</td>
                     <td className="px-4 py-3 text-white font-bold">${c.rewardAmount.toFixed(2)}</td>
                     <td className="px-4 py-3 text-white/60">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / ∞'}</td>
@@ -240,6 +318,8 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
           </div>
         )}
       </div>
+
+      {viewingCode && <CodeDetailModal code={viewingCode} onClose={() => setViewingCode(null)} />}
     </section>
   );
 };

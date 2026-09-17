@@ -57,6 +57,15 @@ export interface UpdatePromoCodeInput {
 }
 export const updatePromoCode = (id: string, fields: UpdatePromoCodeInput) => adminSend<{ success: boolean; promoCode: PromoCode }>(`/admin/promo-codes/${encodeURIComponent(id)}`, 'PATCH', fields);
 
+export interface PromoCodeRedemption {
+  userId: string;
+  username: string | null;
+  email: string | null;
+  amount: number;
+  redeemedAt: string;
+}
+export const fetchPromoCodeRedemptions = (id: string) => adminGet<{ redemptions: PromoCodeRedemption[] }>(`/admin/promo-codes/${encodeURIComponent(id)}/redemptions`);
+
 export interface DealSettings {
   depositMatchPercent: number;
   depositMatchCap: number;

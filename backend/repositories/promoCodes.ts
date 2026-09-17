@@ -81,6 +81,30 @@ export async function updatePromoCode(id: string, fields: UpdatePromoCodeInput):
   return rows[0] ? mapCode(rows[0]) : null;
 }
 
+export interface PromoCodeRedemption {
+  userId: string;
+  username: string | null;
+  email: string | null;
+  amount: number;
+  redeemedAt: string;
+}
+
+export async function listPromoCodeRedemptions(codeId: string): Promise<PromoCodeRedemption[]> {
+  const rows = await query(
+    `SELECT r.user_id, r.amount, r.redeemed_at, u.username, u.display_name, u.email
+     FROM promo_code_redemptions r JOIN users u ON u.id = r.user_id
+     WHERE r.code_id = $1 ORDER BY r.redeemed_at DESC`,
+    [codeId],
+  );
+  return rows.map((row: any) => ({
+    userId: row.user_id,
+    username: row.username || row.display_name || null,
+    email: row.email,
+    amount: Number(row.amount),
+    redeemedAt: row.redeemed_at,
+  }));
+}
+
 export type RedeemPromoCodeResult =
   | { success: true; amount: number; balance: number; code: string }
   | { success: false; error: string };
