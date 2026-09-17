@@ -144,7 +144,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
             <p className="text-sm font-bold text-white">${code.rewardAmount.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-[9px] uppercase tracking-widest text-white/30">Uses</p>
+            <p className="text-[9px] uppercase tracking-widest text-white/30" title="Total redemptions across all users — each player can only redeem a code once regardless of this cap">Total Uses</p>
             <p className="text-sm font-bold text-white">{code.useCount}{code.maxUses !== null ? ` / ${code.maxUses}` : ' / ∞'}</p>
           </div>
           <div>
@@ -292,7 +292,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             <input type="number" min={0.01} step="0.01" value={form.rewardAmount} onChange={e => setForm({ ...form, rewardAmount: e.target.value })} className={inputClass} />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Max Uses</label>
+            <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Max Total Uses</label>
             <input type="number" min={1} value={form.maxUses} onChange={e => setForm({ ...form, maxUses: e.target.value })} placeholder="Unlimited" className={inputClass} />
           </div>
           <div>
@@ -307,6 +307,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             </button>
           </div>
         </form>
+        <p className="text-[10px] text-white/25">Max Total Uses caps how many different people can redeem this code — each individual player can only redeem any given code once, no matter what this is set to.</p>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
@@ -328,7 +329,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                   <th className="px-4 py-3">Code</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3">Reward</th>
-                  <th className="px-4 py-3">Uses</th>
+                  <th className="px-4 py-3" title="Total redemptions across all users — each player can only redeem a code once regardless of this cap">Total Uses</th>
                   <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3">Expires</th>
                   <th className="px-4 py-3">Status</th>
