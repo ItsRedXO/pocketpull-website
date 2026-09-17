@@ -50,7 +50,11 @@ const LAYOUT = {
   power: { top: '10%', left: '4%', width: '30%', height: '7%' },
   type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
   name: { top: '61.5%', left: '3%', width: '94%', height: '8%' },
-  stats: { top: '80.5%', left: '8.5%', width: '83%', height: '10.5%' },
+  // 79.5-89% is the slot's actual dark interior (a fine luminance scan found
+  // a bright divider line at 79.5% and the bottom decorative trim starting
+  // at 89%) -- the previous box ran to 91%, so the value number was
+  // rendering on top of that trim instead of inside the empty interior.
+  stats: { top: '79.5%', left: '8.5%', width: '83%', height: '9.3%' },
 };
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count }: {
@@ -66,10 +70,6 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
   const portraitScale = Math.max(1, (mon.portrait_scale ?? 1.5) * 0.8);
 
   return (
-    // The order badge sits partly above the card's own top edge (-top-2), so
-    // it lives in this unclipped wrapper as a sibling of the button rather
-    // than inside it -- the button needs overflow-hidden itself (for the
-    // window's rounded corners), which was clipping the badge's top.
     <div className="relative w-full">
       {/* padding-top (relative to width) forces the exact 2:3 ratio of the
           frame art via the box model instead of the `aspect-ratio` CSS
@@ -161,20 +161,23 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
 
           <div className="absolute grid grid-cols-4" style={{ ...LAYOUT.stats, zIndex: 3 }}>
             {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-              <div key={label} className="flex flex-col items-center justify-center">
+              <div key={label} className="flex flex-col items-center justify-between h-full py-px">
                 <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
-                <div className="text-[11px] sm:text-xs font-black leading-none mt-1 text-white">{val}</div>
+                <div className="text-xs sm:text-sm font-black leading-none text-white">{val}</div>
               </div>
             ))}
           </div>
         </div>
-      </motion.button>
 
-      {selected && order != null && (
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 w-6 h-6 rounded-full bg-[#00c8ff] text-black text-xs font-black flex items-center justify-center border-2 border-[#0a0b0f] shadow">
-          {order}
-        </span>
-      )}
+        {/* Lives inside the button (outside the frame's own zoom group) so
+            it moves together with the card's hover/tap lift instead of
+            staying pinned in place while the card animates under it. */}
+        {selected && order != null && (
+          <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 w-6 h-6 rounded-full bg-[#00c8ff] text-black text-xs font-black flex items-center justify-center border-2 border-[#0a0b0f] shadow">
+            {order}
+          </span>
+        )}
+      </motion.button>
     </div>
   );
 }
