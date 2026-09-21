@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { ShippingForm } from './types';
 import { Label, FieldInput } from './shared';
 
@@ -54,6 +54,21 @@ export const StepShipping: React.FC<Props> = ({
           <Label>Phone Number</Label>
           <FieldInput type="tel" placeholder="+1 555 000 0000" value={form.phone} onChange={e => onChange({ phone: e.target.value })} error={errors.phone} />
         </div>
+      </div>
+      <div>
+        <Label>Country</Label>
+        <FieldInput placeholder="United States" value={form.country} onChange={e => onChange({ country: e.target.value })} error={errors.country} />
+        {form.country.trim() !== '' && form.country.trim().toLowerCase() !== 'united states' && form.country.trim().toLowerCase() !== 'us' && form.country.trim().toLowerCase() !== 'usa' && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 mt-2 px-3 py-2.5 rounded-xl"
+            style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)' }}
+          >
+            <AlertTriangle size={14} style={{ color: '#f87171', flexShrink: 0 }} />
+            <p className="text-xs font-bold text-red-400 uppercase tracking-wide">WE ONLY SHIP TO THE US</p>
+          </motion.div>
+        )}
       </div>
       <div>
         <Label>Email</Label>

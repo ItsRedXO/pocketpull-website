@@ -18,7 +18,7 @@ export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose,
   const [selected, setSelected] = useState<InventoryItem[]>([]);
   const [selError, setSelError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [form, setForm] = useState<ShippingForm>({ name: '', address: '', city: '', state: '', zip: '', email: userEmail, phone: '' });
+  const [form, setForm] = useState<ShippingForm>({ name: '', address: '', city: '', state: '', zip: '', email: userEmail, phone: '', country: '' });
   const [formErrors, setFormErrors] = useState<Partial<ShippingForm>>({});
   const [idFile, setIdFile] = useState<File | null>(null);
   const [idError, setIdError] = useState('');
@@ -62,7 +62,7 @@ export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose,
   const reset = () => {
     setStep(1); setInventory([]); setSelected([]); setSelError('');
     setCurrentPage(1);
-    setForm({ name: '', address: '', city: '', state: '', zip: '', email: userEmail, phone: '' });
+    setForm({ name: '', address: '', city: '', state: '', zip: '', email: userEmail, phone: '', country: '' });
     setFormErrors({}); setIdFile(null); setIdError('');
     setSubmitting(false); setSubmitError(''); setConfirmationNumber('');
   };
@@ -84,6 +84,11 @@ export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose,
     setSelected(prev => [...prev, item]);
   };
 
+  const isUsAddress = (country: string) => {
+    const c = country.trim().toLowerCase();
+    return c === '' || c === 'us' || c === 'usa' || c === 'united states';
+  };
+
   const validateForm = () => {
     const errs: Partial<ShippingForm> = {};
     if (!form.name.trim()) errs.name = 'Required';
@@ -93,6 +98,7 @@ export const CashOutModalRoot: React.FC<CashOutModalProps> = ({ isOpen, onClose,
     if (!form.zip.trim()) errs.zip = 'Required';
     if (!form.email.trim()) errs.email = 'Required';
     if (!form.phone.trim()) errs.phone = 'Required';
+    if (!isUsAddress(form.country)) errs.country = 'We only ship to the US';
     setFormErrors(errs);
     if (!idFile) { setIdError('Please upload a photo ID.'); return false; }
     return Object.keys(errs).length === 0;

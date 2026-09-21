@@ -72,6 +72,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreeUsShipping, setAgreeUsShipping] = useState(false);
 
   const { signIn, signUp, sendPasswordReset } = useAuth();
 
@@ -87,6 +88,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     setShowPassword(false);
     setShowConfirmPassword(false);
     setAgreeTerms(false);
+    setAgreeUsShipping(false);
   };
 
   const switchTab = (newTab: 'login' | 'signup' | 'forgot') => {
@@ -138,6 +140,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     if (!/^[a-zA-Z0-9_]+$/.test(username)) { setError('Username can only contain letters, numbers, and underscores'); return; }
     if (!isAtLeast18(dateOfBirth)) { setError('You must be 18 or older to create an account.'); return; }
     if (!agreeTerms) { setError('You must agree to the Terms of Service'); return; }
+    if (!agreeUsShipping) { setError('You must acknowledge that we only ship to the US'); return; }
     setIsSubmitting(true);
     setError('');
     try {
@@ -493,6 +496,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                     {' '}and{' '}
                     <span style={{ color: '#9b5cff' }}>Privacy Policy</span>.
                     {' '}Must be 18+.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreeUsShipping}
+                    onChange={e => setAgreeUsShipping(e.target.checked)}
+                    className="mt-0.5 accent-red-500"
+                  />
+                  <span className="text-xs text-gray-400">
+                    🇺🇸 <span className="font-bold text-red-400">WE ONLY SHIP TO THE US</span> — I understand that physical card cashouts are only available for US addresses.
                   </span>
                 </label>
                 <button

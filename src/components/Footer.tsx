@@ -165,6 +165,18 @@ export const Footer: React.FC<FooterProps> = React.memo(({ onPageChange }) => {
               <button onClick={() => openInfo('provably-fair')} className="hover:text-[#00c8ff]">Provably Fair</button>
             </div>
           </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="flex items-start gap-2 px-3 py-2.5 rounded-lg max-w-4xl"
+            style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }}
+          >
+            <span className="text-red-400 text-sm shrink-0">🇺🇸</span>
+            <p className="text-[11px] text-red-400 font-semibold leading-relaxed">
+              WE ONLY SHIP TO THE UNITED STATES. Physical card cashouts are not available for addresses outside the US.
+            </p>
+          </motion.div>
           <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}

@@ -26,4 +26,5 @@ export interface ShippingForm {
   zip: string;
   email: string;
   phone: string;
+  country: string;
 }
