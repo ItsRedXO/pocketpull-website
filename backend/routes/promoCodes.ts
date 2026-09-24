@@ -26,13 +26,29 @@ app.get('/admin/promo-codes', async c => {
   return c.json({ codes: await listPromoCodes() });
 });
 
+app.get('/admin/social-packs', async c => {
+  const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const rows = await query<{ id: string; name: string; image_url: string | null }>(
+    `SELECT id, name, image_url FROM packs_catalog WHERE pack_type='social' AND is_active=1 ORDER BY name`
+  );
+  return c.json({ packs: rows.map(r => ({ id: r.id, name: r.name, imageUrl: r.image_url || null })) });
+});
+
 app.post('/admin/promo-codes', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   const body = await c.req.json().catch(() => ({}));
   const code = String(body.code || '').trim();
   if (!code) return c.json({ error: 'Code is required' }, 400);
-  const rewardAmount = Number(body.rewardAmount);
-  if (!Number.isFinite(rewardAmount) || rewardAmount <= 0) return c.json({ error: 'Reward amount must be a positive number' }, 400);
+  const rewardType: 'cash' | 'social_pack' = body.rewardType === 'social_pack' ? 'social_pack' : 'cash';
+  let rewardPackId: string | null = null;
+  if (rewardType === 'social_pack') {
+    rewardPackId = String(body.rewardPackId || '').trim() || null;
+    if (!rewardPackId) return c.json({ error: 'Select a social pack for this code' }, 400);
+    const packCheck = await query('SELECT id FROM packs_catalog WHERE id=$1 AND pack_type=$2 LIMIT 1', [rewardPackId, 'social']);
+    if (!packCheck[0]) return c.json({ error: 'Invalid social pack selection' }, 400);
+  }
+  const rewardAmount = rewardType === 'social_pack' ? 0 : Number(body.rewardAmount);
+  if (rewardType === 'cash' && (!Number.isFinite(rewardAmount) || rewardAmount <= 0)) return c.json({ error: 'Reward amount must be a positive number' }, 400);
   let maxUses: number | null = null;
   if (body.maxUses !== undefined && body.maxUses !== null && body.maxUses !== '') {
     maxUses = Number(body.maxUses);
@@ -45,7 +61,7 @@ app.post('/admin/promo-codes', async c => {
     expiresAt = d.toISOString();
   }
   try {
-    const created = await createPromoCode({ code, description: body.description || null, rewardAmount, maxUses, expiresAt, createdBy: adminId });
+    const created = await createPromoCode({ code, description: body.description || null, rewardType, rewardAmount, rewardPackId, maxUses, expiresAt, createdBy: adminId });
     return c.json({ success: true, promoCode: created });
   } catch (e: any) {
     if (e?.code === '23505') return c.json({ error: 'A code with that text already exists' }, 409);
@@ -60,10 +76,13 @@ app.patch('/admin/promo-codes/:id', async c => {
   const fields: Record<string, unknown> = {};
   if (body.description !== undefined) fields.description = body.description || null;
   if (body.isActive !== undefined) fields.isActive = !!body.isActive;
+  if (body.rewardType !== undefined) fields.rewardType = body.rewardType === 'social_pack' ? 'social_pack' : 'cash';
+  if (body.rewardPackId !== undefined) fields.rewardPackId = body.rewardPackId || null;
   if (body.rewardAmount !== undefined) {
     const value = Number(body.rewardAmount);
-    if (!Number.isFinite(value) || value <= 0) return c.json({ error: 'Reward amount must be a positive number' }, 400);
-    fields.rewardAmount = value;
+    const isSocial = (body.rewardType || fields.rewardType) === 'social_pack';
+    if (!isSocial && (!Number.isFinite(value) || value <= 0)) return c.json({ error: 'Reward amount must be a positive number' }, 400);
+    fields.rewardAmount = isSocial ? 0 : value;
   }
   if (body.maxUses !== undefined) {
     if (body.maxUses === null || body.maxUses === '') fields.maxUses = null;

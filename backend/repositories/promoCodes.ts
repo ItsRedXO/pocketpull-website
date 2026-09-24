@@ -6,7 +6,11 @@ export interface PromoCode {
   id: string;
   code: string;
   description: string | null;
+  rewardType: 'cash' | 'social_pack';
   rewardAmount: number;
+  rewardPackId: string | null;
+  rewardPackName: string | null;
+  rewardPackImage: string | null;
   maxUses: number | null;
   useCount: number;
   isActive: boolean;
@@ -20,7 +24,11 @@ function mapCode(row: any): PromoCode {
     id: row.id,
     code: row.code,
     description: row.description,
+    rewardType: (row.reward_type || 'cash') as 'cash' | 'social_pack',
     rewardAmount: Number(row.reward_amount),
+    rewardPackId: row.reward_pack_id || null,
+    rewardPackName: row.pack_name || null,
+    rewardPackImage: row.pack_image || null,
     maxUses: row.max_uses === null ? null : Number(row.max_uses),
     useCount: Number(row.use_count),
     isActive: Number(row.is_active) === 1,
@@ -31,14 +39,21 @@ function mapCode(row: any): PromoCode {
 }
 
 export async function listPromoCodes(): Promise<PromoCode[]> {
-  const rows = await query('SELECT * FROM promo_codes ORDER BY created_at DESC');
+  const rows = await query(
+    `SELECT pc.*, p.name AS pack_name, p.image_url AS pack_image
+     FROM promo_codes pc
+     LEFT JOIN packs_catalog p ON p.id = pc.reward_pack_id
+     ORDER BY pc.created_at DESC`
+  );
   return rows.map(mapCode);
 }
 
 export interface CreatePromoCodeInput {
   code: string;
   description?: string | null;
+  rewardType?: 'cash' | 'social_pack';
   rewardAmount: number;
+  rewardPackId?: string | null;
   maxUses?: number | null;
   expiresAt?: string | null;
   createdBy?: string;
@@ -47,16 +62,20 @@ export interface CreatePromoCodeInput {
 export async function createPromoCode(input: CreatePromoCodeInput): Promise<PromoCode> {
   const id = `promo_${uid()}`;
   const code = input.code.trim().toUpperCase();
+  const rewardType = input.rewardType || 'cash';
   const rows = await query(
-    `INSERT INTO promo_codes(id,code,description,reward_amount,max_uses,expires_at,created_by) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-    [id, code, input.description || null, input.rewardAmount, input.maxUses ?? null, input.expiresAt || null, input.createdBy || null],
+    `INSERT INTO promo_codes(id,code,description,reward_type,reward_amount,reward_pack_id,max_uses,expires_at,created_by)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [id, code, input.description || null, rewardType, input.rewardAmount, input.rewardPackId || null, input.maxUses ?? null, input.expiresAt || null, input.createdBy || null],
   );
   return mapCode(rows[0]);
 }
 
 export interface UpdatePromoCodeInput {
   description?: string | null;
+  rewardType?: 'cash' | 'social_pack';
   rewardAmount?: number;
+  rewardPackId?: string | null;
   maxUses?: number | null;
   expiresAt?: string | null;
   isActive?: boolean;
@@ -68,17 +87,31 @@ export async function updatePromoCode(id: string, fields: UpdatePromoCodeInput):
   const push = (col: string, val: unknown) => { values.push(val); sets.push(`${col}=$${values.length}`); };
 
   if (fields.description !== undefined) push('description', fields.description);
+  if (fields.rewardType !== undefined) push('reward_type', fields.rewardType);
   if (fields.rewardAmount !== undefined) push('reward_amount', fields.rewardAmount);
+  if (fields.rewardPackId !== undefined) push('reward_pack_id', fields.rewardPackId);
   if (fields.maxUses !== undefined) push('max_uses', fields.maxUses);
   if (fields.expiresAt !== undefined) push('expires_at', fields.expiresAt);
   if (fields.isActive !== undefined) push('is_active', fields.isActive ? 1 : 0);
   if (sets.length === 0) {
-    const rows = await query('SELECT * FROM promo_codes WHERE id=$1', [id]);
+    const rows = await query(
+      `SELECT pc.*, p.name AS pack_name, p.image_url AS pack_image FROM promo_codes pc LEFT JOIN packs_catalog p ON p.id = pc.reward_pack_id WHERE pc.id=$1`,
+      [id]
+    );
     return rows[0] ? mapCode(rows[0]) : null;
   }
   values.push(id);
-  const rows = await query(`UPDATE promo_codes SET ${sets.join(', ')}, updated_at=now() WHERE id=$${values.length} RETURNING *`, values);
-  return rows[0] ? mapCode(rows[0]) : null;
+  const rows = await query(
+    `UPDATE promo_codes SET ${sets.join(', ')}, updated_at=now() WHERE id=$${values.length} RETURNING *`,
+    values
+  );
+  if (!rows[0]) return null;
+  // Re-fetch with JOIN to get pack name
+  const joined = await query(
+    `SELECT pc.*, p.name AS pack_name, p.image_url AS pack_image FROM promo_codes pc LEFT JOIN packs_catalog p ON p.id = pc.reward_pack_id WHERE pc.id=$1`,
+    [id]
+  );
+  return joined[0] ? mapCode(joined[0]) : null;
 }
 
 export type DeletePromoCodeResult = { success: true } | { success: false; error: string };
@@ -151,6 +184,7 @@ export async function validateAndConsumeCodeInClient(
 
 export type RedeemPromoCodeResult =
   | { success: true; amount: number; balance: number; code: string }
+  | { success: true; isSocialPack: true; packName: string; code: string }
   | { success: false; error: string };
 
 export async function redeemPromoCode(userId: string, rawCode: string): Promise<RedeemPromoCodeResult> {
@@ -158,7 +192,10 @@ export async function redeemPromoCode(userId: string, rawCode: string): Promise<
   if (!code) return { success: false, error: 'Enter a code' };
 
   return transaction(async client => {
-    const codeRows = await client.query('SELECT * FROM promo_codes WHERE code=$1 FOR UPDATE', [code]);
+    const codeRows = await client.query(
+      `SELECT pc.*, p.name AS pack_name FROM promo_codes pc LEFT JOIN packs_catalog p ON p.id = pc.reward_pack_id WHERE pc.code=$1 FOR UPDATE`,
+      [code]
+    );
     const promo = codeRows.rows[0];
     if (!promo) return { success: false, error: 'Invalid code' };
     if (Number(promo.is_active) !== 1) return { success: false, error: 'This code is no longer active' };
@@ -167,6 +204,12 @@ export async function redeemPromoCode(userId: string, rawCode: string): Promise<
 
     const already = await client.query('SELECT 1 FROM promo_code_redemptions WHERE code_id=$1 AND user_id=$2', [promo.id, userId]);
     if (already.rowCount) return { success: false, error: "You've already used this code" };
+
+    // Social pack codes are consumed at pack-opening time, not here
+    if ((promo.reward_type || 'cash') === 'social_pack') {
+      const packName = promo.pack_name || 'a Social Pack';
+      return { success: false, error: `This is a Social Pack code — use it when opening ${packName}` };
+    }
 
     const amount = Number(promo.reward_amount);
     const sourceId = `promo_${promo.id}_${userId}`;

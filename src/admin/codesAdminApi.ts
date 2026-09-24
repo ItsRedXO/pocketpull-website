@@ -30,11 +30,21 @@ async function adminDelete<T>(path: string): Promise<T> {
   return data as T;
 }
 
+export interface SocialPack {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+}
+
 export interface PromoCode {
   id: string;
   code: string;
   description: string | null;
+  rewardType: 'cash' | 'social_pack';
   rewardAmount: number;
+  rewardPackId: string | null;
+  rewardPackName: string | null;
+  rewardPackImage: string | null;
   maxUses: number | null;
   useCount: number;
   isActive: boolean;
@@ -44,11 +54,14 @@ export interface PromoCode {
 }
 
 export const fetchPromoCodes = () => adminGet<{ codes: PromoCode[] }>('/admin/promo-codes');
+export const fetchSocialPacks = () => adminGet<{ packs: SocialPack[] }>('/admin/social-packs');
 
 export interface CreatePromoCodeInput {
   code: string;
   description?: string | null;
+  rewardType?: 'cash' | 'social_pack';
   rewardAmount: number;
+  rewardPackId?: string | null;
   maxUses?: number | null;
   expiresAt?: string | null;
 }
@@ -56,7 +69,9 @@ export const createPromoCode = (input: CreatePromoCodeInput) => adminSend<{ succ
 
 export interface UpdatePromoCodeInput {
   description?: string | null;
+  rewardType?: 'cash' | 'social_pack';
   rewardAmount?: number;
+  rewardPackId?: string | null;
   maxUses?: number | null;
   expiresAt?: string | null;
   isActive?: boolean;
