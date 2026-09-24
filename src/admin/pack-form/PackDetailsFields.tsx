@@ -10,10 +10,11 @@ interface Props {
   uploadingImage: boolean;
   handlePackImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   glow: string;
+  isSocial?: boolean;
 }
 
 export const PackDetailsFields: React.FC<Props> = ({
-  packDraft, setPackDraft, imagePreviewError, setImagePreviewError, uploadingImage, handlePackImageUpload, glow
+  packDraft, setPackDraft, imagePreviewError, setImagePreviewError, uploadingImage, handlePackImageUpload, glow, isSocial
 }) => {
   return (
     <section>
@@ -23,11 +24,13 @@ export const PackDetailsFields: React.FC<Props> = ({
           <input value={packDraft.name} onChange={e => setPackDraft(p => ({ ...p, name: e.target.value }))}
             placeholder="e.g. Fire Pack" className="admin-input" />
         </Field>
-        <Field label="Price (USD) *">
-          <input type="number" min="0.01" step="0.01" value={packDraft.price}
-            onChange={e => setPackDraft(p => ({ ...p, price: e.target.value }))}
-            placeholder="2.99" className="admin-input" />
-        </Field>
+        {!isSocial && (
+          <Field label="Price (USD) *">
+            <input type="number" min="0.01" step="0.01" value={packDraft.price}
+              onChange={e => setPackDraft(p => ({ ...p, price: e.target.value }))}
+              placeholder="2.99" className="admin-input" />
+          </Field>
+        )}
         <Field label="Description" className="sm:col-span-2">
           <textarea value={packDraft.description}
             onChange={e => setPackDraft(p => ({ ...p, description: e.target.value }))}

@@ -48,7 +48,7 @@ async function savePack(body: any, adminUserId: string) {
   if (!String(input.name || '').trim()) throw new Error('Pack name is required.');
   const price = Number(input.price);
   if (!Number.isFinite(price) || price < 0) throw new Error('Valid pack price required.');
-  if (!['standard', 'mystery'].includes(input.packType)) throw new Error('Invalid pack type.');
+  if (!['standard', 'mystery', 'social'].includes(input.packType)) throw new Error('Invalid pack type.');
   if (!cards.every((c: any) => String(c.cardName || '').trim())) throw new Error('All cards need a name.');
   const qLimit = Math.min(50000, Math.max(0, parseInt(String(input.quantityLimit ?? 0), 10) || 0));
   const totalMysteryQuantity = cards.reduce((sum: number, c: any) => sum + Math.max(0, parseInt(String(c.quantity ?? 0), 10) || 0), 0);

@@ -32,7 +32,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
   const isNew = !pack;
 
   const [packDraft, setPackDraft] = useState<PackDraft>({
-    packType: pack?.packType === 'mystery' ? 'mystery' : 'standard',
+    packType: pack?.packType === 'mystery' ? 'mystery' : pack?.packType === 'social' ? 'social' : 'standard',
     name: pack?.name ?? '',
     price: String(pack?.price ?? '2.99'),
     description: pack?.description ?? '',
@@ -92,6 +92,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
 
   const totalOdds = cards.reduce((s, c) => s + (parseFloat(c.pullChance) || 0), 0);
   const isMystery = packDraft.packType === 'mystery';
+  const isSocial = packDraft.packType === 'social';
 
   const addCard = () => setCards(cs => [...cs, emptyCard()]);
   const removeCard = (i: number) => setCards(cs => cs.filter((_, idx) => idx !== i));
@@ -127,7 +128,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
   const handleSave = async () => {
     setError(null);
     if (!packDraft.name.trim()) { setError('Pack name is required.'); return; }
-    if (isNaN(parseFloat(packDraft.price)) || parseFloat(packDraft.price) < 0) { setError('Valid price required (0 or more).'); return; }
+    if (!isSocial && (isNaN(parseFloat(packDraft.price)) || parseFloat(packDraft.price) < 0)) { setError('Valid price required (0 or more).'); return; }
     if (cards.some(c => !c.cardName.trim())) { setError('All cards need a name.'); return; }
     if (!isMystery && Math.abs(totalOdds - 100) > 1) { setError(`Card odds must sum to 100% (currently ${totalOdds.toFixed(1)}%).`); return; }
     if (isMystery && cards.some(c => (parseInt(c.quantity) || 0) < 1)) { setError('Mystery Pack cards must each have at least 1 available copy.'); return; }
@@ -149,7 +150,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
             id: pack?.id,
             packType: packDraft.packType,
             name: packDraft.name.trim(),
-            price: parseFloat(packDraft.price),
+            price: isSocial ? 0 : parseFloat(packDraft.price),
             description: packDraft.description.trim(),
             imageUrl: packDraft.imageUrl,
             glowColor: packDraft.glowColor,
@@ -240,6 +241,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
             uploadingImage={uploadingImage}
             handlePackImageUpload={handlePackImageUpload}
             glow={glow}
+            isSocial={isSocial}
           />
 
           <CardListSection
