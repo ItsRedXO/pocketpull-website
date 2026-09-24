@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, LockKeyhole, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, LockKeyhole, Sparkles, ShieldCheck, Ticket } from 'lucide-react';
 import { PackCatalog, usePackCards, useUserCooldowns } from '../hooks/usePacks';
 import { PackSpinner } from './PackSpinner';
 import { useAuth, useUserStats } from '../hooks/useAuth';
@@ -37,6 +37,9 @@ export const PackDetailsModal: React.FC<Props> = ({ pack, onClose }) => {
   const glow = pack?.glowColor ?? '#00c8ff';
   const [lightbox, setLightbox] = useState<LightboxCard | null>(null);
   const isMystery = pack?.packType === 'mystery';
+  const isSocial = pack?.packType === 'social';
+  const [socialCode, setSocialCode] = useState('');
+  const [confirmedCode, setConfirmedCode] = useState<string | null>(null);
   const originalTotal = isMystery ? cards.reduce((sum, card) => sum + Number(card.originalQuantity ?? card.quantity ?? 0), 0) : 0;
   const remainingTotal = isMystery ? cards.reduce((sum, card) => sum + Number(card.quantity ?? 0), 0) : 0;
   const collectedTotal = Math.max(0, originalTotal - remainingTotal);
@@ -158,7 +161,7 @@ export const PackDetailsModal: React.FC<Props> = ({ pack, onClose }) => {
                       textShadow: `0 0 10px ${pack.priceColor || glow}99`,
                     }}
                   >
-                    {isFree ? 'Free' : `$${Number(pack.price).toFixed(2)}`}
+                    {isSocial ? 'Code Required' : isFree ? 'Free' : `$${Number(pack.price).toFixed(2)}`}
                   </div>
 
                   {/* Stock Info */}
@@ -275,8 +278,37 @@ export const PackDetailsModal: React.FC<Props> = ({ pack, onClose }) => {
                         isVaulted={isVaulted}
                         onComplete={handleComplete}
                       />
+                    ) : isSocial && !confirmedCode ? (
+                      <div className="flex flex-col items-center gap-5 rounded-2xl p-8" style={{ background: 'rgba(255,255,255,0.03)', border: '1.5px solid rgba(255,255,255,0.08)' }}>
+                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${glow}22`, border: `1.5px solid ${glow}44` }}>
+                          <Ticket size={22} style={{ color: glow }} />
+                        </div>
+                        <div className="text-center">
+                          <p className="font-display text-sm uppercase tracking-widest text-white mb-1">Enter Your Code</p>
+                          <p className="text-xs text-white/40">Find the code on our Instagram story to open this pack.</p>
+                        </div>
+                        <div className="w-full flex flex-col sm:flex-row gap-3">
+                          <input
+                            value={socialCode}
+                            onChange={e => setSocialCode(e.target.value.toUpperCase())}
+                            placeholder="ENTER CODE"
+                            maxLength={32}
+                            className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/10 font-mono text-base font-black tracking-[0.18em] focus:outline-none focus:border-white/30 transition-all"
+                            style={{ color: glow }}
+                            onKeyDown={e => { if (e.key === 'Enter' && socialCode.trim()) setConfirmedCode(socialCode.trim()); }}
+                          />
+                          <button
+                            disabled={!socialCode.trim()}
+                            onClick={() => setConfirmedCode(socialCode.trim())}
+                            className="px-6 py-3 rounded-xl font-bold uppercase tracking-wider text-sm disabled:opacity-30 disabled:pointer-events-none transition-all active:scale-95"
+                            style={{ background: `linear-gradient(135deg, ${glow}, #9b5cff)`, color: '#fff' }}
+                          >
+                            Unlock
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      <PackSpinner pack={pack} cards={cards} onComplete={handleComplete} />
+                      <PackSpinner pack={pack} cards={cards} onComplete={handleComplete} code={confirmedCode ?? undefined} />
                     )}
                   </div>
 

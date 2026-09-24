@@ -29,7 +29,10 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 export interface OpenPackResult { success: boolean; card: { name: string; rarity: string; value: number; emoji: string; imageUrl: string | null }; inventoryId: string; newBalance: number; }
-export const openPack = (packId: string) => post<OpenPackResult>('/open-pack', { packId });
+export const openPack = (packId: string, code?: string) => post<OpenPackResult>('/open-pack', { packId, ...(code ? { code } : {}) });
+
+export interface ApplyReferralCodeResult { success: true; message: string; }
+export const applyReferralCode = (referralCode: string) => post<ApplyReferralCodeResult>('/apply-referral-code', { referralCode });
 
 export interface UpgraderSpinResult { success: boolean; isWin: boolean; winChance: number; wonCards: Array<{ id: string; cardId: string; name: string; rarity: string; value: number; emoji: string; cardImageUrl: string | null }>; newBalance: number; removedCardIds: string[]; }
 export const upgraderSpin = (params: { inventoryIds: string[]; targetCardIds: string[]; useBalance: boolean; addedBalance: number; multiplier: number }) => post<UpgraderSpinResult>('/upgrader/spin', params);

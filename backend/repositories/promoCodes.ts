@@ -120,6 +120,35 @@ export async function listPromoCodeRedemptions(codeId: string): Promise<PromoCod
   }));
 }
 
+export type ValidateCodeResult =
+  | { success: true }
+  | { success: false; error: string };
+
+export async function validateAndConsumeCodeInClient(
+  client: any,
+  userId: string,
+  rawCode: string,
+): Promise<ValidateCodeResult> {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return { success: false, error: 'Enter a code' };
+
+  const codeRows = await client.query('SELECT * FROM promo_codes WHERE code=$1 FOR UPDATE', [code]);
+  const promo = codeRows.rows[0];
+  if (!promo) return { success: false, error: 'Invalid code' };
+  if (Number(promo.is_active) !== 1) return { success: false, error: 'This code is no longer active' };
+  if (promo.expires_at && new Date(promo.expires_at).getTime() < Date.now()) return { success: false, error: 'This code has expired' };
+  if (promo.max_uses !== null && Number(promo.use_count) >= Number(promo.max_uses)) return { success: false, error: 'This code has reached its usage limit' };
+
+  const already = await client.query('SELECT 1 FROM promo_code_redemptions WHERE code_id=$1 AND user_id=$2', [promo.id, userId]);
+  if (already.rowCount) return { success: false, error: "You've already used this code" };
+
+  const redemptionId = `promoredeem_${uid()}`;
+  await client.query('INSERT INTO promo_code_redemptions(id,code_id,user_id,amount) VALUES($1,$2,$3,$4)', [redemptionId, promo.id, userId, 0]);
+  await client.query('UPDATE promo_codes SET use_count=use_count+1, updated_at=now() WHERE id=$1', [promo.id]);
+
+  return { success: true };
+}
+
 export type RedeemPromoCodeResult =
   | { success: true; amount: number; balance: number; code: string }
   | { success: false; error: string };

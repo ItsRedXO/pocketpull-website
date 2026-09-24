@@ -227,8 +227,9 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
             >
               <option value="standard" className="bg-[#0d0f1c]">Standard Pack</option>
               <option value="mystery" className="bg-[#0d0f1c]">Mystery Pack</option>
+              <option value="social" className="bg-[#0d0f1c]">Social Pack</option>
             </select>
-            <p className="text-[10px] text-white/25">Mystery Packs are saved separately for the future Vault section.</p>
+            <p className="text-[10px] text-white/25">Social Packs appear in the Social Packs section and are opened with a promo code instead of credits.</p>
           </div>
 
           <PackDetailsFields

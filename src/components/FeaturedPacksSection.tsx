@@ -12,6 +12,7 @@ export const FeaturedPacksSection: React.FC = () => {
 
   const activePacks = packs.filter(p => Number(p.isActive) === 1 && p.packType === 'standard');
   const vaultPacks = packs.filter(p => p.packType === 'mystery');
+  const socialPacks = packs.filter(p => p.packType === 'social');
 
   return (
     <section
@@ -124,11 +125,25 @@ export const FeaturedPacksSection: React.FC = () => {
             />
           </motion.div>
 
-          <div className="flex min-h-32 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-10 text-center">
-            <p className="font-display text-lg uppercase tracking-[0.18em] text-white/60">
-              Social Packs Will Be Added Soon!
-            </p>
-          </div>
+          {socialPacks.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-12">
+              {socialPacks.map((pack, idx) => (
+                <PackCard
+                  key={pack.id}
+                  pack={pack}
+                  index={idx}
+                  onDetails={() => setDetailPack(pack)}
+                  lastOpenedAt={cooldowns[pack.id]}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-32 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-10 text-center">
+              <p className="font-display text-lg uppercase tracking-[0.18em] text-white/60">
+                Social Packs Will Be Added Soon!
+              </p>
+            </div>
+          )}
         </section>
 
       </div>

@@ -129,4 +129,24 @@ app.post('/redeem-code', async c => {
   return c.json(result);
 });
 
+app.post('/apply-referral-code', async c => {
+  let userId: string;
+  try { userId = await requireAuth(c); } catch { return c.json({ error: 'Please sign in first' }, 401); }
+  const body = await c.req.json().catch(() => ({}));
+  const referralCode = String(body.referralCode || '').trim().toUpperCase();
+  if (!referralCode) return c.json({ error: 'Referral code required' }, 400);
+
+  const userRows = await query<{ referred_by_id: string | null; referral_code: string | null }>('SELECT referred_by_id, referral_code FROM users WHERE id=$1', [userId]);
+  if (!userRows[0]) return c.json({ error: 'User not found' }, 404);
+  if (userRows[0].referred_by_id) return c.json({ error: 'You already have a referral applied to your account' }, 400);
+  if (userRows[0].referral_code?.toUpperCase() === referralCode) return c.json({ error: "You can't use your own referral code" }, 400);
+
+  const referrerRows = await query<{ id: string; username: string | null; display_name: string | null }>('SELECT id, username, display_name FROM users WHERE referral_code=$1 LIMIT 1', [referralCode]);
+  if (!referrerRows[0]) return c.json({ error: 'Invalid referral code — no account found' }, 400);
+
+  await query('UPDATE users SET referred_by_id=$1 WHERE id=$2', [referrerRows[0].id, userId]);
+  const referrerName = referrerRows[0].username || referrerRows[0].display_name || 'a friend';
+  return c.json({ success: true, message: `Referral applied! You were referred by ${referrerName}. Both of you will receive a reward after your first deposit.` });
+});
+
 export default app;

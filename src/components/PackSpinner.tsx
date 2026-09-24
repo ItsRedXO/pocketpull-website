@@ -96,10 +96,11 @@ interface Props {
   pack: PackCatalog;
   cards: PackCard[];
   onComplete: (newBalance: number) => void;
+  code?: string;
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
-export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete }) => {
+export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) => {
   const { user, isAuthenticated } = useAuth();
   const { balance, matchedBalance, updateBalance } = useBalance(user?.id);
   const { enabled: soundEnabled } = useSoundSetting();
@@ -164,7 +165,7 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete }) => {
 
     // ── Step 1b: call backend (card is saved to inventory server-side) ────
     try {
-      const result = await openPack(pack.id);
+      const result = await openPack(pack.id, code);
 
       const winnerPackCard: PackCard = {
         id: result.inventoryId,

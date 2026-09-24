@@ -18,7 +18,7 @@ export interface CardDraft {
   originalQuantity?: number;
 }
 
-export type PackType = 'standard' | 'mystery';
+export type PackType = 'standard' | 'mystery' | 'social';
 
 export interface PackDraft {
   packType: PackType;

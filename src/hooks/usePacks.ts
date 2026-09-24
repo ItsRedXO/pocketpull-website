@@ -5,7 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 export interface PackCatalog {
   id: string;
-  packType: 'standard' | 'mystery';
+  packType: 'standard' | 'mystery' | 'social';
   name: string;
   price: number;
   description: string;
@@ -57,7 +57,7 @@ export function usePacks() {
       return rows
         .map((r: any) => ({
           ...r,
-          packType: r.packType === 'mystery' ? 'mystery' as const : 'standard' as const,
+          packType: r.packType === 'mystery' ? 'mystery' as const : r.packType === 'social' ? 'social' as const : 'standard' as const,
           price: Number(r.price),
           sortOrder: Number(r.sortOrder ?? 0),
           isActive: Number(r.isActive ?? 1),

@@ -4,6 +4,7 @@ import { requireAuth, uid, getRewardUserId } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
 import { writeLog } from './logs';
 import { processWalletTransactionInClient } from '../repositories/wallet';
+import { validateAndConsumeCodeInClient } from '../repositories/promoCodes';
 import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../lib/provablyFair';
 import { getOrCreateServerSeed } from '../lib/provablyFairServerSeed';
 
@@ -23,7 +24,7 @@ app.post('/open-pack', async (c) => {
   }
 
   try {
-    const { packId } = await c.req.json<any>().catch(() => ({}));
+    const { packId, code } = await c.req.json<any>().catch(() => ({}));
     if (!packId) return c.json({ error: 'packId required' }, 400);
 
     const { seed: serverSeed, seedHash } = await getOrCreateServerSeed();
@@ -56,9 +57,16 @@ app.post('/open-pack', async (c) => {
         }
       }
 
-      const spendable = num(user.balance);
-      if (price > spendable) throw new PackOpenError(`Insufficient balance. Need ${price.toFixed(2)}, have ${spendable.toFixed(2)}`);
+      if (isSocialPack) {
+        if (!code) throw new PackOpenError('A code is required to open this pack');
+        const codeResult = await validateAndConsumeCodeInClient(client, userId, code);
+        if (!codeResult.success) throw new PackOpenError(codeResult.error);
+      } else {
+        const spendable = num(user.balance);
+        if (price > spendable) throw new PackOpenError(`Insufficient balance. Need ${price.toFixed(2)}, have ${spendable.toFixed(2)}`);
+      }
 
+      const isSocialPack = (pack.pack_type || 'standard') === 'social';
       const isMysteryPack = (pack.pack_type || 'standard') === 'mystery';
       let cards:any[] = (await client.query(`SELECT * FROM pack_cards WHERE pack_id=$1 ORDER BY sort_order ASC,id ASC`, [packId])).rows;
       if (isMysteryPack) cards = cards.filter((card:any) => num(card.quantity) > 0);
@@ -126,15 +134,21 @@ app.post('/open-pack', async (c) => {
       const recipientId = getRewardUserId(userId, isBot);
       const inventoryId = `inv_${uid()}`;
 
-      const walletResult = await processWalletTransactionInClient(client, {
-        userId,
-        type: 'pack_open',
-        amount: -price,
-        matchedAmount: num(user.matched_balance),
-        sourceId: `pack-open:${userId}:${packId}:${nonce}`,
-        metadata: { packId, packName:pack.name, cardName, rarity, nonce, clientSeed },
-      });
-      if (!walletResult.success) throw new PackOpenError(`Failed to deduct balance: ${walletResult.error}`);
+      const actualCost = isSocialPack ? 0 : price;
+      let walletResult: any;
+      if (isSocialPack) {
+        walletResult = { success: true, balanceAfter: num(user.balance), matchedAfter: num(user.matched_balance) };
+      } else {
+        walletResult = await processWalletTransactionInClient(client, {
+          userId,
+          type: 'pack_open',
+          amount: -price,
+          matchedAmount: num(user.matched_balance),
+          sourceId: `pack-open:${userId}:${packId}:${nonce}`,
+          metadata: { packId, packName:pack.name, cardName, rarity, nonce, clientSeed },
+        });
+        if (!walletResult.success) throw new PackOpenError(`Failed to deduct balance: ${walletResult.error}`);
+      }
 
       await client.query(
         `INSERT INTO inventory(
@@ -153,12 +167,12 @@ app.post('/open-pack', async (c) => {
         `INSERT INTO packs_opened(
           id,user_id,pack_id,inventory_id,pack_name,cost,card_name,rarity,client_seed,nonce,roll_value,server_seed_hash,odds_version_hash,provably_fair
         ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,1)`,
-        [`po_${uid()}`, userId, packId, inventoryId, pack.name, price, cardName, rarity, clientSeed, nonce, rollValue, seedHash, oddsVersionHash],
+        [`po_${uid()}`, userId, packId, inventoryId, pack.name, actualCost, cardName, rarity, clientSeed, nonce, rollValue, seedHash, oddsVersionHash],
       );
-      await client.query(
+      if (!isSocialPack) await client.query(
         `INSERT INTO transactions(id,user_id,type,amount,matched_amount,description,source_id)
          VALUES($1,$2,'pack_open',$3,0,$4,$5)`,
-        [`txn_${uid()}`, userId, -price, `Opened ${pack.name} — pulled ${cardName} (inv:${inventoryId})`, `pack-open:${userId}:${packId}:${nonce}`],
+        [`txn_${uid()}`, userId, -actualCost, `Opened ${pack.name} — pulled ${cardName} (inv:${inventoryId})`, `pack-open:${userId}:${packId}:${nonce}`],
       );
       await client.query(
         `INSERT INTO leaderboard_stats(id,username,biggest_pull,packs_opened,updated_at)
