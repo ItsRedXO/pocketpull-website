@@ -277,7 +277,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                 }}
               >
                 <img
-                  src="/pocketpull-logo.svg"
+                  src="/pocketpull-logo.png"
                   alt="PocketPull"
                   className="w-full h-full object-cover"
                   style={{ borderRadius: '50%', display: 'block' }}
