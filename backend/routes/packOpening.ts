@@ -48,6 +48,8 @@ app.post('/open-pack', async (c) => {
       const currentQuantity = num(pack.current_quantity);
       if (quantityLimit > 0 && currentQuantity <= 0) throw new PackOpenError('Pack is sold out');
 
+      const isSocialPack = (pack.pack_type || 'standard') === 'social';
+
       const cooldownHours = num(pack.cooldown_hours);
       if (cooldownHours > 0) {
         const cooldownResult = await client.query(`SELECT last_opened_at FROM pack_cooldowns WHERE user_id=$1 AND pack_id=$2`, [userId, packId]);
@@ -66,7 +68,6 @@ app.post('/open-pack', async (c) => {
         if (price > spendable) throw new PackOpenError(`Insufficient balance. Need ${price.toFixed(2)}, have ${spendable.toFixed(2)}`);
       }
 
-      const isSocialPack = (pack.pack_type || 'standard') === 'social';
       const isMysteryPack = (pack.pack_type || 'standard') === 'mystery';
       let cards:any[] = (await client.query(`SELECT * FROM pack_cards WHERE pack_id=$1 ORDER BY sort_order ASC,id ASC`, [packId])).rows;
       if (isMysteryPack) cards = cards.filter((card:any) => num(card.quantity) > 0);
