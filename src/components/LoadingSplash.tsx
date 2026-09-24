@@ -267,16 +267,20 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
 
               {/* Logo image with shimmer sweep */}
               <div
-                className="relative overflow-hidden rounded-full"
+                className="relative"
                 style={{
                   width: '88px', height: '88px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  clipPath: 'circle(50% at 50% 50%)',
                   boxShadow: '0 0 32px -4px rgba(124,58,237,0.7), 0 0 64px -16px rgba(0,200,255,0.4), 0 8px 32px rgba(0,0,0,0.6)',
                 }}
               >
                 <img
-                  src="/pocketpull-logo.png"
+                  src="/pocketpull-logo.svg"
                   alt="PocketPull"
                   className="w-full h-full object-cover"
+                  style={{ borderRadius: '50%', display: 'block' }}
                 />
                 {/* Shimmer sweep over logo */}
                 {logoReady && (
@@ -284,9 +288,8 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                     className="absolute inset-0 pointer-events-none"
                     style={{
                       background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.28) 50%, transparent 70%)',
-                      transform: 'translateX(-100%)',
                     }}
-                    animate={{ transform: ['translateX(-100%)', 'translateX(200%)'] }}
+                    animate={{ x: ['-100%', '200%'] }}
                     transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 2.2, ease: 'easeInOut' }}
                   />
                 )}
