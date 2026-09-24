@@ -229,6 +229,7 @@ const PackCard: React.FC<PackCardProps> = ({ pack, index, onDetails, lastOpenedA
               ? `drop-shadow(0 0 20px ${glow}cc) drop-shadow(0 4px 12px ${glow}66)`
               : `drop-shadow(0 0 10px ${glow}55) drop-shadow(0 2px 8px rgba(0,0,0,0.5))`,
             transition: 'filter 0.35s ease',
+            mixBlendMode: 'screen',
           }}
         />
       </div>
