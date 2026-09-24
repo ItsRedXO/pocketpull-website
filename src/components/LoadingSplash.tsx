@@ -267,7 +267,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
 
               {/* Logo image with shimmer sweep */}
               <div
-                className="relative overflow-hidden rounded-2xl"
+                className="relative overflow-hidden rounded-full"
                 style={{
                   width: '88px', height: '88px',
                   boxShadow: '0 0 32px -4px rgba(124,58,237,0.7), 0 0 64px -16px rgba(0,200,255,0.4), 0 8px 32px rgba(0,0,0,0.6)',
