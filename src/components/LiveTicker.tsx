@@ -78,7 +78,13 @@ function realPullToEntry(p: any): PullEntry {
 function blendInitialFeed(cards: any[], realPulls: any[], count = 30): PullEntry[] {
   const simulated = makeFeedFromCards(cards, count);
   if (!realPulls.length) return simulated;
-  const real = realPulls.slice(0, count).map(realPullToEntry);
+  // Deduplicate by card name and cap at 10 so real pulls don't crowd out
+  // the shuffled simulated variety (30 real pulls with step=1 overwrites everything)
+  const seen = new Set<string>();
+  const real = realPulls
+    .filter(p => { const key = p.cardName; if (seen.has(key)) return false; seen.add(key); return true; })
+    .slice(0, 10)
+    .map(realPullToEntry);
   const merged = simulated.slice();
   const step = Math.max(1, Math.floor(count / real.length));
   real.forEach((entry, i) => {
