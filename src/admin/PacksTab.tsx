@@ -41,7 +41,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const qc = useQueryClient();
   const [editingPack, setEditingPack] = useState<PackCatalog | null | 'new'>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [expandedCategory, setExpandedCategory] = useState<'standard' | 'mystery' | null>('standard');
+  const [expandedCategory, setExpandedCategory] = useState<'standard' | 'mystery' | 'social' | null>('standard');
 
   const { data: packs = [], isLoading, refetch } = useQuery<PackCatalog[]>({
     queryKey: ['admin-packs'],
@@ -53,7 +53,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
         .filter((r: any) => !r.adminDeleted)
         .map((r: any) => ({
           ...r,
-          packType: r.packType === 'mystery' ? 'mystery' : 'standard',
+          packType: r.packType === 'mystery' ? 'mystery' : r.packType === 'social' ? 'social' : 'standard',
           price: Number(r.price),
           sortOrder: Number(r.sortOrder ?? 0), isActive: Number(r.isActive ?? 1),
         }))
@@ -114,9 +114,10 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   };
 
   const editTarget = editingPack && editingPack !== 'new' ? editingPack : null;
-  const normalPacks = packs.filter(pack => pack.packType !== 'mystery');
+  const normalPacks = packs.filter(pack => pack.packType === 'standard');
   const mysteryPacks = packs.filter(pack => pack.packType === 'mystery');
-  const visiblePacks = expandedCategory === 'mystery' ? mysteryPacks : normalPacks;
+  const socialPacks = packs.filter(pack => pack.packType === 'social');
+  const visiblePacks = expandedCategory === 'mystery' ? mysteryPacks : expandedCategory === 'social' ? socialPacks : normalPacks;
 
   return (
     <>
@@ -149,14 +150,15 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-            {(['standard', 'mystery'] as const).map(category => {
-              const count = category === 'standard' ? normalPacks.length : mysteryPacks.length;
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+            {(['standard', 'mystery', 'social'] as const).map(category => {
+              const count = category === 'standard' ? normalPacks.length : category === 'mystery' ? mysteryPacks.length : socialPacks.length;
+              const label = category === 'standard' ? 'Normal Packs' : category === 'mystery' ? 'Mystery Packs' : 'Social Packs';
               const isExpanded = expandedCategory === category;
               return (
                 <button key={category} type="button" onClick={() => setExpandedCategory(isExpanded ? null : category)} className="flex items-center justify-between rounded-2xl px-4 py-4 text-left transition-all hover:bg-white/[0.06]" style={{ background: isExpanded ? 'rgba(155,92,255,0.12)' : 'rgba(255,255,255,0.025)', border: `1.5px solid ${isExpanded ? '#9b5cff66' : 'rgba(255,255,255,0.08)'}` }}>
                   <span>
-                    <span className="block text-[10px] uppercase tracking-[0.2em] text-white/35">{category === 'standard' ? 'Normal Packs' : 'Mystery Packs'}</span>
+                    <span className="block text-[10px] uppercase tracking-[0.2em] text-white/35">{label}</span>
                     <span className="block mt-1 text-2xl font-display font-bold text-white">{count}</span>
                   </span>
                   <ChevronDown size={18} className={`text-white/35 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -169,7 +171,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
               {visiblePacks.length === 0 && (
                 <div className="text-center py-12 rounded-2xl border border-white/8 bg-white/[0.02]">
                   <Package size={30} className="text-white/15 mx-auto mb-3" />
-                  <p className="text-white/30 font-display uppercase tracking-wider text-sm">No {expandedCategory === 'mystery' ? 'mystery' : 'normal'} packs yet</p>
+                  <p className="text-white/30 font-display uppercase tracking-wider text-sm">No {expandedCategory === 'mystery' ? 'mystery' : expandedCategory === 'social' ? 'social' : 'normal'} packs yet</p>
                 </div>
               )}
               {visiblePacks.map(pack => {
