@@ -50,7 +50,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
   const [packPage, setPackPage] = useState(1);
   const [totalTx, setTotalTx] = useState(0);
   const [totalPacks, setTotalPacks] = useState(0);
-  const PAGE_SIZE = 25;
+  const PAGE_SIZE = 10;
 
   // Cash out modal
   const [cashOutOpen, setCashOutOpen] = useState(false);
