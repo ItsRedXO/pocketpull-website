@@ -106,6 +106,31 @@ export const FeaturedPacksSection: React.FC = () => {
           )}
         </section>
 
+        {/* Social Cases */}
+        <section className="mt-6 pt-10 border-t border-white/8">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-10"
+          >
+            <h2 className="font-display text-2xl md:text-3xl uppercase tracking-wider text-white">
+              Social Packs
+            </h2>
+            <div
+              className="mt-1.5 h-[2px] w-24 rounded-full"
+              style={{ background: 'linear-gradient(90deg, #ffd700, #9b5cff)' }}
+            />
+          </motion.div>
+
+          <div className="flex min-h-32 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-10 text-center">
+            <p className="font-display text-lg uppercase tracking-[0.18em] text-white/60">
+              Social Packs Will Be Added Soon!
+            </p>
+          </div>
+        </section>
+
       </div>
 
       {/* Pack Details Modal */}
