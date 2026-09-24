@@ -40,8 +40,12 @@ function makeFeedFromCards(cards: any[], count = 30): PullEntry[] {
   if (!cards.length) return [];
   const out: PullEntry[] = [];
   let t = Date.now();
-  // Sort by a stable but randomized order for the initial feed
-  const pool = [...cards].sort((a, b) => (a.id > b.id ? 1 : -1));
+  // Fisher-Yates shuffle so each page load shows a different card order
+  const pool = [...cards];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
   for (let i = 0; i < count; i++) {
     const card = pool[i % pool.length];
     // Spread them out in time
