@@ -23,6 +23,7 @@ interface ProfileTabContentProps {
   initial: string;
   avatarError: string;
   userEmail?: string;
+  showEmail?: boolean;
   handleSaveProfile: () => void;
   savingProfile: boolean;
   signOut: () => void;
@@ -76,6 +77,7 @@ export const ProfileTabContent: React.FC<ProfileTabContentProps> = (props) => {
           initial={props.initial}
           avatarError={props.avatarError}
           userEmail={props.userEmail}
+          showEmail={props.showEmail}
           handleSaveProfile={props.handleSaveProfile}
           savingProfile={props.savingProfile}
           signOut={props.signOut}

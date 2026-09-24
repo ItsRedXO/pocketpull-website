@@ -31,7 +31,7 @@ app.post('/inventory/sell',async c=>{
       const value=Number(card.value||0); if(!Number.isFinite(value)||value<0)throw new Error('Invalid card value');
       const wallet=await processWalletTransactionInClient(client,{userId,type:'sell',amount:value,sourceId:`sell:${inventoryId}`}); if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
       const updated=await client.query('UPDATE inventory SET sold=1 WHERE id=$1 AND user_id=$2 AND COALESCE(sold,0)=0',[inventoryId,userId]); if(updated.rowCount!==1)throw new Error('Card could not be marked sold');
-      const data=card.data&&typeof card.data==='object'?card.data:{}; const cardName=data.cardName||data.card_name||data.name||'Card'; const imageUrl=data.cardImageUrl||data.card_image_url||data.imageUrl||data.image_url||''; const description=`Sold ${cardName}${imageUrl?` |img:${imageUrl}|`:''}`;
+      const data=card.data&&typeof card.data==='object'?card.data:{}; const cardName=card.card_name||data.cardName||data.card_name||data.name||'Card'; const imageUrl=card.card_image_url||data.cardImageUrl||data.card_image_url||data.imageUrl||data.image_url||''; const description=`Sold ${cardName}${imageUrl?` |img:${imageUrl}|`:''}`;
       try{await client.query('SAVEPOINT sell_history_insert');await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[`txn_sell_${inventoryId}`,userId,'sell',value,description,`sell:${inventoryId}`]);}catch(historyError){await client.query('ROLLBACK TO SAVEPOINT sell_history_insert').catch(()=>undefined);console.error('[inventory/sell] history insert failed; sale retained',historyError);}
       return {kind:'ok' as const,value,balance:wallet.balanceAfter};
     });

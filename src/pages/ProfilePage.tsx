@@ -23,6 +23,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
   const { stats, updateProfile } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified);
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showEmail, setShowEmail] = useState(false);
 
   // Profile form
   const [displayName, setDisplayName] = useState('');
@@ -283,6 +284,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
           setAvatarPreview={setAvatarPreview}
           initial={initial}
           balance={balance}
+          showEmail={showEmail}
+          setShowEmail={setShowEmail}
         />
 
         {/* Cash Out Cards button - New location */}
@@ -334,6 +337,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
           initial={initial}
           avatarError={avatarError}
           userEmail={user?.email}
+          showEmail={showEmail}
           handleSaveProfile={handleSaveProfile}
           savingProfile={savingProfile}
           signOut={signOut}

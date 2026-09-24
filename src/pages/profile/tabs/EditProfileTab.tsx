@@ -15,6 +15,7 @@ interface EditProfileTabProps {
   initial: string;
   avatarError: string;
   userEmail?: string;
+  showEmail?: boolean;
   handleSaveProfile: () => void;
   savingProfile: boolean;
   signOut: () => void;
@@ -34,6 +35,7 @@ export const EditProfileTab: React.FC<EditProfileTabProps> = ({
   initial,
   avatarError,
   userEmail,
+  showEmail,
   handleSaveProfile,
   savingProfile,
   signOut,
@@ -162,12 +164,12 @@ export const EditProfileTab: React.FC<EditProfileTabProps> = ({
           Email Address
         </label>
         <input
-          type="email"
-          value={userEmail || ''}
+          type={showEmail ? 'email' : 'text'}
+          value={showEmail ? (userEmail || '') : '••••••••••••••••'}
           disabled
           className={`${inputClass} opacity-40 cursor-not-allowed`}
         />
-        <p className="text-xs text-gray-500 mt-1">Email address cannot be changed</p>
+        <p className="text-xs text-gray-500 mt-1">Email address cannot be changed · toggle visibility in your profile header</p>
       </div>
 
       <button

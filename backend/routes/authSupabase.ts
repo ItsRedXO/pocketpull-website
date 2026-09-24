@@ -291,7 +291,10 @@ app.post('/auth/complete-supabase-signup', async (c) => {
 
   if (!isAtLeast18(dateOfBirth)) return c.json({ error: 'You must be 18 or older to create an account' }, 403);
 
+  const BLOCKED_TERMS = ['nigger','nigga','niga','nigg','fag','faggot','fagot','kike','chink','spic','wetback','coon','gook','tranny','retard','cracker','beaner','zipperhead','jigaboo','cunt','whore','slut','dyke','pedo','pedophile','kkk','nazi','adolf','hitler','rape','rapist','molest'];
+  const hasBlockedTerm = (n: string) => { const s = n.toLowerCase().replace(/[^a-z]/g, ''); return BLOCKED_TERMS.some(t => s.includes(t)); };
   if (username && (username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username))) username = '';
+  if (username && hasBlockedTerm(username)) return c.json({ error: 'USERNAME_BLOCKED' }, 400);
   if (username) {
     const taken = await query('SELECT 1 FROM users WHERE lower(username)=lower($1) LIMIT 1', [username]);
     if (taken.length) username = '';

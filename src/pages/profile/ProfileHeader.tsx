@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Eye, EyeOff } from 'lucide-react';
 
@@ -11,6 +11,8 @@ interface ProfileHeaderProps {
   setAvatarPreview: (url: string) => void;
   initial: string;
   balance: number;
+  showEmail: boolean;
+  setShowEmail: (v: boolean) => void;
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -22,8 +24,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   setAvatarPreview,
   initial,
   balance,
+  showEmail,
+  setShowEmail,
 }) => {
-  const [showEmail, setShowEmail] = useState(false);
 
   return (
     <motion.div

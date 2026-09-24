@@ -9,6 +9,17 @@ interface AuthModalProps {
   defaultTab?: 'login' | 'signup' | 'forgot';
 }
 
+const BLOCKED_USERNAME_TERMS = [
+  'nigger','nigga','niga','nigg','fag','faggot','fagot','kike','chink','spic','wetback',
+  'coon','gook','tranny','retard','cracker','beaner','zipperhead','jigaboo','cunt',
+  'whore','slut','dyke','pedo','pedophile','nword','fword','kkk','nazi','adolf',
+  'hitler','rape','rapist','molest',
+];
+function hasBlockedTerm(name: string): boolean {
+  const n = name.toLowerCase().replace(/[^a-z]/g, '');
+  return BLOCKED_USERNAME_TERMS.some(t => n.includes(t));
+}
+
 /** The code stashed by App.tsx when someone lands on a `?ref=` link, if any --
  * read fresh (not just once at mount) so it's picked up whenever the signup
  * form actually needs it, not just if it happened to already be set before
@@ -138,6 +149,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     if (username.length < 3) { setError('Username must be at least 3 characters'); return; }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) { setError('Username can only contain letters, numbers, and underscores'); return; }
+    if (hasBlockedTerm(username)) { setError('That username is not allowed. Please choose a different one.'); return; }
     if (!isAtLeast18(dateOfBirth)) { setError('You must be 18 or older to create an account.'); return; }
     if (!agreeTerms) { setError('You must agree to the Terms of Service'); return; }
     if (!agreeUsShipping) { setError('You must acknowledge that we only ship to the US'); return; }
@@ -156,6 +168,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
       }
       if (message === 'EMAIL_BANNED' || message.includes('EMAIL_BANNED')) {
         setError('This email address has been banned and cannot be used to create a new account.');
+      } else if (message.includes('USERNAME_BLOCKED')) {
+        setError('That username is not allowed. Please choose a different one.');
       } else if (message.includes('USERNAME_TAKEN')) {
         setError('That username is already taken. Please choose a different one.');
       } else if (message.includes('EMAIL_ALREADY_EXISTS') || message.includes('already')) {
