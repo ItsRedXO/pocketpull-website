@@ -175,9 +175,15 @@ const PackDetailModal: React.FC<{ pack: any; onClose: () => void }> = ({ pack, o
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: colors.bg }}>
-              <Package size={14} style={{ color: colors.text }} />
-            </div>
+            {pack.packImg ? (
+              <div className="w-8 h-10 rounded-md overflow-hidden shrink-0 flex items-center justify-center bg-black/60">
+                <img src={pack.packImg} alt={pack.packName} className="w-full h-full object-contain" style={{ mixBlendMode: 'screen' }} />
+              </div>
+            ) : (
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: colors.bg }}>
+                <Package size={14} style={{ color: colors.text }} />
+              </div>
+            )}
             <span className="font-display text-sm uppercase tracking-wider text-white truncate max-w-[180px]">{pack.packName || 'Pack Opened'}</span>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-all">
@@ -266,6 +272,17 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   const [selectedSell, setSelectedSell] = useState<any | null>(null);
   const [selectedPack, setSelectedPack] = useState<any | null>(null);
   const [cashoutDetail, setCashoutDetail] = useState<any>(null);
+  const [packImageMap, setPackImageMap] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    (blink.db as any).packsCatalog.list({ limit: 100 })
+      .then((packs: any[]) => {
+        const map: Record<string, string | null> = {};
+        for (const p of packs) map[p.id] = p.imageUrl || null;
+        setPackImageMap(map);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <motion.div
@@ -371,15 +388,22 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 {packHistory.map((pack, i) => {
                   const rarity = (pack.rarity || 'common').toLowerCase();
                   const colors = rarityColors(rarity);
+                  const packImg = packImageMap[pack.packId] || null;
                   return (
                     <div
                       key={i}
                       className="flex items-center gap-3 py-3 px-4 rounded-xl cursor-pointer hover:bg-white/5 active:scale-[0.99] transition-all group"
                       style={{ background: 'rgba(155,92,255,0.04)', border: '1px solid rgba(155,92,255,0.1)' }}
-                      onClick={() => setSelectedPack(pack)}
+                      onClick={() => setSelectedPack({ ...pack, packImg })}
                     >
-                      {/* Rarity dot */}
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colors.text, boxShadow: `0 0 6px ${colors.glow}` }} />
+                      {/* Pack thumbnail or rarity dot */}
+                      {packImg ? (
+                        <div className="w-9 h-12 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-black/60" style={{ border: `1px solid ${colors.border}` }}>
+                          <img src={packImg} alt={pack.packName} className="w-full h-full object-contain" style={{ mixBlendMode: 'screen' }} />
+                        </div>
+                      ) : (
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colors.text, boxShadow: `0 0 6px ${colors.glow}` }} />
+                      )}
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-display uppercase tracking-wider text-white truncate">{pack.packName || 'Pack'}</p>
