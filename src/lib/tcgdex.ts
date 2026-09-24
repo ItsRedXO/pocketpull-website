@@ -244,37 +244,36 @@ export async function getTcgDexMatches(query: string): Promise<ListEntry[]> {
 export async function hydrateTcgDexCards(entries: ListEntry[]): Promise<TcgDexCard[]> {
   if (!entries || entries.length === 0) return [];
   
-  try {
-    const details = await Promise.all(entries.map(c => fetchDetail(c.id)));
+  const settled = await Promise.allSettled(entries.map(c => fetchDetail(c.id)));
 
-    return entries.map((entry, i): TcgDexCard => {
-      const detail = details[i];
-      const { tcgplayer, cardmarket } = detail ? extractPrice(detail) : { tcgplayer: null, cardmarket: null };
-      
-      return {
-        id: entry.id,
-        localId: detail?.localId ?? entry.localId ?? '',
-        name: entry.name || 'Unknown Card',
-        image: normaliseTcgDexImage(detail?.image ?? entry.image),
-        set: detail ? extractSetName(detail) : '',
-        rarity: detail?.rarity ?? null,
-        hp: detail?.hp ?? null,
-        types: detail?.types ?? [],
-        category: detail?.category ?? '',
-        description: detail?.description ?? null,
-        effect: detail?.effect ?? null,
-        attacks: detail?.attacks ?? [],
-        abilities: detail?.abilities ?? [],
-        illustrator: detail?.illustrator ?? null,
-        dexId: detail?.dexId ?? null,
-        stage: detail?.stage ?? null,
-        evolveFrom: detail?.evolveFrom ?? null,
-        tcgplayerPrice: tcgplayer,
-        cardmarketPrice: cardmarket,
-      };
+  return entries.reduce<TcgDexCard[]>((acc, entry, i) => {
+    const result = settled[i];
+    const detail = result.status === 'fulfilled' ? result.value : null;
+    if (result.status === 'rejected') {
+      console.warn('[TCGDex] Failed to hydrate card:', entry.id, (result as PromiseRejectedResult).reason);
+    }
+    const { tcgplayer, cardmarket } = detail ? extractPrice(detail) : { tcgplayer: null, cardmarket: null };
+    acc.push({
+      id: entry.id,
+      localId: detail?.localId ?? entry.localId ?? '',
+      name: entry.name || 'Unknown Card',
+      image: normaliseTcgDexImage(detail?.image ?? entry.image),
+      set: detail ? extractSetName(detail) : '',
+      rarity: detail?.rarity ?? null,
+      hp: detail?.hp ?? null,
+      types: detail?.types ?? [],
+      category: detail?.category ?? '',
+      description: detail?.description ?? null,
+      effect: detail?.effect ?? null,
+      attacks: detail?.attacks ?? [],
+      abilities: detail?.abilities ?? [],
+      illustrator: detail?.illustrator ?? null,
+      dexId: detail?.dexId ?? null,
+      stage: detail?.stage ?? null,
+      evolveFrom: detail?.evolveFrom ?? null,
+      tcgplayerPrice: tcgplayer,
+      cardmarketPrice: cardmarket,
     });
-  } catch (err) {
-    console.error('[TCGDex] Batch hydration failed:', err);
-    return [];
-  }
+    return acc;
+  }, []);
 }

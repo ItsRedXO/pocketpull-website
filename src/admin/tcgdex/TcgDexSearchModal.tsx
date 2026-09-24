@@ -202,13 +202,17 @@ export const TcgDexSearchModal: React.FC<Props> = ({ onImport, onClose }) => {
     setLoading(true);
     try {
       const hydrated = await hydrateTcgDexCards(sel);
+      if (hydrated.length === 0) {
+        setError('Could not load card data — please try again.');
+        return;
+      }
       onImport(hydrated.map(c => ({
         cardName: c.name, rarity: mapRarity(c.rarity), cardImageUrl: c.image,
         estimatedValue: estimateValue(c), tcgdexId: c.id,
       })));
-    } catch (err) { 
-      console.error('[TCGDex] Import failed:', err); 
-      setError('Import failed. Please try again.'); 
+    } catch (err) {
+      console.error('[TCGDex] Import failed:', err);
+      setError('Import failed. Please try again.');
     } finally { setLoading(false); }
   };
 

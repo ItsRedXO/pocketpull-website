@@ -198,7 +198,6 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 overflow-y-auto"
       style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(12px)' }}
-      onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
