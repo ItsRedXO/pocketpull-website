@@ -136,8 +136,8 @@ export function CenterPanel({
           </div>
         </div>
 
-        {/* ── Add Wallet Balance toggle ── */}
-        {isAuthenticated && stats && stats.balance > 0 && (
+        {/* ── Add Wallet Balance toggle ── (hidden) */}
+        {false && isAuthenticated && stats && stats.balance > 0 && (
           <div
             className={`w-full mt-4 rounded-xl p-3 border border-white/5 transition-opacity ${upgrading ? 'opacity-40 pointer-events-none' : ''}`}
             style={{ background: 'rgba(255,255,255,0.02)' }}
