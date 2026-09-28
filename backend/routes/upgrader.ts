@@ -9,6 +9,7 @@ import { transaction, query } from '../lib/postgres';
 import { processWalletTransactionInClient } from '../repositories/wallet';
 import { sha256, computeRoll } from '../lib/provablyFair';
 import { getOrCreateServerSeed } from '../lib/provablyFairServerSeed';
+import { calculateUpgraderGems, awardGemsInClient } from '../lib/gems';
 
 const app = new Hono();
 const MAX_CHANCE_CHART: Record<number, number> = {1.2:70,1.5:55,2.0:35,3.0:35,4.0:35,5.0:15,6.0:15,7.0:15,8.0:8,9.0:8,10.0:8};
@@ -217,6 +218,9 @@ app.post('/upgrader/spin', async (c) => {
         ],
       );
 
+      const gemsEarned = calculateUpgraderGems(isWin);
+      await awardGemsInClient(client, userId, gemsEarned, 'upgrade', `upgrader-spin:${userId}:${nonce}`);
+
       const finalBalanceResult = await client.query(`SELECT balance FROM users WHERE id=$1`, [userId]);
       return {
         user,
@@ -231,6 +235,7 @@ app.post('/upgrader/spin', async (c) => {
         nonce,
         rollValue,
         newBalance: Number(finalBalanceResult.rows[0]?.balance || 0),
+        gemsEarned,
       };
     });
 
@@ -278,6 +283,7 @@ app.post('/upgrader/spin', async (c) => {
       })),
       newBalance: result.newBalance,
       removedCardIds: inventoryIds,
+      gemsEarned: result.gemsEarned,
     });
   } catch (err:any) {
     console.error('[upgrader/spin] error:', err.message);

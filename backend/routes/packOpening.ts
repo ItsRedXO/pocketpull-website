@@ -7,6 +7,7 @@ import { processWalletTransactionInClient } from '../repositories/wallet';
 import { validateAndConsumeCodeInClient } from '../repositories/promoCodes';
 import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../lib/provablyFair';
 import { getOrCreateServerSeed } from '../lib/provablyFairServerSeed';
+import { calculatePackOpenGems, awardGemsInClient } from '../lib/gems';
 
 const app = new Hono();
 const RARITY_EMOJIS: Record<string, string> = { common:'🃏', uncommon:'🌿', rare:'💧', ultra:'🌙', secret:'⭐', god:'🌈', chase:'🔥', premium:'✨', base:'🃏' };
@@ -186,6 +187,9 @@ app.post('/open-pack', async (c) => {
         [userId, user.username || user.display_name || 'Trainer', cardValue],
       );
 
+      const gemsEarned = calculatePackOpenGems(cardValue);
+      await awardGemsInClient(client, userId, gemsEarned, 'pack_open', inventoryId);
+
       return {
         user,
         pack,
@@ -198,6 +202,7 @@ app.post('/open-pack', async (c) => {
         nonce,
         rollValue,
         walletResult,
+        gemsEarned,
       };
     });
 
@@ -234,6 +239,7 @@ app.post('/open-pack', async (c) => {
       inventoryId: result.inventoryId,
       newBalance: result.walletResult.balanceAfter,
       newMatchedBalance: result.walletResult.matchedAfter,
+      gemsEarned: result.gemsEarned,
     });
   } catch (err:any) {
     console.error('[open-pack] error:', err?.message || err);

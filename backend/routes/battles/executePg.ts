@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth, uid, getRewardUserId } from '../../lib/auth';
 import { query, transaction } from '../../lib/postgres';
+import { calculateBattleGems, awardGems } from '../../lib/gems';
 import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../../lib/provablyFair';
 import { getOrCreateServerSeed } from '../../lib/provablyFairServerSeed';
 import { rollBotWinChance, determineBattleWinner, distributeCardsShared, getWinnerPool, isExactTie, RARITY_EMOJIS } from './utils';
@@ -137,7 +138,14 @@ app.post('/execute', async (c) => {
       return { alreadyFinished: false, battle, playerResults, winner: winnerResult, isDraw };
     });
     if (result.alreadyFinished) { const playerResults = (result.players || []).map((p:any) => ({ playerId: p.id, teamSide: p.team_side || null, userId: p.user_id, username: p.username, avatar: p.avatar, isAi: Number(p.is_ai || 0) > 0, cards: parseJson(p.cards_json, []), totalValue: Number(p.total_value || 0), isWinner: Number(p.is_winner || 0) > 0 })); return c.json({ success: true, playerResults, winner: playerResults.find(p => p.isWinner) || null, isDraw: false }); }
-    return c.json({ success: true, playerResults: result.playerResults, winner: result.winner, isDraw: result.isDraw });
+    const finishedPlayers: any[] = (result as any).playerResults || [];
+    try {
+      await Promise.all(finishedPlayers.filter((p: any) => !p.isAi).map((p: any) => {
+        const gems = calculateBattleGems(p.isWinner);
+        return awardGems(p.userId, gems, 'pack_battle', battleId);
+      }));
+    } catch (e: any) { console.error('[battles/execute-pg] gem award failed:', e?.message); }
+    return c.json({ success: true, playerResults: finishedPlayers, winner: (result as any).winner, isDraw: (result as any).isDraw });
   } catch (err: any) {
     console.error('[battles/execute-pg] error:', err?.message || err);
     try { await query(`UPDATE battles SET status='waiting',started_at=NULL WHERE id=$1 AND status='live'`, [battleId]); } catch {}

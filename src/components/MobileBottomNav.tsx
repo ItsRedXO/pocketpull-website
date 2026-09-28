@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Package, Zap, Swords, ArrowLeftRight, Archive, Gamepad2 } from 'lucide-react';
+import { Package, Zap, Swords, ArrowLeftRight, Archive, Gamepad2, ShoppingBag } from 'lucide-react';
 
-type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault' | 'brawl';
+type Page = 'home' | 'upgrader' | 'battle' | 'exchanger' | 'inventory' | 'profile' | 'vault' | 'brawl' | 'shop';
 
 interface MobileBottomNavProps { currentPage: Page; onPageChange: (page: Page) => void; }
 
@@ -13,6 +13,7 @@ const bottomNavTabs: { id: Page; label: string; icon: React.FC<{ size?: number; 
   { id: 'exchanger', label: 'Exchanger', icon: ArrowLeftRight },
   { id: 'inventory', label: 'Collection', icon: Archive },
   { id: 'brawl', label: 'Brawl', icon: Gamepad2 },
+  { id: 'shop', label: 'Shop', icon: ShoppingBag },
 ];
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = React.memo(({ currentPage, onPageChange }) => (

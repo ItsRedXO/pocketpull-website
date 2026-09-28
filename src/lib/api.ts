@@ -28,13 +28,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-export interface OpenPackResult { success: boolean; card: { name: string; rarity: string; value: number; emoji: string; imageUrl: string | null }; inventoryId: string; newBalance: number; }
+export interface OpenPackResult { success: boolean; card: { name: string; rarity: string; value: number; emoji: string; imageUrl: string | null }; inventoryId: string; newBalance: number; gemsEarned?: number; }
 export const openPack = (packId: string, code?: string) => post<OpenPackResult>('/open-pack', { packId, ...(code ? { code } : {}) });
 
 export interface ApplyReferralCodeResult { success: true; message: string; }
 export const applyReferralCode = (referralCode: string) => post<ApplyReferralCodeResult>('/apply-referral-code', { referralCode });
 
-export interface UpgraderSpinResult { success: boolean; isWin: boolean; winChance: number; wonCards: Array<{ id: string; cardId: string; name: string; rarity: string; value: number; emoji: string; cardImageUrl: string | null }>; newBalance: number; removedCardIds: string[]; }
+export interface UpgraderSpinResult { success: boolean; isWin: boolean; winChance: number; wonCards: Array<{ id: string; cardId: string; name: string; rarity: string; value: number; emoji: string; cardImageUrl: string | null }>; newBalance: number; removedCardIds: string[]; gemsEarned?: number; }
 export const upgraderSpin = (params: { inventoryIds: string[]; targetCardIds: string[]; useBalance: boolean; addedBalance: number; multiplier: number }) => post<UpgraderSpinResult>('/upgrader/spin', params);
 
 export interface ExchangeResult { success: boolean; removedCardIds: string[]; addedCards: Array<{ id: string; cardId: string; cardName: string; rarity: string; value: number; emoji: string; cardImageUrl: string | null; isLocked: boolean }>; refund: number; newBalance: number; }
@@ -65,6 +65,13 @@ export const sellAllCards = () => post<{ success: boolean; newBalance: number; s
 export interface ReferralData { id: string; username: string; email: string; status: 'Reward Paid' | 'Deposit Pending' | 'Signed Up'; deposited: boolean; createdAt: string; }
 export interface FetchReferralsResult { data: ReferralData[]; total: number; page: number; totalPages: number; }
 export const fetchReferrals = async (page = 1) => get<FetchReferralsResult>(`/referrals?page=${page}`);
+
+export interface ShopItem { id: string; week_start: string; slot_index: number; card_id: string | null; pack_id: string | null; card_name: string; card_image_url: string | null; card_rarity: string | null; estimated_value: number; gem_price: number; is_sold: boolean; sold_to_user_id: string | null; }
+export interface ShopRotationResult { success: boolean; rotation: ShopItem[]; weekStart: string; nextRefresh: string; gemsBalance: number; }
+export const getShopRotation = () => get<ShopRotationResult>('/shop/rotation');
+export const getGems = () => get<{ success: boolean; gems: number }>('/shop/gems');
+export interface ShopPurchaseResult { success: boolean; inventoryId: string; newGems: number; card: { name: string; rarity: string; value: number; imageUrl: string | null }; }
+export const purchaseShopItem = (shopItemId: string) => post<ShopPurchaseResult>('/shop/purchase', { shopItemId });
 
 export interface RedeemPromoCodeResult { success: true; amount: number; balance: number; code: string; }
 export const redeemPromoCode = (code: string) => post<RedeemPromoCodeResult>('/redeem-code', { code });
