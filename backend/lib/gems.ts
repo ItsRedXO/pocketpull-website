@@ -17,8 +17,13 @@ export function calculatePackOpenGems(packPrice: number, isFree: boolean): numbe
   return base;
 }
 
-export function calculateUpgraderGems(isWin: boolean): number {
-  return randInt(8, 19) + (isWin ? randInt(5, 12) : 0);
+export function calculateUpgraderGems(totalInputValue: number): number {
+  if (totalInputValue <= 1.00) return randInt(1, 3);
+  if (totalInputValue <= 3.00) return randInt(2, 5);
+  if (totalInputValue <= 10.00) return randInt(4, 9);
+  if (totalInputValue <= 30.00) return randInt(8, 16);
+  if (totalInputValue <= 100.00) return randInt(14, 25);
+  return randInt(20, 40);
 }
 
 export function calculateBattleGems(isWinner: boolean): number {

@@ -218,7 +218,7 @@ app.post('/upgrader/spin', async (c) => {
         ],
       );
 
-      const gemsEarned = calculateUpgraderGems(isWin);
+      const gemsEarned = calculateUpgraderGems(totalUpgradeValue);
       await awardGemsInClient(client, userId, gemsEarned, 'upgrade', `upgrader-spin:${userId}:${nonce}`);
 
       const finalBalanceResult = await client.query(`SELECT balance FROM users WHERE id=$1`, [userId]);
