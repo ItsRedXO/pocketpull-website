@@ -83,4 +83,60 @@ app.post('/admin/users/:id/balance', async (c) => {
   }
 });
 
+app.post('/admin/users/:id/gems', async (c) => {
+  try {
+    const adminUserId = await requireAdmin(c);
+    const targetUserId = c.req.param('id');
+    const body = await c.req.json<{ mode?: 'add' | 'set'; amount?: number }>();
+    const mode = body.mode === 'set' ? 'set' : 'add';
+    const amount = Number(body.amount);
+
+    if (!targetUserId || !Number.isFinite(amount)) {
+      return c.json({ success: false, error: 'Invalid gems amount.' }, 400);
+    }
+    if (mode === 'add' && amount === 0) {
+      return c.json({ success: false, error: 'Gems adjustment cannot be zero.' }, 400);
+    }
+    if (mode === 'set' && amount < 0) {
+      return c.json({ success: false, error: 'Gems cannot be negative.' }, 400);
+    }
+
+    const target = await query<{ id: string; gems: string; username: string }>(
+      'SELECT id, COALESCE(gems, 0) AS gems, username FROM users WHERE id=$1 LIMIT 1',
+      [targetUserId],
+    );
+    if (!target[0]) return c.json({ success: false, error: 'User not found.' }, 404);
+
+    const before = Number(target[0].gems || 0);
+    const newGems = mode === 'set' ? Math.max(0, amount) : Math.max(0, before + amount);
+    const delta = newGems - before;
+
+    if (delta === 0) {
+      return c.json({ success: true, gems: before, previousGems: before, delta: 0 });
+    }
+
+    const rows = await query<{ gems: number }>(
+      'UPDATE users SET gems = $1 WHERE id = $2 RETURNING gems',
+      [newGems, targetUserId],
+    );
+
+    await query(
+      `INSERT INTO gem_transactions(id, user_id, amount, balance_before, balance_after, source_type, source_id, metadata)
+       VALUES($1, $2, $3, $4, $5, 'admin_adjustment', $6, $7)`,
+      [uid(), targetUserId, delta, before, newGems, `admin:${adminUserId}`, JSON.stringify({ adminUserId, mode })],
+    );
+
+    return c.json({
+      success: true,
+      gems: rows[0]?.gems ?? newGems,
+      previousGems: before,
+      delta,
+    });
+  } catch (error: any) {
+    const message = error?.message || 'Gems update failed.';
+    const status = message === 'UNAUTHORIZED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    return c.json({ success: false, error: message }, status);
+  }
+});
+
 export default app;

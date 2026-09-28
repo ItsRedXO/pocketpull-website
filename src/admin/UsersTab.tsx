@@ -62,6 +62,7 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
           avatarUrl: (r.avatarUrl || r.avatar_url || null) as string | null,
           lastSeenAt: (r.lastSeenAt || r.last_seen_at || null) as string | null,
           lastActiveAt: (r.lastActiveAt || r.last_active_at || null) as string | null,
+          gems: Number(r.gems || 0),
         }));
     },
     staleTime: 0,

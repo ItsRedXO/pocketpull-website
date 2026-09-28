@@ -11,6 +11,7 @@ import { DepositsSection } from './DepositsSection';
 import { ActivitySection } from './ActivitySection';
 import { ReferralsSection } from './ReferralsSection';
 import { UserPokeBrawlSection } from './UserPokeBrawlSection';
+import { GemsSection } from './GemsSection';
 
 interface UserDetailProps {
   user: UserRow;
@@ -288,11 +289,12 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 mb-2">
+        <div className="grid grid-cols-4 gap-3 mb-2">
           {[
             { label: 'Balance', value: '$' + balance.toFixed(2), color: '#10b981' },
             { label: 'Matched', value: '$' + matched.toFixed(2), color: '#60a5fa' },
             { label: 'Real', value: '$' + realBalance.toFixed(2), color: '#f59e0b' },
+            { label: 'Gems', value: (user.gems ?? 0).toLocaleString() + ' 💎', color: '#9b5cff' },
           ].map(s => (
             <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{s.label}</p>
@@ -333,6 +335,14 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
         <>
           <SectionErrorBoundary>
             <BalanceSection
+              user={user}
+              showToast={showToast}
+              onUpdate={onUpdate}
+              logAdminAction={logAdminAction}
+            />
+          </SectionErrorBoundary>
+          <SectionErrorBoundary>
+            <GemsSection
               user={user}
               showToast={showToast}
               onUpdate={onUpdate}

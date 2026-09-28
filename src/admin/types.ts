@@ -19,6 +19,7 @@ export interface UserRow {
   avatarUrl: string | null;
   lastSeenAt: string | null;
   lastActiveAt: string | null;
+  gems?: number;
 }
 
 export interface InventoryRow {
