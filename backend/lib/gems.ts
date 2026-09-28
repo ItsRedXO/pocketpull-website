@@ -5,16 +5,15 @@ function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-export function calculatePackOpenGems(estimatedValue: number): number {
-  const value = Math.max(0, estimatedValue);
+export function calculatePackOpenGems(packPrice: number, isFree: boolean): number {
+  if (isFree || packPrice <= 0) return 0;
   let base: number;
-  if (value <= 2) base = randInt(2, 6);
-  else if (value <= 5) base = randInt(3, 9);
-  else if (value <= 15) base = randInt(5, 16);
-  else if (value <= 30) base = randInt(8, 22);
-  else if (value <= 100) base = randInt(12, 32);
-  else base = randInt(20, 52);
-  if (Math.random() < 0.05) base = Math.floor(base * 2);
+  if (packPrice <= 1.00) base = randInt(1, 2);
+  else if (packPrice <= 3.00) base = randInt(3, 6);
+  else if (packPrice <= 7.00) base = randInt(7, 12);
+  else if (packPrice <= 15.00) base = randInt(12, 20);
+  else if (packPrice <= 30.00) base = randInt(18, 30);
+  else base = randInt(25, 45);
   return base;
 }
 

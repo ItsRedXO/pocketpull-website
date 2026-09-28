@@ -187,7 +187,7 @@ app.post('/open-pack', async (c) => {
         [userId, user.username || user.display_name || 'Trainer', cardValue],
       );
 
-      const gemsEarned = calculatePackOpenGems(cardValue);
+      const gemsEarned = calculatePackOpenGems(price, isSocialPack || price <= 0);
       await awardGemsInClient(client, userId, gemsEarned, 'pack_open', inventoryId);
 
       return {
