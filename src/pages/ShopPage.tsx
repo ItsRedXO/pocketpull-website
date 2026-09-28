@@ -28,14 +28,6 @@ const RARITY_BG: Record<string, string> = {
   premium: 'bg-pink-500/10',
 };
 
-const ROW_LABELS = ['Common Finds', 'Rare Picks', 'Premium Pulls', 'Elite Collection'];
-const ROW_RANGES = ['500–1,500 💎', '1,600–3,000 💎', '4,000–10,000 💎', '10,100–50,000 💎'];
-const ROW_COLORS = [
-  'from-blue-500/20 to-transparent border-blue-500/20',
-  'from-purple-500/20 to-transparent border-purple-500/20',
-  'from-yellow-500/20 to-transparent border-yellow-500/20',
-  'from-red-500/20 to-transparent border-red-500/20',
-];
 
 function formatTimeLeft(nextRefresh: string): string {
   const now = Date.now();
@@ -199,20 +191,15 @@ export function ShopPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {isAuthenticated && (
-            <div className="flex items-center gap-2 bg-[#9b5cff]/10 border border-[#9b5cff]/30 rounded-xl px-4 py-2.5">
-              <Gem size={16} className="text-[#9b5cff]" />
-              <div>
-                <div className="text-white font-bold text-sm leading-none">{gems.toLocaleString()}</div>
-                <div className="text-[#9b5cff] text-[10px] uppercase tracking-wider">Gems</div>
-              </div>
+        {isAuthenticated && (
+          <div className="flex items-center gap-2 bg-[#9b5cff]/10 border border-[#9b5cff]/30 rounded-xl px-4 py-2.5">
+            <Gem size={16} className="text-[#9b5cff]" />
+            <div>
+              <div className="text-white font-bold text-sm leading-none">{gems.toLocaleString()}</div>
+              <div className="text-[#9b5cff] text-[10px] uppercase tracking-wider">Gems</div>
             </div>
-          )}
-          <div className="text-xs text-gray-500 max-w-[200px]">
-            Earn gems by opening packs, upgrading cards, and playing battles.
           </div>
-        </div>
+        )}
       </div>
 
       {isLoading && (
@@ -232,68 +219,18 @@ export function ShopPage() {
       )}
 
       {!isLoading && !error && (
-        <div className="space-y-8">
-          {[0, 1, 2, 3].map(rowIdx => {
-            const rowItems = rotation.filter(item => item.slot_index >= rowIdx * 5 && item.slot_index < (rowIdx + 1) * 5);
-            return (
-              <div key={rowIdx}>
-                <div className={`flex items-center gap-3 mb-4 pb-3 border-b bg-gradient-to-r ${ROW_COLORS[rowIdx]}`}>
-                  <div className="flex-1">
-                    <h2 className="text-sm font-bold text-white uppercase tracking-wider">{ROW_LABELS[rowIdx]}</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">{ROW_RANGES[rowIdx]}</p>
-                  </div>
-                  <div className="text-xs text-gray-600">
-                    {rowItems.filter(i => !i.is_sold).length}/{rowItems.length} available
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                  {rowItems.length > 0
-                    ? rowItems.map(item => (
-                        <ShopCard
-                          key={item.id}
-                          item={item}
-                          gems={gems}
-                          onBuy={handleBuy}
-                          buying={buying}
-                        />
-                      ))
-                    : Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="rounded-xl border border-white/5 bg-[#13141e] aspect-[3/5] flex items-center justify-center">
-                          <span className="text-gray-700 text-xs">Coming Soon</span>
-                        </div>
-                      ))}
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {[...rotation].sort((a, b) => a.gem_price - b.gem_price).map(item => (
+            <ShopCard
+              key={item.id}
+              item={item}
+              gems={gems}
+              onBuy={handleBuy}
+              buying={buying}
+            />
+          ))}
         </div>
       )}
-
-      {/* Gem earning info */}
-      <div className="mt-10 p-4 rounded-xl border border-white/5 bg-white/2">
-        <div className="flex items-center gap-2 mb-3">
-          <Gem size={14} className="text-[#9b5cff]" />
-          <span className="text-sm font-bold text-white">How to Earn Gems</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-400">
-          <div className="flex flex-col gap-1">
-            <span className="text-white font-semibold">Pack Openings</span>
-            <span>Earn gems every time you open a pack. Rarer pulls = more gems.</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-white font-semibold">Upgrader</span>
-            <span>Every spin earns gems. Win bonus for successful upgrades.</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-white font-semibold">Pack Battles</span>
-            <span>Earn gems for participating. Winners get a bonus reward.</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-white font-semibold">Poke Brawl</span>
-            <span>Each battle run earns a small amount of gems.</span>
-          </div>
-        </div>
-      </div>
 
       {/* Toasts */}
       <div className="fixed bottom-24 lg:bottom-6 right-4 z-50 flex flex-col gap-2">
