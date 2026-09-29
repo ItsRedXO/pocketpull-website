@@ -140,8 +140,10 @@ app.post('/execute', async (c) => {
     if (result.alreadyFinished) { const playerResults = (result.players || []).map((p:any) => ({ playerId: p.id, teamSide: p.team_side || null, userId: p.user_id, username: p.username, avatar: p.avatar, isAi: Number(p.is_ai || 0) > 0, cards: parseJson(p.cards_json, []), totalValue: Number(p.total_value || 0), isWinner: Number(p.is_winner || 0) > 0 })); return c.json({ success: true, playerResults, winner: playerResults.find(p => p.isWinner) || null, isDraw: false }); }
     const finishedPlayers: any[] = (result as any).playerResults || [];
     try {
+      const battlePacks: any[] = parseJson((result as any).battle?.packs_json, []);
+      const battleValue = battlePacks.reduce((sum: number, p: any) => sum + Number(p.price || 0), 0);
       await Promise.all(finishedPlayers.filter((p: any) => !p.isAi).map((p: any) => {
-        const gems = calculateBattleGems(p.isWinner);
+        const gems = calculateBattleGems(battleValue, p.isWinner);
         return awardGems(p.userId, gems, 'pack_battle', battleId);
       }));
     } catch (e: any) { console.error('[battles/execute-pg] gem award failed:', e?.message); }

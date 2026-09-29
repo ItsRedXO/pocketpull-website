@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
-import { calculateBrawlGems, awardGems } from '../lib/gems';
 import { BATTLE_TIERS, SAFARI_TIERS, DAILY_BATTLE_CAP, DAILY_BONUS_AMOUNT, DAILY_BONUS_COOLDOWN_MS, GAMES_TO_WIN_MATCH, type BattleTierId } from '../lib/brawl/tiers';
 import { TIER_RATING_DELTA } from '../lib/brawl/leagues';
 import { simulateBattle } from '../lib/brawl/battleSim';
@@ -375,12 +374,7 @@ app.post('/brawl/battle/play', async c => {
   const rating = await applyRatingChange(userId, ratingDelta);
 
   const balance = await getWalletBalance(userId);
-  let gemsEarned = 0;
-  try {
-    gemsEarned = calculateBrawlGems();
-    await awardGems(userId, gemsEarned, 'poke_brawl', run.id);
-  } catch (e: any) { console.error('[brawl/play] gem award failed:', e?.message); }
-  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, rating, gemsEarned });
+  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, rating, gemsEarned: 0 });
 });
 
 export default app;

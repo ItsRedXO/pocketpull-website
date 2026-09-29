@@ -26,12 +26,16 @@ export function calculateUpgraderGems(totalInputValue: number): number {
   return randInt(20, 40);
 }
 
-export function calculateBattleGems(isWinner: boolean): number {
-  return randInt(10, 26) + (isWinner ? randInt(5, 16) : 0);
-}
-
-export function calculateBrawlGems(): number {
-  return randInt(2, 9);
+export function calculateBattleGems(battleValue: number, isWinner: boolean): number {
+  if (battleValue <= 0) return 0;
+  let winnerGems: number, loserGems: number;
+  if (battleValue <= 5)        { winnerGems = randInt(3, 6);    loserGems = randInt(2, 4);   }
+  else if (battleValue <= 10)  { winnerGems = randInt(7, 11);   loserGems = randInt(4, 7);   }
+  else if (battleValue <= 25)  { winnerGems = randInt(18, 25);  loserGems = randInt(12, 16); }
+  else if (battleValue <= 50)  { winnerGems = randInt(38, 48);  loserGems = randInt(24, 32); }
+  else if (battleValue <= 100) { winnerGems = randInt(75, 95);  loserGems = randInt(50, 65); }
+  else                         { winnerGems = randInt(90, 120); loserGems = randInt(65, 85); }
+  return isWinner ? winnerGems : loserGems;
 }
 
 export async function awardGemsInClient(
