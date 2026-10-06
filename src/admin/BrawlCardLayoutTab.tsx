@@ -63,25 +63,18 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
         <SliderRow label="Frame Scale" sub="How much the card frame fills its cell (default 1.16)"
           value={draft.scale} min={1.0} max={1.6} step={0.01} onChange={set('scale')} />
 
-        <SliderRow label="Label Row Top %" sub="Top % where ATK/DEF/HP/SPD labels start (default 80)"
-          value={draft.statsLabelTop} min={70} max={92} step={0.5} onChange={set('statsLabelTop')} />
+        <SliderRow label="Stats Row Top %" sub="Top % where the stat numbers start (default 84)"
+          value={draft.statsTop} min={74} max={95} step={0.5} onChange={set('statsTop')} />
 
-        <SliderRow label="Label Row Height %" sub="Height % of the label boxes (default 6)"
-          value={draft.statsLabelHeight} min={3} max={12} step={0.5} onChange={set('statsLabelHeight')} />
-
-        <SliderRow label="Value Row Top %" sub="Top % where the stat numbers start (default 87)"
-          value={draft.statsValueTop} min={74} max={95} step={0.5} onChange={set('statsValueTop')} />
-
-        <SliderRow label="Value Row Height %" sub="Height % of the stat number boxes (default 10)"
-          value={draft.statsValueHeight} min={4} max={18} step={0.5} onChange={set('statsValueHeight')} />
+        <SliderRow label="Stats Row Height %" sub="Height % of the number boxes (default 12)"
+          value={draft.statsHeight} min={5} max={20} step={0.5} onChange={set('statsHeight')} />
 
         <SliderRow label="Team Grid Columns" sub="Cards per row in Active Team on desktop (default 4)"
           value={draft.teamCols} min={3} max={6} step={1} onChange={set('teamCols')} />
 
         <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-white/40 space-y-1">
           <p>Changes apply site-wide immediately after Save.</p>
-          <p>Label Row: align to the small label boxes baked into the frame art (ATK/DEF/HP/SPD).</p>
-          <p>Value Row: align to the larger number boxes directly below them.</p>
+          <p>Stats Row: align the numbers to the large value boxes in the frame art (ATK/DEF/HP/SPD labels are baked in above them).</p>
           <p>Frame Scale: pushes the frame border to card edges. Below 1.0 shows transparent glow margins.</p>
         </div>
       </div>

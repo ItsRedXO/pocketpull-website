@@ -106,24 +106,18 @@ export function useLoadingScreenConfig() {
 export interface BrawlCardLayout {
   /** scale(N) applied to the frame group — pushes border to card edges. Default 1.16 */
   scale: number;
-  /** Top % for the stat label boxes (ATK/DEF/HP/SPD text). Default 80 */
-  statsLabelTop: number;
-  /** Height % of the stat label boxes. Default 6 */
-  statsLabelHeight: number;
-  /** Top % for the stat value boxes (numbers). Default 87 */
-  statsValueTop: number;
-  /** Height % of the stat value boxes. Default 10 */
-  statsValueHeight: number;
+  /** Top % where the stat numbers start (labels are baked into the frame art). Default 84 */
+  statsTop: number;
+  /** Height % of the stat number boxes. Default 12 */
+  statsHeight: number;
   /** grid columns for active team grid on lg+ screens. Default 4 */
   teamCols: number;
 }
 
 export const DEFAULT_BRAWL_CARD_LAYOUT: BrawlCardLayout = {
   scale: 1.16,
-  statsLabelTop: 80,
-  statsLabelHeight: 6,
-  statsValueTop: 87,
-  statsValueHeight: 10,
+  statsTop: 84,
+  statsHeight: 12,
   teamCols: 4,
 };
 
