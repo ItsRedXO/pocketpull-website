@@ -63,7 +63,13 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
         <SliderRow label="Frame Scale" sub="How much the card frame fills its cell (default 1.16)"
           value={draft.scale} min={1.0} max={1.6} step={0.01} onChange={set('scale')} />
 
-        <SliderRow label="Stats Row Top %" sub="Top % where the stat numbers start (default 84)"
+        <SliderRow label="Name Font Size" sub="Pokémon name text size in px (default 14)"
+          value={draft.nameSize} min={8} max={28} step={1} onChange={set('nameSize')} />
+
+        <SliderRow label="Power Font Size" sub="Power number text size in px (default 22)"
+          value={draft.powerSize} min={10} max={40} step={1} onChange={set('powerSize')} />
+
+        <SliderRow label="Stats Row Top %" sub="Top % where the stat numbers start (default 83)"
           value={draft.statsTop} min={74} max={95} step={0.5} onChange={set('statsTop')} />
 
         <SliderRow label="Stats Row Height %" sub="Height % of the number boxes (default 7)"

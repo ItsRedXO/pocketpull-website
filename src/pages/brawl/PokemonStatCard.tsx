@@ -106,7 +106,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
           />
 
           <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.power, zIndex: 3 }}>
-            <span className="text-xl sm:text-2xl font-black leading-none text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{mon.overall_rating}</span>
+            <span className="font-black leading-none text-white" style={{ fontSize: layout.powerSize, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{mon.overall_rating}</span>
           </div>
 
           <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.type, zIndex: 3 }}>
@@ -116,7 +116,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
           </div>
 
           <div className="absolute flex items-center justify-center gap-1 px-2" style={{ ...LAYOUT.name, zIndex: 3 }}>
-            <span className="text-sm sm:text-base font-extrabold capitalize truncate text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+            <span className="font-extrabold capitalize truncate text-white" style={{ fontSize: layout.nameSize, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
               {nickname || mon.name}
             </span>
             {!!count && count > 1 && <span className="text-xs font-bold text-white/70 shrink-0">(×{count})</span>}
