@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Image as ImageIcon, Search } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { InventoryRow, UserRow, RARITY_COLOR, RARITY_LABEL } from './types';
@@ -45,7 +45,7 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
 
   const totalValue = useMemo(() => inventory.reduce((sum, c) => sum + c.value, 0), [inventory]);
 
-  // ── Card database (packCards + packsCatalog) ──────────────────────────────
+  // â”€â”€ Card database (packCards + packsCatalog) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data: packCards = [] } = useQuery<any[]>({
     queryKey: ['admin-all-pack-cards'],
     queryFn: async () => {
@@ -87,7 +87,7 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
         cardName: card.cardName,
         rarity: card.rarity,
         value: Number(card.estimatedValue) || 0,
-        emoji: '🃏',
+        emoji: 'ðŸƒ',
         isFavorite: 0,
         cardImageUrl: card.cardImageUrl || null,
         packName: getPackName(card.packId),
@@ -116,10 +116,10 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display">
-          Inventory · {inventory.length} cards
+        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans">
+          Inventory Â· {inventory.length} cards
         </h4>
-        <span className="text-[10px] font-bold font-display text-green-400/80 tracking-wider">
+        <span className="text-[10px] font-bold font-sans text-green-400/80 tracking-wider">
           Total: ${totalValue.toFixed(2)}
         </span>
       </div>
@@ -176,7 +176,7 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
                     <span className="text-[9px] font-bold uppercase shrink-0" style={{ color: RARITY_COLOR[card.rarity] || '#888' }}>
                       {RARITY_LABEL[card.rarity] ?? card.rarity}
                     </span>
-                    <span className="text-[9px] text-white/50 font-display shrink-0 w-12 text-right">
+                    <span className="text-[9px] text-white/50 font-sans shrink-0 w-12 text-right">
                       ${Number(card.estimatedValue || 0).toFixed(2)}
                     </span>
                   </button>
@@ -218,7 +218,7 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-white/80 font-bold font-display">${card.value.toFixed(2)}</p>
+                <p className="text-[10px] text-white/80 font-bold font-sans">${card.value.toFixed(2)}</p>
               </div>
               <button
                 onClick={() => handleRemoveCard(card.id, card.cardName)}

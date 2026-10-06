@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Save, RefreshCw, Plus, Trash2, Monitor } from 'lucide-react';
 import { useLoadingScreenConfig, DEFAULT_LOADING_CONFIG, type LoadingScreenConfig } from '../hooks/useSiteConfig';
 
@@ -79,13 +79,13 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-lg uppercase tracking-widest text-white">Loading Screen</h2>
-          <p className="text-xs text-gray-500 mt-1">Drag the preview — block to reposition, right edge of bar to resize width</p>
+          <h2 className="font-sans text-lg uppercase tracking-widest text-white">Loading Screen</h2>
+          <p className="text-xs text-gray-500 mt-1">Drag the preview â€” block to reposition, right edge of bar to resize width</p>
         </div>
         <button
           onClick={handleSave}
           disabled={!dirty || isSaving}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl font-display text-xs uppercase tracking-wider transition-all disabled:opacity-40"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-sans text-xs uppercase tracking-wider transition-all disabled:opacity-40"
           style={{ background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.5)', color: '#c084fc' }}
         >
           {isSaving ? <RefreshCw size={13} className="animate-spin" /> : <Save size={13} />}
@@ -95,7 +95,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* ── Left: Config ── */}
+        {/* â”€â”€ Left: Config â”€â”€ */}
         <div className="space-y-5">
 
           {/* Bar colors */}
@@ -144,7 +144,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
             <SliderRow label="Corner Radius" field="barRadius" min={0} max={24} />
             <SliderRow label="Horizontal Position" field="barX" min={10} max={90} unit="%" />
             <SliderRow label="Vertical Position" field="barY" min={5} max={95} unit="%" />
-            <p className="text-[9px] text-gray-600">Or drag freely in the preview — right edge of bar resizes width</p>
+            <p className="text-[9px] text-gray-600">Or drag freely in the preview â€” right edge of bar resizes width</p>
           </div>
 
           {/* Messages */}
@@ -183,7 +183,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
           </div>
         </div>
 
-        {/* ── Right: Preview ── */}
+        {/* â”€â”€ Right: Preview â”€â”€ */}
         <div className="rounded-xl overflow-hidden border border-white/8" style={{ background: 'rgba(255,255,255,0.02)' }}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
             <div className="flex items-center gap-2">
@@ -191,7 +191,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Live Preview</span>
             </div>
             <span className="text-[9px] text-gray-600 uppercase tracking-wider">
-              {dragMode === 'position' ? '✥ moving...' : dragMode === 'width' ? '↔ resizing...' : 'Drag to edit'}
+              {dragMode === 'position' ? 'âœ¥ moving...' : dragMode === 'width' ? 'â†” resizing...' : 'Drag to edit'}
             </span>
           </div>
 
@@ -219,7 +219,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               style={{ top: `${draft.barY}%`, height: '1px', background: 'rgba(255,255,255,0.12)' }}
             />
 
-            {/* Logo — mirrors live site: floats above the bar group */}
+            {/* Logo â€” mirrors live site: floats above the bar group */}
             <img
               src="/pocketpull-logo.png"
               alt=""
@@ -237,7 +237,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               }}
             />
 
-            {/* Bar group — drag freely to reposition */}
+            {/* Bar group â€” drag freely to reposition */}
             <div
               ref={contentBlockRef}
               className="absolute flex flex-col items-center"
@@ -257,12 +257,12 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                   className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] uppercase tracking-widest whitespace-nowrap px-2 py-0.5 rounded pointer-events-none"
                   style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.4)' }}
                 >
-                  ✥ drag to move
+                  âœ¥ drag to move
                 </div>
               )}
 
               <p
-                className="font-display text-white uppercase text-center w-full"
+                className="font-sans text-white uppercase text-center w-full"
                 style={{ fontSize: '0.5rem', letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
               >
                 {draft.messages[0]}
@@ -326,7 +326,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               </div>
 
               <p
-                className="font-display text-white tabular-nums"
+                className="font-sans text-white tabular-nums"
                 style={{ fontSize: '0.5rem', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
               >
                 {Math.round(previewProgress)}%

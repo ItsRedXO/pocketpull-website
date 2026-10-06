@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, Plus, Edit2, Trash2, RefreshCw, Eye, EyeOff, ChevronDown } from 'lucide-react';
@@ -109,7 +109,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
     qc.invalidateQueries({ queryKey: ['admin-all-cards'] });
     qc.invalidateQueries({ queryKey: ['packs-catalog'] });
     qc.invalidateQueries({ queryKey: ['pack-cards'] });
-    showToast('Pack saved — live site updated! ✓');
+    showToast('Pack saved â€” live site updated! âœ“');
     logAdminAction('Admin Saved Pack', 'system', { packId: editTarget?.id, packName: editTarget?.name });
   };
 
@@ -123,8 +123,8 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
     <>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="font-display text-xl uppercase tracking-wider text-white">Pack Manager</h2>
-          <p className="text-[11px] text-white/30 mt-0.5">{packs.length} packs · {allCards.length} cards total</p>
+          <h2 className="font-sans text-xl uppercase tracking-wider text-white">Pack Manager</h2>
+          <p className="text-[11px] text-white/30 mt-0.5">{packs.length} packs Â· {allCards.length} cards total</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => { refetch(); qc.invalidateQueries({ queryKey: ['admin-all-cards'] }); }}
@@ -133,7 +133,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
           </button>
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={() => setEditingPack('new')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl font-display text-[12px] uppercase tracking-widest font-bold"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-sans text-[12px] uppercase tracking-widest font-bold"
             style={{ background: 'linear-gradient(135deg, #9b5cff, #00c8ff)', color: '#fff', boxShadow: '0 0 20px -6px rgba(155,92,255,0.5)' }}>
             <Plus size={14} /> New Pack
           </motion.button>
@@ -145,7 +145,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
       ) : packs.length === 0 ? (
         <div className="text-center py-16">
           <Package size={36} className="text-white/15 mx-auto mb-3" />
-          <p className="text-white/30 font-display uppercase tracking-wider text-sm">No packs yet</p>
+          <p className="text-white/30 font-sans uppercase tracking-wider text-sm">No packs yet</p>
           <p className="text-white/15 text-[11px] mt-1">Click "New Pack" to get started.</p>
         </div>
       ) : (
@@ -159,7 +159,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
                 <button key={category} type="button" onClick={() => setExpandedCategory(isExpanded ? null : category)} className="flex items-center justify-between rounded-2xl px-4 py-4 text-left transition-all hover:bg-white/[0.06]" style={{ background: isExpanded ? 'rgba(155,92,255,0.12)' : 'rgba(255,255,255,0.025)', border: `1.5px solid ${isExpanded ? '#9b5cff66' : 'rgba(255,255,255,0.08)'}` }}>
                   <span>
                     <span className="block text-[10px] uppercase tracking-[0.2em] text-white/35">{label}</span>
-                    <span className="block mt-1 text-2xl font-display font-bold text-white">{count}</span>
+                    <span className="block mt-1 text-2xl font-sans font-bold text-white">{count}</span>
                   </span>
                   <ChevronDown size={18} className={`text-white/35 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </button>
@@ -171,7 +171,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
               {visiblePacks.length === 0 && (
                 <div className="text-center py-12 rounded-2xl border border-white/8 bg-white/[0.02]">
                   <Package size={30} className="text-white/15 mx-auto mb-3" />
-                  <p className="text-white/30 font-display uppercase tracking-wider text-sm">No {expandedCategory === 'mystery' ? 'mystery' : expandedCategory === 'social' ? 'social' : 'normal'} packs yet</p>
+                  <p className="text-white/30 font-sans uppercase tracking-wider text-sm">No {expandedCategory === 'mystery' ? 'mystery' : expandedCategory === 'social' ? 'social' : 'normal'} packs yet</p>
                 </div>
               )}
               {visiblePacks.map(pack => {
@@ -191,7 +191,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-display text-sm text-white uppercase tracking-wide truncate">{pack.name}</h3>
+                          <h3 className="font-sans text-sm text-white uppercase tracking-wide truncate">{pack.name}</h3>
                           {pack.packType === 'mystery' && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/25">Vault</span>
                           )}

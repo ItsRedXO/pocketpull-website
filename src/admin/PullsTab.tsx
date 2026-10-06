@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, History, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,7 +49,7 @@ function PullCardZoom({ card, onClose }: { card: PullRow | null; onClose: () => 
               />
             ) : (
               <div className="w-40 h-56 rounded-xl bg-white/5 flex items-center justify-center">
-                <span className="text-5xl">🃏</span>
+                <span className="text-5xl">ðŸƒ</span>
               </div>
             )}
             <div
@@ -61,16 +61,16 @@ function PullCardZoom({ card, onClose }: { card: PullRow | null; onClose: () => 
           {/* Info footer */}
           <div className="p-4 border-t border-white/5 space-y-2">
             <div>
-              <h3 className="text-base font-display text-white uppercase truncate">{card.cardName || '—'}</h3>
+              <h3 className="text-base font-sans text-white uppercase truncate">{card.cardName || 'â€”'}</h3>
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: rarityColor }}>
-                {card.rarity || '—'}
+                {card.rarity || 'â€”'}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div><span className="text-white/30">Pack</span><p className="text-white/70 truncate">{card.packName}</p></div>
               <div><span className="text-white/30">Cost</span><p className="text-[#10b981] font-bold">${card.cost.toFixed(2)}</p></div>
               <div><span className="text-white/30">User</span><p className="text-white/70 truncate">{card.username}</p></div>
-              <div><span className="text-white/30">Date</span><p className="text-white/70">{card.createdAt ? new Date(card.createdAt).toLocaleString() : '—'}</p></div>
+              <div><span className="text-white/30">Date</span><p className="text-white/70">{card.createdAt ? new Date(card.createdAt).toLocaleString() : 'â€”'}</p></div>
             </div>
           </div>
         </motion.div>
@@ -83,7 +83,7 @@ export function PullsTab() {
   const [page, setPage] = useState(0);
   const [selectedCard, setSelectedCard] = useState<PullRow | null>(null);
 
-  // ── Card image lookup: fetch all packCards once, key by name::rarity ──────
+  // â”€â”€ Card image lookup: fetch all packCards once, key by name::rarity â”€â”€â”€â”€â”€â”€
   const { data: cardImageMap = {} } = useQuery<Record<string, string>>({
     queryKey: ['admin-packcard-images'],
     queryFn: async () => {
@@ -100,7 +100,7 @@ export function PullsTab() {
     staleTime: 60_000,
   });
 
-  // ── Total pull count ─────────────────────────────────────────────────────
+  // â”€â”€ Total pull count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data: totalPulls = 0 } = useQuery<number>({
     queryKey: ['admin-pulls-count'],
     queryFn: async () => {
@@ -118,7 +118,7 @@ export function PullsTab() {
     if (page >= totalPages) setPage(Math.max(0, totalPages - 1));
   }, [page, totalPages]);
 
-  // ── Paginated pulls ──────────────────────────────────────────────────────
+  // â”€â”€ Paginated pulls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data: pulls = [], isLoading, refetch, isRefetching } = useQuery<PullRow[]>({
     queryKey: ['admin-pulls', page],
     queryFn: async () => {
@@ -141,7 +141,7 @@ export function PullsTab() {
         return {
           id: r.id, userId: r.userId, packName: r.packName,
           cost: Number(r.cost) || 0, createdAt: r.createdAt || '',
-          cardName: r.cardName || '—', rarity: r.rarity || '—',
+          cardName: r.cardName || 'â€”', rarity: r.rarity || 'â€”',
           cardImageUrl: cardImageMap[nameKey] || null,
           username: userMap[r.userId] || r.userId,
         };
@@ -161,14 +161,14 @@ export function PullsTab() {
     });
   }, [pulls, cardImageMap]);
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="font-display text-xl uppercase tracking-wider text-white">Recent Pack Openings</h2>
+          <h2 className="font-sans text-xl uppercase tracking-wider text-white">Recent Pack Openings</h2>
           <p className="text-[11px] text-white/30 mt-0.5">
-            {totalPulls.toLocaleString()} total · Page {page + 1} of {totalPages}
+            {totalPulls.toLocaleString()} total Â· Page {page + 1} of {totalPages}
           </p>
         </div>
         <button onClick={() => refetch()} disabled={isLoading || isRefetching}
@@ -187,7 +187,7 @@ export function PullsTab() {
       ) : (
         <>
           <div className="flex flex-col gap-1.5">
-            <div className="grid grid-cols-[48px_1.2fr_1.5fr_1.2fr_0.7fr_1fr] gap-3 px-3 pb-2 text-[9px] uppercase tracking-widest text-white/25 font-display">
+            <div className="grid grid-cols-[48px_1.2fr_1.5fr_1.2fr_0.7fr_1fr] gap-3 px-3 pb-2 text-[9px] uppercase tracking-widest text-white/25 font-sans">
               <span></span><span>Pack</span><span>Card Pull</span><span>Username</span><span>Cost</span><span>Date</span>
             </div>
             {enrichedPulls.map(p => (
@@ -202,13 +202,13 @@ export function PullsTab() {
                   {p.cardImageUrl ? (
                     <img src={p.cardImageUrl} alt={p.cardName || 'Card'} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-lg">🃏</span>
+                    <span className="text-lg">ðŸƒ</span>
                   )}
                 </div>
-                <span className="text-[12px] text-white font-display truncate">{p.packName}</span>
+                <span className="text-[12px] text-white font-sans truncate">{p.packName}</span>
                 <div className="flex flex-col min-w-0">
                   <span className="text-[11px] text-white truncate">{p.cardName}</span>
-                  {p.rarity !== '—' && (
+                  {p.rarity !== 'â€”' && (
                     <span className="text-[8px] font-bold uppercase" style={{ color: RARITY_COLOR[p.rarity || 'common'] }}>
                       {p.rarity}
                     </span>
@@ -216,7 +216,7 @@ export function PullsTab() {
                 </div>
                 <span className="text-[11px] text-white/60 truncate" title={p.username}>{p.username}</span>
                 <span className="text-[12px] font-bold" style={{ color: '#10b981' }}>${p.cost.toFixed(2)}</span>
-                <span className="text-[10px] text-white/25">{p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}</span>
+                <span className="text-[10px] text-white/25">{p.createdAt ? new Date(p.createdAt).toLocaleString() : 'â€”'}</span>
               </div>
             ))}
           </div>
@@ -224,7 +224,7 @@ export function PullsTab() {
           {/* Pagination controls */}
           <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
             <p className="text-[9px] text-white/20">
-              Showing {page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, totalPulls)} of {totalPulls.toLocaleString()}
+              Showing {page * PER_PAGE + 1}â€“{Math.min((page + 1) * PER_PAGE, totalPulls)} of {totalPulls.toLocaleString()}
             </p>
             <div className="flex gap-1">
               <button

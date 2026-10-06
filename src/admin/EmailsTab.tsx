@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Mail, Search, X, RefreshCw, CheckCircle, AlertCircle, PenSquare, Send, Loader2 } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -49,7 +49,7 @@ function EmailDetail({ email, onClose }: { email: OutboundEmail; onClose: () => 
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Email details</p>
-            <h2 className="truncate font-display text-xl text-white">{email.subject}</h2>
+            <h2 className="truncate font-sans text-xl text-white">{email.subject}</h2>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white" aria-label="Close email details"><X size={18} /></button>
         </div>
@@ -124,7 +124,7 @@ function ComposeModal({ onClose, onSent, showToast }: { onClose: () => void; onS
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">New message</p>
-            <h2 className="font-display text-xl text-white">Compose Email</h2>
+            <h2 className="font-sans text-xl text-white">Compose Email</h2>
           </div>
           <button onClick={onClose} className="rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white" aria-label="Close compose"><X size={18} /></button>
         </div>
@@ -206,7 +206,7 @@ export const EmailsTab: React.FC<{ showToast?: (msg: string, ok?: boolean) => vo
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Delivery records</p><h1 className="font-display text-2xl uppercase text-white">Email Center</h1></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Delivery records</p><h1 className="font-sans text-2xl uppercase text-white">Email Center</h1></div>
         <div className="flex gap-2">
           <button onClick={() => setComposing(true)} className="inline-flex items-center gap-2 rounded-lg border border-[#9b5cff]/25 bg-[#9b5cff]/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-[#c4a0ff] hover:bg-[#9b5cff]/25"><PenSquare size={13} /> Compose</button>
           <button onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh</button>

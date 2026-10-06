@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Image, Plus } from 'lucide-react';
 import { PackDraft } from './types';
 
@@ -18,7 +18,7 @@ export const PackDetailsFields: React.FC<Props> = ({
 }) => {
   return (
     <section>
-      <h3 className="text-[10px] uppercase tracking-[0.25em] text-white/30 mb-3 font-display">Pack Details</h3>
+      <h3 className="text-[10px] uppercase tracking-[0.25em] text-white/30 mb-3 font-sans">Pack Details</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Pack Name *">
           <input value={packDraft.name} onChange={e => setPackDraft(p => ({ ...p, name: e.target.value }))}
@@ -120,7 +120,7 @@ export const PackDetailsFields: React.FC<Props> = ({
 
       {/* Pack image */}
       <div className="mt-3">
-        <label className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display block mb-1.5">Pack Image</label>
+        <label className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans block mb-1.5">Pack Image</label>
         <div className="flex gap-3 items-start">
           <div className="w-20 h-24 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
             style={{ background: 'rgba(255,255,255,0.04)', border: `1.5px solid ${glow}33` }}>
@@ -158,7 +158,7 @@ export const PackDetailsFields: React.FC<Props> = ({
 
 const Field: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className = '' }) => (
   <div className={className}>
-    <label className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display block mb-1.5">{label}</label>
+    <label className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans block mb-1.5">{label}</label>
     {children}
   </div>
 );

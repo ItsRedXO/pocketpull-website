@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Search, Swords } from 'lucide-react';
 import { blink } from '../lib/blink';
@@ -100,7 +100,7 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Swords size={16} className="text-[#9b5cff]" />
-          <h2 className="font-display text-sm uppercase tracking-widest text-white/70">Poke Brawl — Species</h2>
+          <h2 className="font-sans text-sm uppercase tracking-widest text-white/70">Poke Brawl â€” Species</h2>
           <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40 bg-white/5">{species.length} loaded</span>
         </div>
         <div className="relative">
@@ -111,7 +111,7 @@ export function BrawlSpeciesTab({ showToast }: { showToast: (m: string, ok?: boo
       </div>
 
       {isLoading ? (
-        <div className="text-white/40 text-sm py-10 text-center">Loading species…</div>
+        <div className="text-white/40 text-sm py-10 text-center">Loading speciesâ€¦</div>
       ) : species.length === 0 ? (
         <div className="text-white/40 text-sm py-10 text-center">
           No species imported yet. Run <code className="text-[#00c8ff]">npm run brawl:import-species</code> against the database.

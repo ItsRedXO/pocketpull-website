@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Coins, Save, Trash2, Plus, Star, ChevronDown, RotateCcw, Package } from 'lucide-react';
 import {
@@ -84,13 +84,13 @@ function SpeciesPicker({ species, value, onChange }: { species: AdminBrawlSpecie
     <div className="relative" ref={rootRef}>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs min-w-[220px] hover:border-white/20 transition-colors">
-        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (OVR ${selected.overall_rating})` : 'Grant a Pokemon…'}</span>
+        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (OVR ${selected.overall_rating})` : 'Grant a Pokemonâ€¦'}</span>
         <ChevronDown size={13} className="text-white/40 shrink-0" />
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-72 rounded-lg border border-white/10 shadow-2xl overflow-hidden" style={{ background: '#14151f' }}>
           <div className="p-2 border-b border-white/10">
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search species…"
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search speciesâ€¦"
               className="w-full px-2 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#9b5cff]" />
           </div>
           <div className="max-h-56 overflow-y-auto">
@@ -132,13 +132,13 @@ function ItemPicker({ items, value, onChange }: { items: AdminBrawlItem[]; value
     <div className="relative" ref={rootRef}>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs min-w-[220px] hover:border-white/20 transition-colors">
-        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (${selected.rarity})` : 'Grant an item…'}</span>
+        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (${selected.rarity})` : 'Grant an itemâ€¦'}</span>
         <ChevronDown size={13} className="text-white/40 shrink-0" />
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-72 rounded-lg border border-white/10 shadow-2xl overflow-hidden" style={{ background: '#14151f' }}>
           <div className="p-2 border-b border-white/10">
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search items…"
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search itemsâ€¦"
               className="w-full px-2 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#9b5cff]" />
           </div>
           <div className="max-h-56 overflow-y-auto">
@@ -277,7 +277,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
     try {
       await setAdminBrawlInstanceStar(userId, instanceId, level);
       refreshDetail();
-      showToast(level === 0 ? 'Stars reset' : `Set to ${level}★`);
+      showToast(level === 0 ? 'Stars reset' : `Set to ${level}â˜…`);
     } catch (e: any) { showToast(e.message || 'Failed to update star level', false); }
   };
 
@@ -303,13 +303,13 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
 
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display flex items-center gap-2 mb-3">
+      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans flex items-center gap-2 mb-3">
         <Swords size={12} className="text-[#9b5cff]" />
         Poke Brawl
       </h4>
 
       {loadingDetail || !detail ? (
-        <div className="text-white/40 text-sm py-10 text-center">Loading trainer data…</div>
+        <div className="text-white/40 text-sm py-10 text-center">Loading trainer dataâ€¦</div>
       ) : (
         <div className="space-y-4">
           {/* Wallet */}
@@ -350,7 +350,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
           {/* Roster */}
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40"><Star size={12} /> Roster ({detail.roster.length}) — click to toggle active team</div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40"><Star size={12} /> Roster ({detail.roster.length}) â€” click to toggle active team</div>
               <button onClick={handleSaveTeam} disabled={!teamDirty || saving || teamSelection.length < 1}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${teamDirty ? 'bg-[#00c8ff]/20 text-[#00c8ff]' : 'text-white/15'}`}>
                 <Save size={11} /> Save Team ({teamSelection.length}/6)
@@ -381,7 +381,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
               <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40"><Package size={12} /> Items ({userItems.length})</div>
             </div>
             {loadingUserItems ? (
-              <p className="text-white/30 text-xs py-4 text-center">Loading items…</p>
+              <p className="text-white/30 text-xs py-4 text-center">Loading itemsâ€¦</p>
             ) : userItems.length === 0 ? (
               <p className="text-white/30 text-xs py-4 text-center">This trainer owns no items yet.</p>
             ) : (
@@ -398,7 +398,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
                     </div>
                     <div className="text-[9px] font-bold text-white mt-1 truncate w-full text-center">{entry.item.name}</div>
                     <span className="text-[7px] px-1 py-0.5 rounded-full uppercase font-bold mt-0.5 capitalize" style={{ background: entry.item.rarity === 'rare' ? 'rgba(250,204,21,0.2)' : entry.item.rarity === 'uncommon' ? 'rgba(74,222,128,0.2)' : 'rgba(136,146,164,0.2)', color: entry.item.rarity === 'rare' ? '#facc15' : entry.item.rarity === 'uncommon' ? '#4ade80' : '#8892a4' }}>{entry.item.rarity}</span>
-                    <div className="text-[8px] text-[#00c8ff] font-bold mt-0.5">×{entry.quantity}</div>
+                    <div className="text-[8px] text-[#00c8ff] font-bold mt-0.5">Ã—{entry.quantity}</div>
                   </div>
                 ))}
               </div>

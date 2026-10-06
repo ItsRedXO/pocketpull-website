@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save } from 'lucide-react';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
@@ -207,7 +207,7 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/6">
-          <h2 className="font-display text-lg uppercase tracking-wider text-white">
+          <h2 className="font-sans text-lg uppercase tracking-wider text-white">
             {isNew ? '+ New Pack' : `Edit: ${pack!.name}`}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all">
@@ -259,18 +259,18 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
 
           {error && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[12px] text-red-400 text-center">
-              ⚠ {error}
+              âš  {error}
             </motion.p>
           )}
 
           <div className="flex gap-3">
             <button onClick={onClose}
-              className="flex-1 py-3 rounded-xl font-display text-[13px] uppercase tracking-widest text-white/40 transition-all hover:text-white"
+              className="flex-1 py-3 rounded-xl font-sans text-[13px] uppercase tracking-widest text-white/40 transition-all hover:text-white"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               Cancel
             </button>
             <button onClick={handleSave} disabled={saving}
-              className="flex-2 flex-[2] py-3 rounded-xl font-display text-[13px] uppercase tracking-widest font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              className="flex-2 flex-[2] py-3 rounded-xl font-sans text-[13px] uppercase tracking-widest font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: `linear-gradient(135deg, ${glow}cc, #9b5cff)`, color: '#fff', boxShadow: `0 0 24px -6px ${glow}88` }}>
               <Save size={15} /> {saving ? 'Saving...' : isNew ? 'Create Pack' : 'Save Changes'}
             </button>

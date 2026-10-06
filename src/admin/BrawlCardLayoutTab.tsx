@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Save, RotateCcw, SaveAll } from 'lucide-react';
 import {
   useBrawlTierLayouts,
@@ -72,11 +72,11 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      {/* ── Controls ── */}
+      {/* â”€â”€ Controls â”€â”€ */}
       <div className="flex-1 overflow-y-auto" style={{ maxHeight: '78vh' }}>
         {/* Sticky header */}
         <div className="flex items-center justify-between mb-3 sticky top-0 z-10 py-1" style={{ background: 'rgba(10,11,15,0.95)' }}>
-          <h3 className="text-sm font-display uppercase tracking-widest text-white/70">Card Layout</h3>
+          <h3 className="text-sm font-sans uppercase tracking-widest text-white/70">Card Layout</h3>
           <div className="flex items-center gap-2">
             <button onClick={resetTier}
               className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white">
@@ -91,7 +91,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
             <button disabled={!isDirty(tier) || isSaving} onClick={handleSave}
               className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg ${isDirty(tier) ? 'text-black' : 'bg-white/5 text-white/30'}`}
               style={isDirty(tier) ? { background: TIER_COLOR[tier] } : {}}>
-              <Save size={12} /> {isSaving ? 'Saving…' : `Save ${TIER_SHORT[tier]}`}
+              <Save size={12} /> {isSaving ? 'Savingâ€¦' : `Save ${TIER_SHORT[tier]}`}
             </button>
           </div>
         </div>
@@ -130,7 +130,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
         </div>
       </div>
 
-      {/* ── Preview ── */}
+      {/* â”€â”€ Preview â”€â”€ */}
       <div className="w-52 shrink-0 space-y-3">
         <div className="text-[10px] uppercase tracking-widest text-white/40">Live Preview</div>
 
@@ -156,7 +156,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
         {/* Pokemon label */}
         <div className="text-center text-[11px] font-bold capitalize" style={{ color: TIER_COLOR[tier] }}>
           {PREVIEW_MONS[tier].name}
-          <span className="ml-1 text-[9px] text-white/30 font-normal">· {PREVIEW_MONS[tier].primary_type}</span>
+          <span className="ml-1 text-[9px] text-white/30 font-normal">Â· {PREVIEW_MONS[tier].primary_type}</span>
         </div>
 
         {/* Card */}

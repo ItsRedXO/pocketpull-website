@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Gem } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -76,7 +76,7 @@ export function GemsSection({ user, showToast, onUpdate, logAdminAction }: GemsS
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(155,92,255,0.04)', border: '1px solid rgba(155,92,255,0.15)' }}>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#9b5cff]/70 font-display flex items-center gap-1.5">
+        <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#9b5cff]/70 font-sans flex items-center gap-1.5">
           <Gem size={11} className="text-[#9b5cff]" />
           Adjust Gems
         </h4>

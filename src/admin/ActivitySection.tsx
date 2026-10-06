@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Activity, Package, DollarSign, Swords, ShoppingCart, Sparkles, ArrowRightLeft, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
 import { blink } from '../lib/blink';
@@ -30,7 +30,7 @@ async function adminHeaders(): Promise<Record<string, string>> {
   };
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function optNum(v: any, fallback = 0): number {
   const n = Number(v);
@@ -46,7 +46,7 @@ function arrLen(v: any): number {
   return Array.isArray(v) ? v.length : 0;
 }
 
-/** Log type → stat-filter mapping */
+/** Log type â†’ stat-filter mapping */
 const STAT_FILTER_MAP: Record<string, string | null> = {
   Packs:    'pack_open',
   Deposits: 'deposit',
@@ -77,7 +77,7 @@ function buildAmount(log: LogEntryRaw): { str?: string; color?: string } {
       const isWin = log.result === 'win';
       return { str: isWin ? `+$${vo.toFixed(2)}` : `-$${vi.toFixed(2)}`, color: isWin ? '#10b981' : '#f87171' };
     }
-    if (t === 'exchange') return { str: `$${vi.toFixed(2)} ↔ $${vo.toFixed(2)}`, color: '#00c8ff' };
+    if (t === 'exchange') return { str: `$${vi.toFixed(2)} â†” $${vo.toFixed(2)}`, color: '#00c8ff' };
     if (t === 'battle') {
       if (vo > 0) return { str: `+$${vo.toFixed(2)}`, color: '#10b981' };
       return { str: `-$${vi.toFixed(2)}`, color: '#f87171' };
@@ -120,25 +120,25 @@ function buildSubtitle(log: LogEntryRaw): string {
 
         const players: any[] = Array.isArray(d.players) ? d.players : [];
         const modeLabel = mode === 'underdog' ? 'Underdog' : mode === 'shared' ? 'Shared' : 'Standard';
-        return `${status} · ${modeLabel} · ${players.length}P · ${safeStr(d.packNames)}`;
+        return `${status} Â· ${modeLabel} Â· ${players.length}P Â· ${safeStr(d.packNames)}`;
       }
-      case 'cashout': return `${d.totalCards || 0} cards · ${safeStr(log.result, 'pending')}`;
+      case 'cashout': return `${d.totalCards || 0} cards Â· ${safeStr(log.result, 'pending')}`;
       case 'deposit': return safeStr(d.paymentMethod, 'Deposit');
-      case 'upgrade': return `${log.result === 'win' ? 'WIN' : 'LOSS'} · ${d.winChance != null ? d.winChance + '%' : ''}`;
-      case 'exchange': return `${arrLen(d.offeredCards)} → ${arrLen(d.receivedCards)} cards`;
+      case 'upgrade': return `${log.result === 'win' ? 'WIN' : 'LOSS'} Â· ${d.winChance != null ? d.winChance + '%' : ''}`;
+      case 'exchange': return `${arrLen(d.offeredCards)} â†’ ${arrLen(d.receivedCards)} cards`;
       default: return '';
     }
   } catch { return ''; }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function ActivitySection({ user }: ActivitySectionProps) {
   const [selectedEntry, setSelectedEntry] = useState<TimelineEntry | null>(null);
   const [page, setPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
-  // ── Stats queries (using count() for accuracy — no limit caps) ──────────────
+  // â”€â”€ Stats queries (using count() for accuracy â€” no limit caps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const { data: packsTotal = 0, isLoading: packsLoading } = useQuery<number>({
     queryKey: ['admin-packs-count', user.id],
@@ -149,7 +149,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   });
 
   // Sell total: sum amounts from transactions (type = 'sell'). Uses a high
-  // fetch limit because there's no server-side SUM — client-side reduce is fine
+  // fetch limit because there's no server-side SUM â€” client-side reduce is fine
   // for admin panel volumes.
   const { data: sellsData = { count: 0, totalValue: 0 }, isLoading: sellsLoading } = useQuery<{ count: number; totalValue: number }>({
     queryKey: ['admin-sells-v2', user.id],
@@ -162,7 +162,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }, staleTime: 0,
   });
 
-  // ── Battles: query ALL participations from battlePlayers, not just hosted ───
+  // â”€â”€ Battles: query ALL participations from battlePlayers, not just hosted â”€â”€â”€
   // The previous code only counted battles the user HOSTED via hostUserId.
   // We now query battlePlayers to find every battle they participated in,
   // then fetch the corresponding battle + all player rows for full detail.
@@ -273,7 +273,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }, staleTime: 0,
   });
 
-  // Upgrade count — dedicated count query
+  // Upgrade count â€” dedicated count query
   const { data: upgradeCount = 0 } = useQuery<number>({
     queryKey: ['admin-upgrade-count', user.id],
     queryFn: async () => {
@@ -284,7 +284,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }, staleTime: 0,
   });
 
-  // Exchange count — dedicated count query
+  // Exchange count â€” dedicated count query
   const { data: exchangeCount = 0 } = useQuery<number>({
     queryKey: ['admin-exchange-count', user.id],
     queryFn: async () => {
@@ -306,12 +306,12 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }, staleTime: 0,
   });
 
-  // ── Paginated activity logs (backend endpoint, supports type filter) ────────
+  // â”€â”€ Paginated activity logs (backend endpoint, supports type filter) â”€â”€â”€â”€â”€â”€â”€â”€
 
   const { data: logsPage, isLoading } = useQuery<LogsPage>({
     queryKey: ['admin-activity-logs-v2', user.id, page, typeFilter],
     queryFn: async () => {
-      // Battle filter uses local battleHistory — skip backend call
+      // Battle filter uses local battleHistory â€” skip backend call
       if (typeFilter === 'battle') return { rows: [], total: 0 };
 
       let url = `${BACKEND_BASE}/admin-logs?userId=${encodeURIComponent(user.id)}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
@@ -347,9 +347,9 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   const activityLogs = logsPage?.rows || [];
   const totalActivityCount = logsPage?.total || 0;
 
-  // ── When Battles filter is active, build entries from battleHistory ─────────
+  // â”€â”€ When Battles filter is active, build entries from battleHistory â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // The activityLogs table only has winner-centric entries.  battleHistory
-  // queries battlePlayers directly for all participations — wins, losses,
+  // queries battlePlayers directly for all participations â€” wins, losses,
   // draws, and shared-mode are all present.
   const battleTimelineEntries: LogEntryRaw[] = React.useMemo(() => {
     if (typeFilter !== 'battle') return [];
@@ -413,7 +413,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   const effectiveTotal = typeFilter === 'battle' ? battleTimelineEntries.length : totalActivityCount;
   const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
 
-  // ── Build timeline ────────────────────────────────────────────────────────
+  // â”€â”€ Build timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const timeline: TimelineEntry[] = React.useMemo(() => {
     try {
@@ -437,7 +437,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }
   }, [effectiveLogs]);
 
-  // ── Stat cards (clickable — single-select type filter toggle) ──────────────
+  // â”€â”€ Stat cards (clickable â€” single-select type filter toggle) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const statCards = [
     { id: 'Packs',    label: 'Packs',    value: packsLoading ? '...' : String(packsTotal), color: '#9b5cff', icon: <Package size={10} /> },
@@ -457,7 +457,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
 
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display mb-3 flex items-center gap-2">
+      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans mb-3 flex items-center gap-2">
         <Activity size={12} className="text-[#00c8ff]" />
         Activity &amp; History
         {typeFilter && (
@@ -466,12 +466,12 @@ export function ActivitySection({ user }: ActivitySectionProps) {
             style={{ background: '#ffffff10', border: '1px solid #ffffff15', color: '#ffd700' }}
             onClick={() => { setTypeFilter(null); setPage(0); }}
           >
-            {typeFilter.replace('_', ' ')} ✕
+            {typeFilter.replace('_', ' ')} âœ•
           </span>
         )}
       </h4>
 
-      {/* Summary grid — clickable stat cards */}
+      {/* Summary grid â€” clickable stat cards */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         {statCards.map(s => {
           const filterType = STAT_FILTER_MAP[s.id];
@@ -488,7 +488,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
               }}
             >
               <div className="flex items-center justify-center gap-1 mb-0.5" style={{ color: s.color }}>{s.icon}</div>
-              <p className="text-[12px] font-display font-bold" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-[12px] font-sans font-bold" style={{ color: s.color }}>{s.value}</p>
               <p className="text-[8px] text-white/30 uppercase tracking-wider">{s.label}</p>
               {'sub' in s && s.sub && <p className="text-[8px] text-amber-400/70">{s.sub}</p>}
             </button>
@@ -535,7 +535,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
                   {entry.subtitle && <p className="text-[8px] text-white/30 truncate">{entry.subtitle}</p>}
                 </div>
                 <div className="text-right shrink-0">
-                  {entry.amount && <p className="text-[9px] font-bold font-display" style={{ color: entry.amountColor || entry.color }}>{entry.amount}</p>}
+                  {entry.amount && <p className="text-[9px] font-bold font-sans" style={{ color: entry.amountColor || entry.color }}>{entry.amount}</p>}
                   <p className="text-[7px] text-white/20">{entry.date ? new Date(entry.date).toLocaleDateString() : ''}</p>
                 </div>
               </div>
@@ -544,7 +544,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
-            <p className="text-[9px] text-white/20">{effectiveTotal} total · Page {page + 1} of {totalPages}</p>
+            <p className="text-[9px] text-white/20">{effectiveTotal} total Â· Page {page + 1} of {totalPages}</p>
             <div className="flex gap-1">
               <button
                 disabled={page === 0}

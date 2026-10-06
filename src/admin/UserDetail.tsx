@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, ShieldPlus } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -75,9 +75,9 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
     const confirmed = window.confirm(
       `Ban "${user.username || user.email}"?\n\n` +
       `Banning this user will:\n` +
-      `• Prevent them from logging in\n` +
-      `• Block new registrations using this email\n` +
-      `• Keep their account record intact\n\n` +
+      `â€¢ Prevent them from logging in\n` +
+      `â€¢ Block new registrations using this email\n` +
+      `â€¢ Keep their account record intact\n\n` +
       `Their email: ${user.email}`
     );
     if (!confirmed) return;
@@ -113,10 +113,10 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
     const confirmed = window.confirm(
       `Permanently delete "${user.username || user.email}"?\n\n` +
       `This will:\n` +
-      `• Mark the account as DELETED\n` +
-      `• Release their email address for future registration\n` +
-      `• Preserve financial and game history (detached from account)\n\n` +
-      `⚠ This action cannot be undone.\n` +
+      `â€¢ Mark the account as DELETED\n` +
+      `â€¢ Release their email address for future registration\n` +
+      `â€¢ Preserve financial and game history (detached from account)\n\n` +
+      `âš  This action cannot be undone.\n` +
       `Email to be released: ${user.email}`
     );
     if (!confirmed) return;
@@ -151,10 +151,10 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
     const confirmed = window.confirm(
       `Promote "${user.username || user.email}" to Admin?\n\n` +
       `This will grant them full access to:\n` +
-      `• Admin Panel login\n` +
-      `• All admin features (users, packs, cashouts, logs, etc.)\n` +
-      `• Support chat admin tools\n\n` +
-      `⚠ This action cannot be undone through the UI.`
+      `â€¢ Admin Panel login\n` +
+      `â€¢ All admin features (users, packs, cashouts, logs, etc.)\n` +
+      `â€¢ Support chat admin tools\n\n` +
+      `âš  This action cannot be undone through the UI.`
     );
     if (!confirmed) return;
     setPromotingUser(true);
@@ -197,7 +197,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
               )}
             </div>
             <div>
-              <h3 className="font-display text-lg text-white uppercase flex items-center gap-2 flex-wrap">
+              <h3 className="font-sans text-lg text-white uppercase flex items-center gap-2 flex-wrap">
                 {user.username || user.displayName}
                 <div className="flex gap-1.5 items-center">
                   {user.isBanned && <span className="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20 tracking-widest flex items-center gap-1"><Ban size={8} /> BANNED</span>}
@@ -249,7 +249,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display mb-2">Account Info</h4>
+            <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans mb-2">Account Info</h4>
             <div className="space-y-1">
               <p className="text-[11px] text-white/60">Created: <span className="text-white/80">{user.createdAt && !Number.isNaN(new Date(user.createdAt).getTime()) ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</span></p>
               <p className="text-[11px] text-white/60">
@@ -258,7 +258,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
             </div>
           </div>
           <div className="rounded-xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.12)' }}>
-            <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#f59e0b]/60 font-display mb-2 flex items-center gap-1.5">
+            <h4 className="text-[10px] uppercase tracking-[0.2em] text-[#f59e0b]/60 font-sans mb-2 flex items-center gap-1.5">
               <UsersRound size={11} />
               Referral Origin
             </h4>
@@ -294,11 +294,11 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
             { label: 'Balance', value: '$' + balance.toFixed(2), color: '#10b981' },
             { label: 'Matched', value: '$' + matched.toFixed(2), color: '#60a5fa' },
             { label: 'Real', value: '$' + realBalance.toFixed(2), color: '#f59e0b' },
-            { label: 'Gems', value: (user.gems ?? 0).toLocaleString() + ' 💎', color: '#9b5cff' },
+            { label: 'Gems', value: (user.gems ?? 0).toLocaleString() + ' ðŸ’Ž', color: '#9b5cff' },
           ].map(s => (
             <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{s.label}</p>
-              <p className="text-base font-display font-bold" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-base font-sans font-bold" style={{ color: s.color }}>{s.value}</p>
             </div>
           ))}
         </div>
@@ -308,7 +308,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
           ].map(s => (
             <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{s.label}</p>
-              <p className="text-base font-display font-bold" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-base font-sans font-bold" style={{ color: s.color }}>{s.value}</p>
             </div>
           ))}
         </div>

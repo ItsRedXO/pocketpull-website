@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Plus, Trash2, RefreshCw, Zap, X, ShoppingBag, Clock } from 'lucide-react';
 import {
@@ -56,7 +56,7 @@ function ShopSlate({ title, subtitle, itemKeys, allItems, onAdd, onRemove, pendi
       </div>
       <select disabled={pending} value="" onChange={e => { if (e.target.value) onAdd(e.target.value); }}
         className="w-full bg-white/5 border border-white/10 rounded-md text-[11px] text-white/70 px-2 py-1.5 outline-none focus:border-[#9b5cff]">
-        <option value="" className="bg-[#0d0e14]">+ Add item…</option>
+        <option value="" className="bg-[#0d0e14]">+ Add itemâ€¦</option>
         {available.map(i => <option key={i.key} value={i.key} className="bg-[#0d0e14]">{i.name} ({i.rarity})</option>)}
       </select>
     </div>
@@ -201,7 +201,7 @@ export function BrawlItemsTab({ showToast }: { showToast: (m: string, ok?: boole
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <ShoppingBag size={16} className="text-[#9b5cff]" />
-          <h2 className="font-display text-sm uppercase tracking-widest text-white/70">Poke Brawl — Items</h2>
+          <h2 className="font-sans text-sm uppercase tracking-widest text-white/70">Poke Brawl â€” Items</h2>
           <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40 bg-white/5">{items.length} in catalog</span>
         </div>
         <button onClick={() => setShowNewForm(v => !v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase bg-[#9b5cff]/20 text-[#9b5cff] hover:bg-[#9b5cff]/30">
@@ -234,7 +234,7 @@ export function BrawlItemsTab({ showToast }: { showToast: (m: string, ok?: boole
           </label>
           <div className="flex gap-2 lg:col-span-4">
             <button disabled={creating} onClick={handleCreate} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase bg-[#4ade80]/20 text-[#4ade80] hover:bg-[#4ade80]/30 disabled:opacity-50">
-              <Save size={12} /> {creating ? 'Creating…' : 'Create Item'}
+              <Save size={12} /> {creating ? 'Creatingâ€¦' : 'Create Item'}
             </button>
             <button onClick={() => { setShowNewForm(false); setNewItem(BLANK_NEW_ITEM); }} className="px-3 py-1.5 rounded-md text-[11px] font-bold uppercase text-white/40 hover:text-white">Cancel</button>
           </div>
@@ -262,7 +262,7 @@ export function BrawlItemsTab({ showToast }: { showToast: (m: string, ok?: boole
       )}
 
       {isLoading ? (
-        <div className="text-white/40 text-sm py-10 text-center">Loading items…</div>
+        <div className="text-white/40 text-sm py-10 text-center">Loading itemsâ€¦</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-white/10">
           <table className="w-full text-xs">

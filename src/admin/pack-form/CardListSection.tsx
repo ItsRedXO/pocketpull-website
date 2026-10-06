@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Sparkles, Plus } from 'lucide-react';
 import { 
   DndContext, 
@@ -62,11 +62,11 @@ export const CardListSection: React.FC<Props> = ({
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-display">
-          {isMystery ? 'Cards & Quantities' : `Cards & Odds — ${cards.length} cards`}
+        <h3 className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-sans">
+          {isMystery ? 'Cards & Quantities' : `Cards & Odds â€” ${cards.length} cards`}
         </h3>
-        <span className={`text-[11px] font-display font-bold ${isMystery || Math.abs(totalOdds - 100) <= 1 ? 'text-green-400' : 'text-red-400'}`}>
-          {isMystery ? 'Unit-weighted odds ✓' : `Total: ${totalOdds.toFixed(1)}% ${Math.abs(totalOdds - 100) > 1 ? '⚠ must equal 100%' : '✓'}`}
+        <span className={`text-[11px] font-sans font-bold ${isMystery || Math.abs(totalOdds - 100) <= 1 ? 'text-green-400' : 'text-red-400'}`}>
+          {isMystery ? 'Unit-weighted odds âœ“' : `Total: ${totalOdds.toFixed(1)}% ${Math.abs(totalOdds - 100) > 1 ? 'âš  must equal 100%' : 'âœ“'}`}
         </span>
       </div>
 
@@ -93,12 +93,12 @@ export const CardListSection: React.FC<Props> = ({
 
       <div className="mt-3 flex gap-2">
         <button onClick={addCard}
-          className="flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-[12px] font-display uppercase tracking-widest transition-all hover:bg-white/8"
+          className="flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-[12px] font-sans uppercase tracking-widest transition-all hover:bg-white/8"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1.5px dashed rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)' }}>
           <Plus size={13} /> Add Card
         </button>
         <button onClick={() => setShowTcgDex(true)}
-          className="flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-[12px] font-display uppercase tracking-widest transition-all hover:bg-white/8 text-white/80"
+          className="flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 text-[12px] font-sans uppercase tracking-widest transition-all hover:bg-white/8 text-white/80"
           style={{ background: 'linear-gradient(135deg, #9b5cff, #ff00ff)', border: '1.5px dashed rgba(255,255,255,0.12)' }}>
           <Sparkles size={13} /> Search TCGDex
         </button>

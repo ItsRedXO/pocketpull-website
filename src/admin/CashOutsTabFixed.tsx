@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Banknote, CheckCircle, ChevronLeft, ChevronRight, Loader2, Package, Printer, RefreshCw, RotateCcw, Search, Truck, X } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -190,7 +190,7 @@ export const CashOutsTabFixed: React.FC<{ showToast?: (msg: string, ok?: boolean
     return (
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <div><button onClick={() => setSelected(null)} className="text-[10px] font-bold uppercase tracking-wider text-[#00c8ff]">← Back to cashouts</button><h1 className="font-display text-2xl uppercase text-white mt-1">Cashout #{selected.confirmationNumber}</h1></div>
+          <div><button onClick={() => setSelected(null)} className="text-[10px] font-bold uppercase tracking-wider text-[#00c8ff]">â† Back to cashouts</button><h1 className="font-sans text-2xl uppercase text-white mt-1">Cashout #{selected.confirmationNumber}</h1></div>
           <button onClick={() => void refreshSelected(selected.id)} disabled={busy} className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/50"><RefreshCw size={14} className={busy ? 'animate-spin' : ''} /></button>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
@@ -205,7 +205,7 @@ export const CashOutsTabFixed: React.FC<{ showToast?: (msg: string, ok?: boolean
               return <label key={`${card.inventory_id || i}`} className="flex items-center gap-3 border-b border-white/5 px-4 py-3 cursor-pointer hover:bg-white/[0.03]">
                 <input type="checkbox" checked={checked} onChange={() => setSelectedIndices(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; })} disabled={isFulfilled || !['pending','processing','partial'].includes(selected.status)} />
                 {card.card_image_url ? <img src={card.card_image_url} alt="" className="h-10 w-8 rounded object-cover bg-black/20" /> : <div className="h-10 w-8 rounded bg-white/5 flex items-center justify-center"><Package size={13} className="text-white/20" /></div>}
-                <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-white">{card.card_name || 'Unknown Card'}</p><p className="text-[10px] text-white/35">{card.rarity || '—'} · {fmt(card.value)}</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-white">{card.card_name || 'Unknown Card'}</p><p className="text-[10px] text-white/35">{card.rarity || 'â€”'} Â· {fmt(card.value)}</p></div>
                 <span className={`text-[9px] font-bold uppercase ${isFulfilled ? 'text-green-400' : 'text-amber-400'}`}>{isFulfilled ? 'Fulfilled' : 'Pending'}</span>
               </label>;
             })}
@@ -234,7 +234,7 @@ export const CashOutsTabFixed: React.FC<{ showToast?: (msg: string, ok?: boolean
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Physical card fulfillment</p><h1 className="font-display text-2xl uppercase text-white">Cash Outs</h1><p className="text-[11px] text-white/30">Manage requests, fulfillment, returns and shipping</p></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Physical card fulfillment</p><h1 className="font-sans text-2xl uppercase text-white">Cash Outs</h1><p className="text-[11px] text-white/30">Manage requests, fulfillment, returns and shipping</p></div>
         <div className="flex gap-2"><button onClick={() => generateAllPdf(pendingSummary.cards.map(c => ({ card_name: c.name, quantity: c.quantity, value: c.value })), pendingSummary.value)} disabled={!pendingSummary.cards.length} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white/50 disabled:opacity-30"><Printer size={12} className="inline mr-1" /> Print pending</button><button onClick={() => void load()} disabled={loading} className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/50"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /></button></div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3"><Stat label="Pending" value={String(requests.filter(r => r.status === 'pending').length)} /><Stat label="Processing" value={String(requests.filter(r => r.status === 'processing').length)} /><Stat label="Shipped" value={String(requests.filter(r => r.status === 'shipped').length)} /><Stat label="Total Requests" value={String(requests.length)} /></div>
@@ -242,9 +242,9 @@ export const CashOutsTabFixed: React.FC<{ showToast?: (msg: string, ok?: boolean
       <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
         {loading ? <div className="p-12 text-center text-white/30"><Loader2 size={20} className="mx-auto animate-spin mb-2" />Loading cashouts...</div> : visible.length === 0 ? <div className="p-12 text-center text-white/30">No cashout requests match.</div> : visible.map(req => { const colors = statusColor(req.status); return <button key={req.id} onClick={() => openRequest(req)} className="grid w-full gap-2 border-b border-white/5 px-4 py-3 text-left hover:bg-white/[0.04] md:grid-cols-[1.2fr_1fr_100px_100px_120px] md:items-center"><span className="truncate text-xs text-white">{req.username}</span><span className="truncate text-[10px] text-white/45">#{req.confirmationNumber}</span><span className="text-xs font-bold text-[#10b981]">{fmt(req.totalValue)}</span><span className="text-[10px] font-bold uppercase" style={{ color: colors.color }}>{req.status}</span><span className="text-[10px] text-white/30">{fmtDate(req.createdAt)}</span></button>; })}
       </div>
-      <div className="flex items-center justify-between"><span className="text-[11px] text-white/30">{filtered.length} requests · Page {page} of {totalPages}</span><div className="flex gap-1"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronLeft size={13} /></button><button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronRight size={13} /></button></div></div>
+      <div className="flex items-center justify-between"><span className="text-[11px] text-white/30">{filtered.length} requests Â· Page {page} of {totalPages}</span><div className="flex gap-1"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronLeft size={13} /></button><button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronRight size={13} /></button></div></div>
     </section>
   );
 };
 
-function Stat({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-center"><p className="text-[10px] uppercase tracking-wider text-white/30">{label}</p><p className="mt-1 text-lg font-display font-bold text-white">{value}</p></div>; }
+function Stat({ label, value }: { label: string; value: string }) { return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-center"><p className="text-[10px] uppercase tracking-wider text-white/30">{label}</p><p className="mt-1 text-lg font-sans font-bold text-white">{value}</p></div>; }

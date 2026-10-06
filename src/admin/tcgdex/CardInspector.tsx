@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { TcgDexCard } from '../../lib/tcgdex';
@@ -45,7 +45,7 @@ export const CardInspector: React.FC<CardInspectorProps> = ({ card, isSelected, 
         <div className="w-full md:w-1/2 p-8 flex flex-col gap-5 overflow-y-auto max-h-[90vh]">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-2xl text-white font-display uppercase leading-tight mb-1">{card.name}</h3>
+              <h3 className="text-2xl text-white font-sans uppercase leading-tight mb-1">{card.name}</h3>
               <p className="text-[#9b5cff] text-sm font-bold uppercase tracking-widest">{card.set}</p>
             </div>
             <button onClick={onClose} className="text-white/20 hover:text-white transition-colors">

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
 
@@ -51,7 +51,7 @@ export const CardPreviewModal: React.FC<Props> = ({ card, onClose }) => {
                   />
                 ) : (
                   <div className="w-40 h-56 rounded-xl bg-white/5 flex items-center justify-center">
-                    <span className="text-4xl">🃏</span>
+                    <span className="text-4xl">ðŸƒ</span>
                   </div>
                 )}
                 <div 
@@ -65,7 +65,7 @@ export const CardPreviewModal: React.FC<Props> = ({ card, onClose }) => {
             <div className="w-full md:w-1/2 p-6 flex flex-col">
               <div className="flex justify-between items-start mb-4">
                 <div className="min-w-0">
-                  <h3 className="text-xl font-display text-white uppercase leading-tight truncate">{card.cardName}</h3>
+                  <h3 className="text-xl font-sans text-white uppercase leading-tight truncate">{card.cardName}</h3>
                   <p className="text-xs font-bold uppercase tracking-widest mt-1" style={{ color: RARITY_COLOR[card.rarity] }}>
                     {card.rarity}
                   </p>
@@ -78,7 +78,7 @@ export const CardPreviewModal: React.FC<Props> = ({ card, onClose }) => {
               <div className="space-y-4 flex-1">
                 <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                   <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Market Value</p>
-                  <p className="text-2xl font-display font-bold text-[#10b981]">${card.value.toFixed(2)}</p>
+                  <p className="text-2xl font-sans font-bold text-[#10b981]">${card.value.toFixed(2)}</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">

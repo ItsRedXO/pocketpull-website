@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X, Package, DollarSign, Swords, ShoppingCart, Sparkles, ArrowRightLeft, CreditCard, Crown, Bot, Activity } from 'lucide-react';
 import { blink } from '../lib/blink';
 import type { TimelineEntry } from './activityTypes';
 
-// ── Safe helpers ────────────────────────────────────────────────────────────
+// â”€â”€ Safe helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function n(v: any, d = 0): number { const x = Number(v); return Number.isFinite(x) ? x : d; }
 function s(v: any, d = ''): string { if (v == null) return d; return typeof v === 'string' ? v : String(v); }
 function a(v: any): any[] { return Array.isArray(v) ? v : []; }
 
-// ── Icons per type ──────────────────────────────────────────────────────────
+// â”€â”€ Icons per type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   pack_open: <Package size={12} />, sell: <DollarSign size={12} />,
   battle: <Swords size={12} />, cashout: <ShoppingCart size={12} />,
@@ -57,7 +57,7 @@ export function ActivityDetailPopup({ entry, onClose }: { entry: TimelineEntry; 
             {TYPE_ICONS[type] || <Activity size={12} />}
           </div>
           <div>
-            <h4 className="font-display text-sm text-white uppercase tracking-wide">{s(action, entry.title)}</h4>
+            <h4 className="font-sans text-sm text-white uppercase tracking-wide">{s(action, entry.title)}</h4>
             <p className="text-[10px] text-white/30">{createdAt ? new Date(createdAt).toLocaleString() : ''}</p>
           </div>
         </div>
@@ -77,7 +77,7 @@ export function ActivityDetailPopup({ entry, onClose }: { entry: TimelineEntry; 
   );
 }
 
-// ── Error-safe wrapper ──────────────────────────────────────────────────────
+// â”€â”€ Error-safe wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class SafeView extends React.Component<{ children: React.ReactNode }> {
   state = { err: false };
   static getDerivedStateFromError() { return { err: true }; }
@@ -87,9 +87,9 @@ class SafeView extends React.Component<{ children: React.ReactNode }> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Pack Opening Details ───────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Pack Opening Details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function PackDetails({ details, valueIn, valueOut }: { details: any; valueIn: number; valueOut: number }) {
   return (
@@ -97,7 +97,7 @@ function PackDetails({ details, valueIn, valueOut }: { details: any; valueIn: nu
       <div className="p-2.5 rounded-lg text-center text-[11px] font-bold uppercase tracking-wider bg-[#9b5cff]/10 text-[#9b5cff] border border-[#9b5cff]/20">
         Pack Opened
       </div>
-      <Row label="Pack Name" value={details?.packName || '—'} />
+      <Row label="Pack Name" value={details?.packName || 'â€”'} />
       <Row label="Pack Price" value={`$${Number(details?.packCost || valueIn || 0).toFixed(2)}`} valueColor="text-red-400" />
       <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
         <p className="text-[9px] uppercase tracking-wider text-white/25 mb-2">Card Pulled</p>
@@ -110,7 +110,7 @@ function PackDetails({ details, valueIn, valueOut }: { details: any; valueIn: nu
               )}
             </div>
           )}
-          <span className="text-[12px] font-display font-bold text-green-400">${Number(details?.cardValue || valueOut || 0).toFixed(2)}</span>
+          <span className="text-[12px] font-sans font-bold text-green-400">${Number(details?.cardValue || valueOut || 0).toFixed(2)}</span>
         </div>
       </div>
       <Divider />
@@ -120,9 +120,9 @@ function PackDetails({ details, valueIn, valueOut }: { details: any; valueIn: nu
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Card Sold Details ──────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Card Sold Details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function SellDetails({ details, valueIn }: { details: any; valueIn: number }) {
   const cards = Array.isArray(details?.cards) ? details.cards : [];
@@ -201,13 +201,13 @@ function SellDetails({ details, valueIn }: { details: any; valueIn: number }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Battle Details ─────────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Battle Details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function BattleDetails({ details, valueIn, valueOut, result }: { details: any; valueIn: number; valueOut: number; result: string }) {
   const mode = details?.mode || 'standard';
-  const packNames = details?.packNames || '—';
+  const packNames = details?.packNames || 'â€”';
   const players = details?.players || [];
   const winner = details?.winner || {};
   const totalPot = Number(details?.totalPot || valueIn || 0);
@@ -219,16 +219,16 @@ function BattleDetails({ details, valueIn, valueOut, result }: { details: any; v
   let resultLabel: string;
   let resultColor: string;
   if (isShared) {
-    resultLabel = '🤝 SHARED REWARDS';
+    resultLabel = 'ðŸ¤ SHARED REWARDS';
     resultColor = 'text-[#00c8ff] border-[#00c8ff]/20 bg-[#00c8ff]/10';
   } else if (isDraw) {
-    resultLabel = '⚖️ DRAW';
+    resultLabel = 'âš–ï¸ DRAW';
     resultColor = 'text-amber-400 border-amber-500/20 bg-amber-500/10';
   } else if (myResult?.isWinner) {
-    resultLabel = '🎉 Battle WON';
+    resultLabel = 'ðŸŽ‰ Battle WON';
     resultColor = 'text-green-400 border-green-500/20 bg-green-500/10';
   } else {
-    resultLabel = '💔 Battle LOST';
+    resultLabel = 'ðŸ’” Battle LOST';
     resultColor = 'text-red-400 border-red-500/20 bg-red-500/10';
   }
 
@@ -297,9 +297,9 @@ function BattleDetails({ details, valueIn, valueOut, result }: { details: any; v
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Cashout Details ────────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Cashout Details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function CashoutDetails({ details, valueOut, result }: { details: any; valueOut: number; result: string }) {
   const status = details?.status || result || 'pending';
@@ -344,15 +344,15 @@ function CashoutDetails({ details, valueOut, result }: { details: any; valueOut:
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Existing detail views (unchanged logic, cleaned up) ────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Existing detail views (unchanged logic, cleaned up) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function UpgradeDetails({ details, result, valueIn, valueOut }: { details: any; result: string; valueIn: number; valueOut: number }) {
   return (
     <div className="space-y-3">
       <div className={`p-2.5 rounded-lg text-center text-[11px] font-bold uppercase tracking-wider ${result === 'win' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-        {result === 'win' ? '🎉 Upgrade WIN' : '💔 Upgrade LOSS'}
+        {result === 'win' ? 'ðŸŽ‰ Upgrade WIN' : 'ðŸ’” Upgrade LOSS'}
       </div>
       {details?.winChance != null && <Row label="Success Chance" value={`${details.winChance}%`} valueColor="text-[#00c8ff]" />}
       {details?.cardsUsed?.length > 0 && <CardGroup label="Cards Put In" cards={details.cardsUsed} bg="rgba(255,255,255,0.03)" vc="text-white/40" />}
@@ -418,32 +418,32 @@ function DepositDetails({ details, valueIn, result, createdAt }: { details: any;
       <Row label="Amount" value={`+$${Number(details?.amount || valueIn || 0).toFixed(2)}`} valueColor="text-green-400" />
       {details?.paymentIntentId && <Row label="Stripe Payment ID" value={details.paymentIntentId} valueColor="text-white/60" />}
       {details?.chargeId && <Row label="Coinbase Charge ID" value={details.chargeId} valueColor="text-white/60" />}
-      <Row label="Payment Method" value={details?.paymentMethod || '—'} />
-      <Row label="Status" value={details?.status || result || '—'} valueColor="text-green-400" />
-      <Row label="Date" value={createdAt ? new Date(createdAt).toLocaleString() : '—'} />
+      <Row label="Payment Method" value={details?.paymentMethod || 'â€”'} />
+      <Row label="Status" value={details?.status || result || 'â€”'} valueColor="text-green-400" />
+      <Row label="Date" value={createdAt ? new Date(createdAt).toLocaleString() : 'â€”'} />
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Unknown type fallback ──────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Unknown type fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function UnknownDetails({ entry }: { entry: TimelineEntry }) {
   const d = entry.logData;
   return (
     <div className="space-y-2.5">
-      <Row label="Type" value={s(d?.type, '—')} />
-      <Row label="Result" value={s(d?.result, '—')} />
+      <Row label="Type" value={s(d?.type, 'â€”')} />
+      <Row label="Result" value={s(d?.result, 'â€”')} />
       <Row label="Value In" value={`${n(d?.valueIn).toFixed(2)}`} valueColor="text-amber-400" />
       <Row label="Value Out" value={`${n(d?.valueOut).toFixed(2)}`} valueColor="text-green-400" />
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ── Shared helpers ─────────────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function Row({ label, value, valueColor = 'text-white/60' }: { label: string; value: string; valueColor?: string }) {
   return (

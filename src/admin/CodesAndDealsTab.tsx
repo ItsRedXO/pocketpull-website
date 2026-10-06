@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ticket, Percent, Users, Save, Plus, RefreshCw, Shuffle, Pencil, X, Ban, CheckCircle2, Loader2, User, Trash2, DollarSign, Package, Clock } from 'lucide-react';
 import {
@@ -39,7 +39,7 @@ const emptyForm = {
   maxUses: '', expiresAt: '', expiresTime: '',
 };
 
-// ── Deal Settings ──────────────────────────────────────────────────────────────
+// â”€â”€ Deal Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DealsSection({ showToast }: Props) {
   const { data, isLoading, refetch } = useQuery({ queryKey: ['admin-deal-settings'], queryFn: fetchDealSettings, staleTime: 0 });
   const [draft, setDraft] = useState<DealSettings | null>(null);
@@ -74,7 +74,7 @@ function DealsSection({ showToast }: Props) {
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(155,92,255,0.15)' }}>
           <Percent size={13} className="text-[#9b5cff]" />
         </div>
-        <h3 className="font-display text-sm uppercase tracking-wider text-white">Standing Deals</h3>
+        <h3 className="font-sans text-sm uppercase tracking-wider text-white">Standing Deals</h3>
       </div>
       <div className="p-5 space-y-4">
         <div className="grid sm:grid-cols-3 gap-4">
@@ -97,7 +97,7 @@ function DealsSection({ showToast }: Props) {
         <p className="text-[10px] text-white/25">Referral reward applies to both the referrer and the new signup.</p>
         <div className="flex items-center gap-3">
           <button onClick={save} disabled={!isDirty || saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-display text-[11px] uppercase tracking-wider disabled:opacity-30 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-sans text-[11px] uppercase tracking-wider disabled:opacity-30 transition-all"
             style={{ background: 'rgba(155,92,255,0.9)', color: '#fff' }}>
             <Save size={13} /> {saving ? 'Saving...' : 'Save Deal Settings'}
           </button>
@@ -108,7 +108,7 @@ function DealsSection({ showToast }: Props) {
   );
 }
 
-// ── Code Detail Modal ─────────────────────────────────────────────────────────
+// â”€â”€ Code Detail Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClose: () => void; showToast: (msg: string, ok?: boolean) => void }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['admin-promo-code-redemptions', code.id], queryFn: () => fetchPromoCodeRedemptions(code.id) });
@@ -162,7 +162,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
             {isSocial ? (
               <div>
                 <p className="text-[10px] font-bold text-[#9b5cff] flex items-center gap-1"><Package size={10} /> Social Pack</p>
-                <p className="text-[10px] text-white/60">{code.rewardPackName || '—'}</p>
+                <p className="text-[10px] text-white/60">{code.rewardPackName || 'â€”'}</p>
               </div>
             ) : (
               <p className="text-sm font-bold text-white">${code.rewardAmount.toFixed(2)}</p>
@@ -170,7 +170,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Total Uses</p>
-            <p className="text-sm font-bold text-white">{code.useCount}{code.maxUses !== null ? ` / ${code.maxUses}` : ' / ∞'}</p>
+            <p className="text-sm font-bold text-white">{code.useCount}{code.maxUses !== null ? ` / ${code.maxUses}` : ' / âˆž'}</p>
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Status</p>
@@ -223,7 +223,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
   const qc = useQueryClient();
   const { data, isLoading, isFetching, refetch } = useQuery({ queryKey: ['admin-promo-codes'], queryFn: fetchPromoCodes, staleTime: 0 });
@@ -301,13 +301,13 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="font-display text-xl uppercase tracking-wider text-white">Codes & Deals</h2>
+        <h2 className="font-sans text-xl uppercase tracking-wider text-white">Codes & Deals</h2>
         <p className="text-[11px] text-white/30 mt-0.5">Promo codes for socials, plus the standing first-deposit match and referral bonus</p>
       </div>
 
       <DealsSection showToast={showToast} />
 
-      {/* ── Code Form ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ Code Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(13,14,20,0.9)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
@@ -315,7 +315,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,200,255,0.12)' }}>
               <Ticket size={13} className="text-[#00c8ff]" />
             </div>
-            <h3 className="font-display text-sm uppercase tracking-wider text-white">{editingId ? 'Edit Code' : 'New Promo Code'}</h3>
+            <h3 className="font-sans text-sm uppercase tracking-wider text-white">{editingId ? 'Edit Code' : 'New Promo Code'}</h3>
           </div>
           {editingId && (
             <button onClick={cancelEdit} className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/40 hover:text-white/70 transition-colors">
@@ -376,7 +376,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Select Pack</label>
               {socialPacks.length === 0 ? (
-                <p className="text-[11px] text-white/30 py-2">No social packs found — create one in the Packs tab first.</p>
+                <p className="text-[11px] text-white/30 py-2">No social packs found â€” create one in the Packs tab first.</p>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-2">
                   {socialPacks.map(p => (
@@ -434,7 +434,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5 flex items-center gap-1">
-                <Clock size={10} /> Expiry Time <span className="text-white/20">(optional · UTC)</span>
+                <Clock size={10} /> Expiry Time <span className="text-white/20">(optional Â· UTC)</span>
               </label>
               <input type="time" value={form.expiresTime}
                 onChange={e => setForm({ ...form, expiresTime: e.target.value })}
@@ -446,7 +446,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
 
           <div className="pt-1">
             <button type="submit" disabled={submitting}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-display text-[11px] uppercase tracking-wider disabled:opacity-40 transition-all active:scale-95"
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-sans text-[11px] uppercase tracking-wider disabled:opacity-40 transition-all active:scale-95"
               style={{ background: 'linear-gradient(90deg,#9b5cff,#00c8ff)', color: '#000', fontWeight: 700 }}>
               <Plus size={13} /> {submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Create Code'}
             </button>
@@ -455,10 +455,10 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
         </form>
       </div>
 
-      {/* ── Codes List ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ Codes List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(13,14,20,0.9)' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
-          <h3 className="font-display text-sm uppercase tracking-wider text-white">All Codes ({codes.length})</h3>
+          <h3 className="font-sans text-sm uppercase tracking-wider text-white">All Codes ({codes.length})</h3>
           <button onClick={() => refetch()} disabled={isFetching} className="p-2 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 disabled:opacity-30 transition-all">
             <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
           </button>
@@ -466,7 +466,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
         {isLoading ? (
           <div className="flex items-center justify-center py-10"><Loader2 size={20} className="animate-spin text-white/30" /></div>
         ) : codes.length === 0 ? (
-          <div className="text-white/30 text-xs py-10 text-center">No promo codes yet — create one above.</div>
+          <div className="text-white/30 text-xs py-10 text-center">No promo codes yet â€” create one above.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[12px]">
@@ -488,7 +488,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                     <td className="px-5 py-3">
                       <button onClick={() => setViewingCode(c)} className="font-mono font-bold text-[#00c8ff] hover:underline">{c.code}</button>
                     </td>
-                    <td className="px-5 py-3 text-white/50 max-w-[160px] truncate">{c.description || '—'}</td>
+                    <td className="px-5 py-3 text-white/50 max-w-[160px] truncate">{c.description || 'â€”'}</td>
                     <td className="px-5 py-3">
                       {c.rewardType === 'social_pack' ? (
                         <div className="flex items-center gap-1.5">
@@ -499,9 +499,9 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                         <span className="text-white font-bold">${c.rewardAmount.toFixed(2)}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-white/50">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / ∞'}</td>
+                    <td className="px-5 py-3 text-white/50">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / âˆž'}</td>
                     <td className="px-5 py-3 text-white/50">{new Date(c.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : '—'}</td>
+                    <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : 'â€”'}</td>
                     <td className="px-5 py-3">
                       <button onClick={() => toggleActive(c)}
                         className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${c.isActive ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-white/5 text-white/30 border-white/10 hover:bg-white/10'}`}>

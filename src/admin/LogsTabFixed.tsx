@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
 import { Search, RefreshCw, Filter, X, ChevronLeft, ChevronRight, Shield, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -106,7 +106,7 @@ export function LogsTabFixed() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#9b5cff]">Audit trail</p>
-          <h1 className="font-display text-2xl uppercase text-white">Admin Logs</h1>
+          <h1 className="font-sans text-2xl uppercase text-white">Admin Logs</h1>
           <p className="text-[11px] text-white/30 mt-0.5">PostgreSQL-backed activity history</p>
         </div>
         <button onClick={() => void load(page)} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-40">
@@ -143,16 +143,16 @@ export function LogsTabFixed() {
               <span className="text-[10px] font-bold uppercase" style={{ color: meta.color }}>{meta.label}</span>
               <span className="truncate text-xs text-white/70">{log.username || log.userId || 'System'}</span>
               <span className="truncate text-xs text-white">{log.action}</span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase" style={{ color: result.color }}>{result.icon}{log.result || '—'}</span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase" style={{ color: result.color }}>{result.icon}{log.result || 'â€”'}</span>
               <span className="text-[10px] text-white/35">{formatDate(log.createdAt)}</span>
-              <span className="text-xs font-bold" style={{ color: value ? '#10b981' : '#ffffff40' }}>{value ? `$${value.toFixed(2)}` : '—'}</span>
+              <span className="text-xs font-bold" style={{ color: value ? '#10b981' : '#ffffff40' }}>{value ? `$${value.toFixed(2)}` : 'â€”'}</span>
             </button>
           );
         })}
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] text-white/30">{total.toLocaleString()} total entries · Page {page} of {totalPages}</span>
+        <span className="text-[11px] text-white/30">{total.toLocaleString()} total entries Â· Page {page} of {totalPages}</span>
         <div className="flex gap-1">
           <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/50 disabled:opacity-30"><ChevronLeft size={13} /></button>
           <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/50 disabled:opacity-30"><ChevronRight size={13} /></button>
@@ -170,7 +170,7 @@ export function LogsTabFixed() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <Meta label="Type" value={selected.type} />
                 <Meta label="User" value={selected.username || selected.userId || 'System'} />
-                <Meta label="Result" value={selected.result || '—'} />
+                <Meta label="Result" value={selected.result || 'â€”'} />
                 <Meta label="Created" value={formatDate(selected.createdAt)} />
                 <Meta label="Value In" value={`$${Number(selected.valueIn || 0).toFixed(2)}`} />
                 <Meta label="Value Out" value={`$${Number(selected.valueOut || 0).toFixed(2)}`} />

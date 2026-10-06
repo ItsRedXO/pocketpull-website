@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Search, Ban, UserX, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { UserRow, FilterTab } from './types';
 import { getPresenceStatus, PRESENCE_COLOR, PRESENCE_LABEL } from './presence';
@@ -155,7 +155,7 @@ export function UserList({
                             />
                           );
                         })()}
-                        <p className={`text-[12px] font-display truncate ${u.isDeleted ? 'text-white/30' : 'text-white'}`}>
+                        <p className={`text-[12px] font-sans truncate ${u.isDeleted ? 'text-white/30' : 'text-white'}`}>
                           {u.username || u.displayName || 'Unknown'}
                         </p>
                         {u.role === 'admin' && !u.isDeleted && (

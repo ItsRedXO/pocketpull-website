@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Users, Edit3, Check, X, Copy } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { UserRow } from './types';
@@ -39,7 +39,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
   const [newCode, setNewCode] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // ── Fetch user's own referral code & referred users ──────────────────────
+  // â”€â”€ Fetch user's own referral code & referred users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { data, isLoading, isError, error } = useQuery<{
     referralCode: string;
     referredUsers: ReferredUser[];
@@ -104,7 +104,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
     staleTime: 15_000,
   });
 
-  // ── Edit referral code ───────────────────────────────────────────────────
+  // â”€â”€ Edit referral code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const startEditing = () => {
     setNewCode(data?.referralCode || '');
     setEditingCode(true);
@@ -185,11 +185,11 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display flex items-center gap-2">
+        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans flex items-center gap-2">
           <Users size={12} className="text-[#f59e0b]" />
-          Referrals · {totalCount} user{totalCount !== 1 ? 's' : ''}
+          Referrals Â· {totalCount} user{totalCount !== 1 ? 's' : ''}
         </h4>
-        <span className="text-[10px] font-bold font-display text-[#f59e0b]/80 tracking-wider">
+        <span className="text-[10px] font-bold font-sans text-[#f59e0b]/80 tracking-wider">
           ${(totalCount * 10).toFixed(2)} potential
         </span>
       </div>
@@ -239,7 +239,7 @@ export function ReferralsSection({ user, showToast, logAdminAction }: ReferralsS
           </div>
         ) : (
           <p className="text-lg font-mono font-bold tracking-widest text-[#f59e0b]">
-            {referralCode || '—'}
+            {referralCode || 'â€”'}
           </p>
         )}
 

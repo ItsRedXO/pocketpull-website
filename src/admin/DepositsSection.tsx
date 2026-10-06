@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { CreditCard } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { UserRow } from './types';
@@ -40,11 +40,11 @@ export function DepositsSection({ user }: DepositsSectionProps) {
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display flex items-center gap-2">
+        <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans flex items-center gap-2">
           <CreditCard size={12} className="text-green-400" />
           Deposits
         </h4>
-        <span className="text-[10px] font-bold font-display text-green-400/80 tracking-wider">
+        <span className="text-[10px] font-bold font-sans text-green-400/80 tracking-wider">
           Total: ${totalDeposits.toFixed(2)}
         </span>
       </div>
@@ -70,7 +70,7 @@ export function DepositsSection({ user }: DepositsSectionProps) {
                   {d.createdAt ? new Date(d.createdAt).toLocaleDateString() : ''}
                 </p>
               </div>
-              <span className="text-[11px] font-bold font-display text-green-400">
+              <span className="text-[11px] font-bold font-sans text-green-400">
                 +${d.amount.toFixed(2)}
               </span>
             </div>

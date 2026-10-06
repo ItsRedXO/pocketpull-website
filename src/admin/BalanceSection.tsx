@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 import { UserRow } from './types';
@@ -86,7 +86,7 @@ export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: Ba
 
   return (
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-display mb-3">Adjust Balance</h4>
+      <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans mb-3">Adjust Balance</h4>
       <div className="flex gap-2">
         <input
           type="number"
@@ -102,7 +102,7 @@ export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: Ba
           className="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 transition-all"
           style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}
         >
-          {savingBalance ? '...' : '± Add'}
+          {savingBalance ? '...' : 'Â± Add'}
         </button>
         <button
           onClick={handleSetBalance}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Save, Package, Sparkles, Users, Target, Shuffle } from 'lucide-react';
 import { fetchSiteSettings, patchSiteSettings } from './siteSettingsAdminApi';
@@ -128,14 +128,14 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
 
   if (isLoading || !draft) {
     if (isError) return <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-300">Failed to load site settings.</div>;
-    return <div className="flex items-center justify-center py-24 text-white/30 text-xs uppercase tracking-widest font-display">Loading settings...</div>;
+    return <div className="flex items-center justify-center py-24 text-white/30 text-xs uppercase tracking-widest font-sans">Loading settings...</div>;
   }
 
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-xl uppercase tracking-wider text-white">Site Settings</h2>
+          <h2 className="font-sans text-xl uppercase tracking-wider text-white">Site Settings</h2>
           <p className="text-[11px] text-white/30 mt-0.5">Control the ranges behind the homepage's simulated live numbers</p>
         </div>
         <button onClick={() => refetch()} disabled={isFetching} className="p-2 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 disabled:opacity-30">
@@ -165,7 +165,7 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
                 {cfg.key === 'livePlayers' && (
                   <div className="text-right">
                     <p className="text-[9px] uppercase tracking-widest text-white/30">Sample right now</p>
-                    <p className="text-sm font-display font-bold" style={{ color: cfg.color }}>{getSimulatedLivePlayers(min, max).toLocaleString()}</p>
+                    <p className="text-sm font-sans font-bold" style={{ color: cfg.color }}>{getSimulatedLivePlayers(min, max).toLocaleString()}</p>
                   </div>
                 )}
               </div>
@@ -174,7 +174,7 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[10px] uppercase tracking-widest text-white/40">Min</label>
-                    <span className="text-[12px] font-display font-bold text-white">{min.toLocaleString()}</span>
+                    <span className="text-[12px] font-sans font-bold text-white">{min.toLocaleString()}</span>
                   </div>
                   <input
                     type="range"
@@ -194,7 +194,7 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[10px] uppercase tracking-widest text-white/40">Max</label>
-                    <span className="text-[12px] font-display font-bold text-white">{max.toLocaleString()}</span>
+                    <span className="text-[12px] font-sans font-bold text-white">{max.toLocaleString()}</span>
                   </div>
                   <input
                     type="range"
@@ -220,7 +220,7 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
                       {overridden ? <Target size={12} style={{ color: cfg.color }} /> : <Shuffle size={12} className="text-white/30" />}
                       <span className="text-[10px] uppercase tracking-widest text-white/40">
                         Today ends at{' '}
-                        <span className="font-display font-bold text-[12px] normal-case tracking-normal" style={{ color: cfg.color }}>
+                        <span className="font-sans font-bold text-[12px] normal-case tracking-normal" style={{ color: cfg.color }}>
                           {liveTarget?.toLocaleString()}
                         </span>
                       </span>
@@ -240,7 +240,7 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
                       max={max}
                       value={targetInputs[cfg.key] ?? ''}
                       onChange={e => setTargetInputs(prev => ({ ...prev, [cfg.key]: e.target.value }))}
-                      className="px-3 py-1.5 rounded-lg text-[12px] font-display font-bold text-white bg-white/5 border border-white/10 w-32"
+                      className="px-3 py-1.5 rounded-lg text-[12px] font-sans font-bold text-white bg-white/5 border border-white/10 w-32"
                     />
                     <button
                       onClick={() => cfg.dailyTarget && pinTarget(cfg.dailyTarget, cfg.key)}
@@ -271,7 +271,7 @@ export const SiteSettingsTab: React.FC<Props> = ({ showToast }) => {
         <button
           onClick={save}
           disabled={!isDirty || saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-display text-[11px] uppercase tracking-wider disabled:opacity-30"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-sans text-[11px] uppercase tracking-wider disabled:opacity-30"
           style={{ background: '#9b5cff', color: '#fff' }}
         >
           <Save size={13} /> {saving ? 'Saving...' : 'Save Range Changes'}

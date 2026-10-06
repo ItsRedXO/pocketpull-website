@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, Eye, EyeOff, Shield } from 'lucide-react';
 
@@ -44,8 +44,8 @@ export const AdminLogin: React.FC<Props> = ({ onLogin, error }) => {
           >
             <Shield size={28} className="text-[#9b5cff]" />
           </div>
-          <h1 className="text-2xl font-display font-bold text-white tracking-wide uppercase">Admin Portal</h1>
-          <p className="text-[12px] text-white/30 mt-1 uppercase tracking-[0.2em]">PocketPull TCG — Restricted Access</p>
+          <h1 className="text-2xl font-sans font-bold text-white tracking-wide uppercase">Admin Portal</h1>
+          <p className="text-[12px] text-white/30 mt-1 uppercase tracking-[0.2em]">PocketPull TCG â€” Restricted Access</p>
         </div>
 
         {/* Form */}
@@ -106,7 +106,7 @@ export const AdminLogin: React.FC<Props> = ({ onLogin, error }) => {
             disabled={loading || !identifier.trim() || !password.trim()}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full py-4 rounded-xl font-display text-[13px] uppercase tracking-widest font-bold disabled:opacity-50 transition-all"
+            className="w-full py-4 rounded-xl font-sans text-[13px] uppercase tracking-widest font-bold disabled:opacity-50 transition-all"
             style={{
               background: 'linear-gradient(135deg, #9b5cff, #00c8ff)',
               color: '#fff',
@@ -118,7 +118,7 @@ export const AdminLogin: React.FC<Props> = ({ onLogin, error }) => {
         </form>
 
         <p className="text-center text-[11px] text-white/15 mt-6">
-          🔒 Secure admin access only
+          ðŸ”’ Secure admin access only
         </p>
       </motion.div>
     </div>
