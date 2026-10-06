@@ -1,23 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Save, RotateCcw } from 'lucide-react';
-import { useBrawlCardLayout, DEFAULT_BRAWL_CARD_LAYOUT, type BrawlCardLayout } from '../hooks/useSiteConfig';
-import { PokemonStatCard, type CardTier } from '../pages/brawl/PokemonStatCard';
+import { Save, RotateCcw, SaveAll } from 'lucide-react';
+import {
+  useBrawlTierLayouts,
+  DEFAULT_BRAWL_CARD_LAYOUT, DEFAULT_BRAWL_TIER_LAYOUTS,
+  type BrawlCardLayout, type BrawlTierLayouts, type CardTier,
+} from '../hooks/useSiteConfig';
+import { PokemonStatCard } from '../pages/brawl/PokemonStatCard';
 
 const PREVIEW_MONS: Record<CardTier, React.ComponentProps<typeof PokemonStatCard>['mon']> = {
-  bronze:    { name: 'Rattata',   artwork_url: null, primary_type: 'normal', overall_rating: 28, base_attack: 56, base_defense: 35, base_hp: 30,  base_speed: 72, is_legendary: 0, is_mythical: 0, card_tier_override: 'bronze' },
-  silver:    { name: 'Wartortle', artwork_url: null, primary_type: 'water',  overall_rating: 55, base_attack: 63, base_defense: 80, base_hp: 59,  base_speed: 58, is_legendary: 0, is_mythical: 0, card_tier_override: 'silver' },
-  gold:      { name: 'Flareon',   artwork_url: null, primary_type: 'fire',   overall_rating: 72, base_attack: 83, base_defense: 60, base_hp: 65,  base_speed: 65, is_legendary: 0, is_mythical: 0, card_tier_override: 'gold' },
-  legendary: { name: 'Dragonite', artwork_url: null, primary_type: 'dragon', overall_rating: 84, base_attack: 134,base_defense: 95, base_hp: 91,  base_speed: 80, is_legendary: 0, is_mythical: 0, card_tier_override: 'legendary' },
+  bronze:    { name: 'Rattata',   artwork_url: null, primary_type: 'normal', overall_rating: 28,  base_attack: 56,  base_defense: 35, base_hp: 30, base_speed: 72, is_legendary: 0, is_mythical: 0, card_tier_override: 'bronze' },
+  silver:    { name: 'Wartortle', artwork_url: null, primary_type: 'water',  overall_rating: 55,  base_attack: 63,  base_defense: 80, base_hp: 59, base_speed: 58, is_legendary: 0, is_mythical: 0, card_tier_override: 'silver' },
+  gold:      { name: 'Flareon',   artwork_url: null, primary_type: 'fire',   overall_rating: 72,  base_attack: 83,  base_defense: 60, base_hp: 65, base_speed: 65, is_legendary: 0, is_mythical: 0, card_tier_override: 'gold' },
+  legendary: { name: 'Dragonite', artwork_url: null, primary_type: 'dragon', overall_rating: 84,  base_attack: 134, base_defense: 95, base_hp: 91, base_speed: 80, is_legendary: 0, is_mythical: 0, card_tier_override: 'legendary' },
 };
 
-const TIER_LABEL: Record<CardTier, string> = { bronze: 'BRZ', silver: 'SLV', gold: 'GLD', legendary: 'LEG' };
+const TIER_LABEL: Record<CardTier, string> = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold', legendary: 'Legend' };
+const TIER_SHORT: Record<CardTier, string> = { bronze: 'BRZ', silver: 'SLV', gold: 'GLD', legendary: 'LEG' };
 const TIER_COLOR: Record<CardTier, string> = { bronze: '#e8c39a', silver: '#e5e7eb', gold: '#ffd76a', legendary: '#ff5c5c' };
 const TIERS: CardTier[] = ['bronze', 'silver', 'gold', 'legendary'];
 
-interface SliderRowProps {
-  label: string; value: number; min: number; max: number; step: number;
-  onChange: (v: number) => void;
-}
+interface SliderRowProps { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; }
 function SliderRow({ label, value, min, max, step, onChange }: SliderRowProps) {
   return (
     <div className="flex items-center gap-3">
@@ -39,34 +41,57 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: boolean) => void }) {
-  const { layout: saved, saveLayout, isSaving } = useBrawlCardLayout();
-  const [draft, setDraft] = useState<BrawlCardLayout>(saved);
-  const [previewTier, setPreviewTier] = useState<CardTier>('gold');
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const { layouts: saved, saveLayouts, isSaving } = useBrawlTierLayouts();
+  const [drafts, setDrafts] = useState<BrawlTierLayouts>(saved);
+  const [tier, setTier] = useState<CardTier>('gold');
 
-  useEffect(() => { setDraft(saved); }, [saved]);
+  useEffect(() => { setDrafts(saved); }, [saved]);
 
-  const set = (k: keyof BrawlCardLayout) => (v: number) => setDraft(d => ({ ...d, [k]: v }));
+  const draft = drafts[tier];
+  const set = (k: keyof BrawlCardLayout) => (v: number) =>
+    setDrafts(prev => ({ ...prev, [tier]: { ...prev[tier], [k]: v } }));
+  const resetTier = () =>
+    setDrafts(prev => ({ ...prev, [tier]: { ...DEFAULT_BRAWL_CARD_LAYOUT } }));
+
+  const isDirty = (t: CardTier) => JSON.stringify(drafts[t]) !== JSON.stringify(saved[t]);
+  const dirtyTiers = TIERS.filter(isDirty);
 
   const handleSave = async () => {
-    try { await saveLayout(draft); showToast('Card layout saved', true); }
-    catch { showToast('Failed to save', false); }
+    try {
+      await saveLayouts({ ...saved, [tier]: drafts[tier] });
+      showToast(`${TIER_LABEL[tier]} layout saved`, true);
+    } catch { showToast('Failed to save', false); }
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      await saveLayouts(drafts);
+      showToast('All layouts saved', true);
+    } catch { showToast('Failed to save', false); }
   };
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* ── Controls ── */}
       <div className="flex-1 overflow-y-auto" style={{ maxHeight: '78vh' }}>
+        {/* Sticky header */}
         <div className="flex items-center justify-between mb-3 sticky top-0 z-10 py-1" style={{ background: 'rgba(10,11,15,0.95)' }}>
           <h3 className="text-sm font-display uppercase tracking-widest text-white/70">Card Layout</h3>
           <div className="flex items-center gap-2">
-            <button onClick={() => setDraft(DEFAULT_BRAWL_CARD_LAYOUT)}
+            <button onClick={resetTier}
               className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white">
               <RotateCcw size={12} /> Reset
             </button>
-            <button disabled={!dirty || isSaving} onClick={handleSave}
-              className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg ${dirty ? 'bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black' : 'bg-white/5 text-white/30'}`}>
-              <Save size={12} /> {isSaving ? 'Saving…' : 'Save'}
+            {dirtyTiers.length > 1 && (
+              <button disabled={isSaving} onClick={handleSaveAll}
+                className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg bg-white/10 border border-white/20 text-white/70 hover:text-white">
+                <SaveAll size={12} /> Save All
+              </button>
+            )}
+            <button disabled={!isDirty(tier) || isSaving} onClick={handleSave}
+              className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg ${isDirty(tier) ? 'text-black' : 'bg-white/5 text-white/30'}`}
+              style={isDirty(tier) ? { background: TIER_COLOR[tier] } : {}}>
+              <Save size={12} /> {isSaving ? 'Saving…' : `Save ${TIER_SHORT[tier]}`}
             </button>
           </div>
         </div>
@@ -101,6 +126,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
 
           <SectionHeader>Grid</SectionHeader>
           <SliderRow label="Team Columns" value={draft.teamCols} min={3} max={6} step={1} onChange={set('teamCols')} />
+          <p className="text-[10px] text-white/20 pl-1">Team grid columns are read from the Gold tier setting.</p>
         </div>
       </div>
 
@@ -110,28 +136,45 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
 
         {/* Tier switcher */}
         <div className="grid grid-cols-4 gap-1">
-          {TIERS.map(tier => (
-            <button key={tier} onClick={() => setPreviewTier(tier)}
-              className="py-1.5 rounded text-[9px] font-bold uppercase transition-all"
+          {TIERS.map(t => (
+            <button key={t} onClick={() => setTier(t)}
+              className="relative py-1.5 rounded text-[9px] font-bold uppercase transition-all"
               style={{
-                color: TIER_COLOR[tier],
-                border: `1px solid ${TIER_COLOR[tier]}${previewTier === tier ? 'cc' : '33'}`,
-                background: previewTier === tier ? `${TIER_COLOR[tier]}22` : 'transparent',
-                opacity: previewTier === tier ? 1 : 0.45,
+                color: TIER_COLOR[t],
+                border: `1px solid ${TIER_COLOR[t]}${tier === t ? 'cc' : '33'}`,
+                background: tier === t ? `${TIER_COLOR[t]}22` : 'transparent',
+                opacity: tier === t ? 1 : 0.5,
               }}>
-              {TIER_LABEL[tier]}
+              {TIER_SHORT[t]}
+              {isDirty(t) && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: TIER_COLOR[t] }} />
+              )}
             </button>
           ))}
         </div>
 
         {/* Pokemon label */}
-        <div className="text-center text-[11px] font-bold capitalize" style={{ color: TIER_COLOR[previewTier] }}>
-          {PREVIEW_MONS[previewTier].name}
-          <span className="ml-1 text-[9px] text-white/30 font-normal">· {PREVIEW_MONS[previewTier].primary_type}</span>
+        <div className="text-center text-[11px] font-bold capitalize" style={{ color: TIER_COLOR[tier] }}>
+          {PREVIEW_MONS[tier].name}
+          <span className="ml-1 text-[9px] text-white/30 font-normal">· {PREVIEW_MONS[tier].primary_type}</span>
         </div>
 
         {/* Card */}
-        <PokemonStatCard mon={PREVIEW_MONS[previewTier]} layout={draft} />
+        <PokemonStatCard mon={PREVIEW_MONS[tier]} layout={draft} />
+
+        {/* Unsaved tiers summary */}
+        {dirtyTiers.length > 0 && (
+          <div className="text-[9px] text-white/30 text-center space-y-0.5">
+            <div>Unsaved:</div>
+            <div className="flex gap-1 justify-center flex-wrap">
+              {dirtyTiers.map(t => (
+                <span key={t} className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase" style={{ color: TIER_COLOR[t], background: `${TIER_COLOR[t]}22` }}>
+                  {TIER_SHORT[t]}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

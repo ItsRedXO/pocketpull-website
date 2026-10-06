@@ -5,10 +5,10 @@ import { PokemonPortrait } from './PokemonPortrait';
 import { typeColor } from './typeColors';
 import { typeBackground } from './typeBackgrounds';
 import { CARD_FRAMES } from './cardFrames';
-import type { BrawlCardLayout } from '../../hooks/useSiteConfig';
+import type { BrawlCardLayout, BrawlTierLayouts, CardTier } from '../../hooks/useSiteConfig';
 import { DEFAULT_BRAWL_CARD_LAYOUT } from '../../hooks/useSiteConfig';
 
-export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
+export type { CardTier };
 
 // Bronze 0-49 / Silver 50-65 / Gold 66-80 / Legendary 81-100 -- a straight
 // read of overall_rating now that computeOverallRating (see rating.ts) is a
@@ -50,13 +50,14 @@ const LAYOUT = {
   name:  { left: '3%',  width: '94%', height: '7%' },
 };
 
-export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count, layout: layoutProp }: {
+export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count, layout: layoutProp, layouts }: {
   mon: PokemonLike; selected?: boolean; order?: number | null; index?: number; onClick?: () => void; nickname?: string | null; count?: number;
   layout?: Partial<BrawlCardLayout>;
+  layouts?: BrawlTierLayouts;
 }) {
-  const layout = { ...DEFAULT_BRAWL_CARD_LAYOUT, ...layoutProp };
-  const statsLayout = { top: `${layout.statsTop}%`, left: '8.5%', width: '83%', height: `${layout.statsHeight}%` };
   const tier = getCardTier(mon);
+  const layout = { ...DEFAULT_BRAWL_CARD_LAYOUT, ...(layouts ? layouts[tier] : {}), ...(layoutProp ?? {}) };
+  const statsLayout = { top: `${layout.statsTop}%`, left: '8.5%', width: '83%', height: `${layout.statsHeight}%` };
   const accent = TIER_ACCENT[tier];
   const isLegendary = tier === 'legendary';
   const selectionGlow = selected ? 'drop-shadow(0 0 2px #00c8ff) drop-shadow(0 0 9px rgba(0,200,255,0.85))' : '';

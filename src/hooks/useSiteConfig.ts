@@ -103,6 +103,8 @@ export function useLoadingScreenConfig() {
 
 // ── Brawl card layout ─────────────────────────────────────────────────────────
 
+export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
+
 export interface BrawlCardLayout {
   scale: number;
   statsTop: number;
@@ -175,4 +177,58 @@ export function useBrawlCardLayout() {
   });
 
   return { layout, saveLayout, isSaving };
+}
+
+// ── Per-tier card layouts ──────────────────────────────────────────────────────
+
+export type BrawlTierLayouts = Record<CardTier, BrawlCardLayout>;
+
+export const DEFAULT_BRAWL_TIER_LAYOUTS: BrawlTierLayouts = {
+  bronze:    { ...DEFAULT_BRAWL_CARD_LAYOUT },
+  silver:    { ...DEFAULT_BRAWL_CARD_LAYOUT },
+  gold:      { ...DEFAULT_BRAWL_CARD_LAYOUT },
+  legendary: { ...DEFAULT_BRAWL_CARD_LAYOUT },
+};
+
+const BRAWL_TIER_LAYOUTS_KEY = ['site_config', 'brawl_tier_layouts'];
+
+export function useBrawlTierLayouts() {
+  const queryClient = useQueryClient();
+
+  const { data: layouts = DEFAULT_BRAWL_TIER_LAYOUTS } = useQuery<BrawlTierLayouts>({
+    queryKey: BRAWL_TIER_LAYOUTS_KEY,
+    queryFn: async () => {
+      if (!supabase) return DEFAULT_BRAWL_TIER_LAYOUTS;
+      const { data, error } = await supabase
+        .from('site_config')
+        .select('value')
+        .eq('key', 'brawl_tier_layouts')
+        .single();
+      if (error || !data) return DEFAULT_BRAWL_TIER_LAYOUTS;
+      const stored = data.value as Partial<Record<CardTier, Partial<BrawlCardLayout>>>;
+      return {
+        bronze:    { ...DEFAULT_BRAWL_CARD_LAYOUT, ...(stored.bronze    ?? {}) },
+        silver:    { ...DEFAULT_BRAWL_CARD_LAYOUT, ...(stored.silver    ?? {}) },
+        gold:      { ...DEFAULT_BRAWL_CARD_LAYOUT, ...(stored.gold      ?? {}) },
+        legendary: { ...DEFAULT_BRAWL_CARD_LAYOUT, ...(stored.legendary ?? {}) },
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { mutateAsync: saveLayouts, isPending: isSaving } = useMutation({
+    mutationFn: async (newLayouts: BrawlTierLayouts) => {
+      if (!supabase) throw new Error('Supabase unavailable');
+      const { error } = await supabase
+        .from('site_config')
+        .upsert({ key: 'brawl_tier_layouts', value: newLayouts, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      return newLayouts;
+    },
+    onSuccess: (newLayouts) => {
+      queryClient.setQueryData(BRAWL_TIER_LAYOUTS_KEY, newLayouts);
+    },
+  });
+
+  return { layouts, saveLayouts, isSaving };
 }
