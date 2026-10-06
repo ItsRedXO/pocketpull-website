@@ -38,7 +38,10 @@ function AnimatedCounter({
     setPrevValue(value);
   }, [value, duration, preserveAnimation]);
 
-  return <span>{prefix}{count.toLocaleString('en-US')}{suffix}</span>;
+  const formatted = count >= 1000
+    ? `${(count / 1000).toFixed(count >= 10000 ? 0 : 1).replace(/\.0$/, '')}K`
+    : count.toString();
+  return <span>{prefix}{formatted}{suffix}</span>;
 }
 
 // ── Pokémon card showcase data ────────────────────────────────────────────────
