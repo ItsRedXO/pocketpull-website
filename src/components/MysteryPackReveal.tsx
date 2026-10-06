@@ -410,7 +410,8 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const [apiReady, setApiReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ripFiredRef = useRef(false);
-  const cardCount = Math.min(CARD_COUNT_MAX, Math.max(1, cards.length));
+  const availableCards = cards.filter(c => (c.quantity ?? 1) > 0);
+  const cardCount = Math.min(CARD_COUNT_MAX, Math.max(1, availableCards.length));
 
   // GSAP refs
   const packWrapRef = useRef<HTMLDivElement>(null);
