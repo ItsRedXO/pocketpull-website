@@ -51,7 +51,8 @@ const LAYOUT = {
   window: { top: '20%', left: '9%', right: '9%', bottom: '40%' },
   power: { top: '10%', left: '4%', width: '30%', height: '7%' },
   type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
-  name: { top: '61.5%', left: '3%', width: '94%', height: '8%' },
+  // Name sits at bottom of the artwork window, above the baked tier label
+  name: { top: '56%', left: '3%', width: '94%', height: '7%' },
 };
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count, layout: layoutProp }: {

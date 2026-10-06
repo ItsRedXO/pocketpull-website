@@ -66,7 +66,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
         <SliderRow label="Stats Row Top %" sub="Top % where the stat numbers start (default 84)"
           value={draft.statsTop} min={74} max={95} step={0.5} onChange={set('statsTop')} />
 
-        <SliderRow label="Stats Row Height %" sub="Height % of the number boxes (default 12)"
+        <SliderRow label="Stats Row Height %" sub="Height % of the number boxes (default 7)"
           value={draft.statsHeight} min={5} max={20} step={0.5} onChange={set('statsHeight')} />
 
         <SliderRow label="Team Grid Columns" sub="Cards per row in Active Team on desktop (default 4)"

@@ -116,8 +116,8 @@ export interface BrawlCardLayout {
 
 export const DEFAULT_BRAWL_CARD_LAYOUT: BrawlCardLayout = {
   scale: 1.16,
-  statsTop: 84,
-  statsHeight: 12,
+  statsTop: 83,
+  statsHeight: 7,
   teamCols: 4,
 };
 
