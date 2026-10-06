@@ -31,3 +31,4 @@ public/fonts/*.ttf filter= diff= merge= -text
 public/fonts/*.woff filter= diff= merge= -text
 public/fonts/*.woff2 filter= diff= merge= -text
 public/fonts/*.otf filter= diff= merge= -text
+src/assets/card-back.webp filter= diff= merge= -text

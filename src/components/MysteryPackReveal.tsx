@@ -379,7 +379,7 @@ function BurstCards({ burstRef }: { burstRef: React.RefObject<HTMLDivElement | n
           data-bx={s.x} data-by={s.y} data-br={s.rotate}
           className="absolute opacity-0"
           style={{ width: 64, height: 90, left: '50%', marginLeft: -32, top: '50%', marginTop: -45 }}>
-          <CardBack />
+          <CardBack imageUrl={CARD_BACK_URL} />
         </div>
       ))}
     </div>
@@ -400,6 +400,9 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const ripFiredRef = useRef(false);
   const availableCards = cards.filter(c => (c.quantity ?? 1) > 0);
   const cardCount = Math.min(CARD_COUNT_MAX, Math.max(1, availableCards.length));
+  // Snapshot the count at rip time — the API decrements one card's quantity
+  // before the carousel renders, so the reactive cardCount would show N-1.
+  const snapCardCountRef = useRef(cardCount);
 
   // GSAP refs
   const packWrapRef = useRef<HTMLDivElement>(null);
@@ -475,6 +478,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
       return;
     }
     ripFiredRef.current = true;
+    snapCardCountRef.current = cardCount; // snapshot before API/query updates reduce it
     setError(null);
     setPhase('ripping');
 
@@ -564,7 +568,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
             {/* Carousel — GSAP handled inside component */}
             {phase === 'carousel' && (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
-                <CardCarousel onSelect={handleCardSelect} apiReady={apiReady} cardCount={cardCount} />
+                <CardCarousel onSelect={handleCardSelect} apiReady={apiReady} cardCount={snapCardCountRef.current} />
               </motion.div>
             )}
 
