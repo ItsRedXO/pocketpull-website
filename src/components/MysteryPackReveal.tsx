@@ -187,49 +187,10 @@ function CardBack({ glow = false, glowColor = '#ffd700', imageUrl }: { glow?: bo
   );
 }
 
-// ── CardCarousel — GSAP-powered 3D fan ───────────────────────────────────────
+// ── CardCarousel — CSS-transitions fan (no GSAP, no timing races) ────────────
 
 function CardCarousel({ onSelect, apiReady, cardCount }: { onSelect: () => void; apiReady: boolean; cardCount: number }) {
   const [activeIdx, setActiveIdx] = useState(() => Math.floor(cardCount / 2));
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const positionCards = useCallback((idx: number, animated: boolean) => {
-    if (!containerRef.current) return;
-    const els = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
-    els.forEach((el, i) => {
-      const offset = i - idx;
-      const abs = Math.abs(offset);
-      const props = {
-        x: offset * 72,
-        rotationY: offset * -15,
-        scale: i === idx ? 1.0 : 1 - abs * 0.08,
-        opacity: abs > 2 ? 0.28 : 1 - abs * 0.11,
-        zIndex: cardCount - abs,
-      };
-      if (animated) gsap.to(el, { ...props, duration: 0.38, ease: 'back.out(1.6)' });
-      else gsap.set(el, props);
-    });
-  }, [cardCount]);
-
-  const initialIdx = Math.floor(cardCount / 2);
-
-  // Initial placement without animation
-  useEffect(() => { positionCards(initialIdx, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Animate when selection changes
-  useEffect(() => { positionCards(activeIdx, true); }, [activeIdx, positionCards]);
-
-  // Entry: cards drop in from above with stagger
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const els = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
-    gsap.from(els, {
-      y: -80, opacity: 0, duration: 0.55,
-      stagger: { each: 0.06, from: 'center' },
-      ease: 'back.out(2)',
-      clearProps: 'y,opacity',
-    });
-  }, []);
 
   return (
     <div className="relative flex flex-col items-center gap-5 py-2">
@@ -238,15 +199,32 @@ function CardCarousel({ onSelect, apiReady, cardCount }: { onSelect: () => void;
         {apiReady ? `Choose Your Card · ${cardCount} remaining` : 'Shuffling your hand…'}
       </motion.p>
 
-      <div ref={containerRef} className="relative flex items-center justify-center"
+      <div className="relative flex items-center justify-center overflow-visible"
         style={{ height: 200, width: '100%', perspective: '900px' }}>
-        {Array.from({ length: cardCount }, (_, i) => (
-          <div key={i} data-cc className="absolute cursor-pointer"
-            style={{ width: 88, height: 124, left: '50%', marginLeft: -44, top: '50%', marginTop: -62 }}
-            onClick={() => i !== activeIdx && setActiveIdx(i)}>
-            <CardBack glow={i === activeIdx} glowColor="#ffd700" imageUrl={CARD_BACK_URL} />
-          </div>
-        ))}
+        {Array.from({ length: cardCount }, (_, i) => {
+          const offset = i - activeIdx;
+          const abs = Math.abs(offset);
+          const tx = offset * 76;
+          const scale = i === activeIdx ? 1.05 : 1 - abs * 0.07;
+          const ry = offset * -14;
+          const opacity = abs > 3 ? 0.18 : 1 - abs * 0.15;
+          const zIndex = cardCount - abs;
+          return (
+            <div key={i} className="absolute cursor-pointer"
+              style={{
+                width: 92, height: 130,
+                left: '50%', top: '50%',
+                marginLeft: -46, marginTop: -65,
+                transform: `translateX(${tx}px) rotateY(${ry}deg) scale(${scale})`,
+                opacity,
+                zIndex,
+                transition: 'transform 0.38s cubic-bezier(0.34,1.4,0.64,1), opacity 0.38s ease',
+              }}
+              onClick={() => setActiveIdx(i)}>
+              <CardBack glow={i === activeIdx} glowColor="#ffd700" imageUrl={CARD_BACK_URL} />
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-5">
