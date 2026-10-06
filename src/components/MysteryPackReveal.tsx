@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { LockKeyhole, Sparkles, GripHorizontal, Zap } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LockKeyhole, Sparkles, GripHorizontal, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { openPack } from '../lib/api';
@@ -17,18 +17,19 @@ interface Props {
   onComplete: (newBalance: number) => void;
 }
 
-type RevealPhase = 'idle' | 'charging' | 'tearing' | 'opening' | 'revealing' | 'revealed';
+type RevealPhase = 'idle' | 'ripping' | 'bursting' | 'carousel' | 'flipping' | 'reveal' | 'result';
 type WonCard = { name: string; rarity: string; value: number; imageUrl: string | null; emoji?: string };
 type RarityTier = 'common' | 'uncommon' | 'rare' | 'ultra' | 'cinematic';
 
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 const RARITY_COLORS: Record<string, string> = {
   common: '#8892a4', uncommon: '#39d98a', rare: '#00c8ff', ultra: '#9b5cff',
   secret: '#ffd700', god: '#ff4fd8', rainbow: '#ff0060',
 };
 const BIG_PULL = new Set(['secret', 'god', 'rainbow']);
-const DRAG_THRESHOLD = 68;
+const DRAG_THRESHOLD = 72;
+const CARD_COUNT = 5;
 
 function rarityTier(rarity: string): RarityTier {
   if (BIG_PULL.has(rarity)) return 'cinematic';
@@ -37,18 +38,6 @@ function rarityTier(rarity: string): RarityTier {
   if (rarity === 'uncommon') return 'uncommon';
   return 'common';
 }
-
-const REVEAL_DURATION: Record<RarityTier, number> = {
-  common: 500, uncommon: 650, rare: 800, ultra: 1000, cinematic: 2700,
-};
-
-const REVEAL_LABEL: Record<RarityTier, string> = {
-  common: 'Your card is ready…',
-  uncommon: 'Uncommon card emerging…',
-  rare: 'Rare energy detected…',
-  ultra: 'Ultra rare detected…',
-  cinematic: '✦ Legendary pull emerging…',
-};
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
@@ -100,7 +89,6 @@ function LightRays({ color, intense = false }: { color: string; intense?: boolea
   );
 }
 
-/** Shockwave ring that expands outward and fades. `delay` staggers multiple rings. */
 function ShockRing({ color, size = 300, delay = 0, thickness = 2 }: { color: string; size?: number; delay?: number; thickness?: number }) {
   return (
     <motion.div className="pointer-events-none absolute rounded-full"
@@ -112,7 +100,6 @@ function ShockRing({ color, size = 300, delay = 0, thickness = 2 }: { color: str
   );
 }
 
-/** Card face with an optional shine sweep and holographic foil overlay. */
 function CardFace({ card, color, shineDelay = 0.4, shineOpacity = 0.9, holographic = false, glowSize = 40 }: {
   card: WonCard; color: string; shineDelay?: number; shineOpacity?: number; holographic?: boolean; glowSize?: number;
 }) {
@@ -143,123 +130,198 @@ function CardFace({ card, color, shineDelay = 0.4, shineOpacity = 0.9, holograph
   );
 }
 
-// ── Per-rarity reveal animations ─────────────────────────────────────────────
+// ── CardBack — face-down card ─────────────────────────────────────────────────
 
-function RevealCommon({ card, color }: { card: WonCard; color: string }) {
+function CardBack({ glow = false, glowColor = '#ffd700' }: { glow?: boolean; glowColor?: string }) {
   return (
-    <div className="relative flex h-[250px] items-center justify-center">
-      <motion.div className="relative z-10" style={{ width: 152, height: 212 }}
-        initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, ease: 'easeOut' }}>
-        <CardFace card={card} color={color} shineDelay={0.2} shineOpacity={0.4} glowSize={20} />
-      </motion.div>
+    <div className="relative h-full w-full overflow-hidden rounded-xl"
+      style={{
+        background: 'linear-gradient(145deg, #1a1b2e, #0d0e1a)',
+        border: `1px solid ${glow ? glowColor + '99' : 'rgba(255,215,0,0.22)'}`,
+        boxShadow: glow ? `0 0 22px ${glowColor}55, inset 0 0 18px ${glowColor}10` : '0 4px 16px rgba(0,0,0,0.5)',
+      }}>
+      <div className="absolute inset-0 opacity-[0.06]"
+        style={{ backgroundImage: 'linear-gradient(rgba(255,215,0,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,215,0,0.5) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+      <div className="absolute inset-3 rounded-lg border border-[#ffd700]/18" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#ffd700]/45"
+          style={{ background: 'rgba(255,215,0,0.07)' }}>
+          <span className="font-display text-lg font-black text-[#ffd700]" style={{ textShadow: '0 0 10px #ffd700aa' }}>P</span>
+        </div>
+        <p className="text-[6px] font-bold uppercase tracking-[0.3em] text-[#ffd700]/55">PocketPull</p>
+      </div>
+      {([['top-2 left-2'], ['top-2 right-2'], ['bottom-2 left-2'], ['bottom-2 right-2']] as const).map(([pos], idx) => (
+        <div key={idx} className={`absolute ${pos} h-2 w-2 rotate-45 rounded-sm bg-[#ffd700]/18`} />
+      ))}
     </div>
   );
 }
 
-function RevealUncommon({ card, color }: { card: WonCard; color: string }) {
-  return (
-    <div className="relative flex h-[280px] items-center justify-center">
-      <VaultParticles color={color} />
-      <motion.div className="relative z-10" style={{ width: 152, height: 212 }}
-        initial={{ opacity: 0, y: 55, scale: 0.88 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.55, type: 'spring', stiffness: 220, damping: 22 }}>
-        <CardFace card={card} color={color} shineDelay={0.3} shineOpacity={0.65} glowSize={28} />
-      </motion.div>
-    </div>
-  );
-}
+// ── CardBurst — pack explosion with 6 flying cards ────────────────────────────
 
-function RevealRare({ card, color }: { card: WonCard; color: string }) {
-  return (
-    <div className="relative flex h-[300px] items-center justify-center" style={{ perspective: 900 }}>
-      <LightRays color={color} />
-      <VaultParticles color={color} />
-      <ShockRing color={color} size={280} />
-      <motion.div className="relative z-10" style={{ width: 152, height: 212 }}
-        initial={{ opacity: 0, scale: 0.55, rotateY: 15 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-        transition={{ duration: 0.6, type: 'spring', stiffness: 200, damping: 18 }}>
-        <CardFace card={card} color={color} shineDelay={0.45} shineOpacity={0.8} glowSize={36} />
-      </motion.div>
-    </div>
-  );
-}
+function CardBurst({ color }: { color: string }) {
+  const slots = useMemo(() => Array.from({ length: 6 }, (_, i) => {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2 + (i % 2 === 0 ? 0.28 : -0.28);
+    return {
+      x: Math.round(Math.cos(angle) * (88 + (i % 3) * 22)),
+      y: Math.round(Math.sin(angle) * (68 + (i % 3) * 16)),
+      rotate: -20 + i * 14,
+      delay: i * 0.05,
+    };
+  }), []);
 
-function RevealUltra({ card, color }: { card: WonCard; color: string }) {
   return (
-    <div className="relative flex h-[310px] items-center justify-center" style={{ perspective: 1000 }}>
-      <LightRays color={color} intense />
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-visible">
+      <motion.div className="absolute inset-0 z-10 rounded-2xl"
+        initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }}
+        transition={{ duration: 0.38, ease: 'easeOut' }}
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.12) 50%, transparent 70%)' }}
+      />
+      <ShockRing color={color} size={240} />
+      <ShockRing color={color} size={240} delay={0.1} thickness={1} />
       <VaultParticles color={color} burst />
-      <ShockRing color={color} size={340} thickness={3} />
-      <ShockRing color={color} size={340} delay={0.15} thickness={2} />
-      <motion.div className="relative z-10" style={{ width: 152, height: 212 }}
-        initial={{ opacity: 0, scale: 0.3, rotateY: -180 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-        transition={{ duration: 0.85, type: 'spring', stiffness: 180, damping: 16 }}>
-        <CardFace card={card} color={color} shineDelay={0.6} shineOpacity={0.9} glowSize={50} />
-      </motion.div>
+      {slots.map((s, i) => (
+        <motion.div key={i} className="absolute" style={{ width: 62, height: 87 }}
+          initial={{ x: 0, y: 0, opacity: 0, rotate: 0, scale: 0.2 }}
+          animate={{ x: s.x, y: s.y, opacity: [0, 1, 1, 0.85], rotate: s.rotate, scale: [0.2, 1.08, 0.92] }}
+          transition={{ duration: 0.65, delay: s.delay, ease: 'easeOut' }}>
+          <CardBack />
+        </motion.div>
+      ))}
     </div>
   );
 }
 
-type CinStep = 'shoot' | 'arc' | 'flip' | 'hold';
+// ── CardCarousel — 5 face-down cards in 3D fan ────────────────────────────────
 
-function RevealCinematic({ card, color }: { card: WonCard; color: string }) {
-  const [step, setStep] = useState<CinStep>('shoot');
+function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: boolean }) {
+  const [activeIdx, setActiveIdx] = useState(2);
+
+  return (
+    <div className="relative flex flex-col items-center gap-5 py-2">
+      <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+        className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">
+        {apiReady ? 'Choose Your Card' : 'Shuffling your hand…'}
+      </motion.p>
+
+      <div className="relative flex items-center justify-center" style={{ height: 188, width: '100%', perspective: 900 }}>
+        {Array.from({ length: CARD_COUNT }, (_, i) => {
+          const offset = i - activeIdx;
+          const abs = Math.abs(offset);
+          const isCenter = offset === 0;
+          return (
+            <motion.div key={i}
+              className="absolute cursor-pointer"
+              style={{ width: 86, height: 120, zIndex: CARD_COUNT - abs }}
+              animate={{
+                x: offset * 66,
+                rotateY: offset * -13,
+                scale: isCenter ? 1 : 1 - abs * 0.075,
+                opacity: abs > 2 ? 0.35 : 1 - abs * 0.1,
+              }}
+              transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+              onClick={() => !isCenter && setActiveIdx(i)}>
+              <CardBack glow={isCenter} glowColor="#ffd700" />
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-5">
+        <button onClick={() => setActiveIdx(p => Math.max(0, p - 1))} disabled={activeIdx === 0}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/50 hover:text-[#ffd700] disabled:opacity-20">
+          <ChevronLeft size={16} />
+        </button>
+        <div className="flex gap-2">
+          {Array.from({ length: CARD_COUNT }, (_, i) => (
+            <button key={i} onClick={() => setActiveIdx(i)}
+              className="rounded-full transition-all"
+              style={{ height: 8, width: i === activeIdx ? 20 : 8, background: i === activeIdx ? '#ffd700' : 'rgba(255,255,255,0.2)' }} />
+          ))}
+        </div>
+        <button onClick={() => setActiveIdx(p => Math.min(CARD_COUNT - 1, p + 1))} disabled={activeIdx === CARD_COUNT - 1}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/50 hover:text-[#ffd700] disabled:opacity-20">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      <motion.button onClick={() => apiReady && onSelect()} disabled={!apiReady}
+        whileHover={apiReady ? { scale: 1.04 } : undefined}
+        whileTap={apiReady ? { scale: 0.96 } : undefined}
+        className="rounded-xl px-8 py-3 font-display text-sm font-bold uppercase tracking-widest transition-all"
+        style={apiReady
+          ? { background: 'linear-gradient(90deg, #ffd700, #ff9500)', color: '#000', boxShadow: '0 0 22px rgba(255,165,0,0.45)' }
+          : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}>
+        {apiReady ? 'Reveal This Card' : 'Fetching…'}
+      </motion.button>
+    </div>
+  );
+}
+
+// ── CardFlip — 3D back→flash→face reveal ──────────────────────────────────────
+
+type FlipStep = 'back' | 'flash' | 'face';
+
+function CardFlip({ card, color, onDone }: { card: WonCard; color: string; onDone: () => void }) {
+  const [step, setStep] = useState<FlipStep>('back');
+  const doneRef = useRef(false);
   useEffect(() => {
-    const t1 = setTimeout(() => setStep('arc'), 550);
-    const t2 = setTimeout(() => setStep('flip'), 1050);
-    const t3 = setTimeout(() => setStep('hold'), 1700);
+    const t1 = setTimeout(() => setStep('flash'), 480);
+    const t2 = setTimeout(() => setStep('face'), 720);
+    const t3 = setTimeout(() => { if (!doneRef.current) { doneRef.current = true; onDone(); } }, 1500);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   return (
-    <div className="relative flex h-[330px] items-center justify-center" style={{ perspective: 1200 }}>
-      <LightRays color={color} intense />
-      <VaultParticles color={color} burst />
-      {step === 'hold' && <VaultParticles color={color} burst />}
-      <ShockRing color={color} size={400} thickness={3} />
-      <ShockRing color={color} size={400} delay={0.1} thickness={2} />
-      <ShockRing color={color} size={400} delay={0.22} thickness={1} />
-
-      {/* Full-screen color flash when card shoots up */}
+    <div className="relative mx-auto flex items-center justify-center" style={{ height: 230, width: 164, perspective: 1000 }}>
       <AnimatePresence>
-        {step === 'shoot' && (
-          <motion.div className="pointer-events-none absolute inset-0 z-20 rounded-2xl"
-            initial={{ opacity: 0 }} animate={{ opacity: [0, 0.7, 0] }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, times: [0, 0.3, 1] }}
-            style={{ background: `radial-gradient(circle at 50% 60%, #fff 0%, ${color} 40%, transparent 70%)` }}
+        {step === 'flash' && (
+          <motion.div className="absolute inset-[-60px] z-20 rounded-3xl"
+            initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.32 }}
+            style={{ background: `radial-gradient(circle, #fff 0%, ${color}70 55%, transparent 72%)` }}
           />
         )}
       </AnimatePresence>
 
-      <motion.div
-        className="relative z-10"
-        style={{ width: 164, height: 228 }}
-        animate={
-          step === 'shoot' ? { y: [100, -18, 4], opacity: [0, 1, 1], scale: [0.55, 1.12, 1] }
-          : step === 'arc'  ? { rotateY: [-14, 14, -8, 8, -3, 3, 0] }
-          : step === 'flip' ? { rotateY: [0, 180, 360] }
-          : { rotateY: 0, scale: 1 }
-        }
-        transition={
-          step === 'shoot' ? { duration: 0.55, ease: 'easeOut' }
-          : step === 'arc'  ? { duration: 0.5, ease: 'easeInOut' }
-          : step === 'flip' ? { duration: 0.68, ease: 'easeInOut' }
-          : { duration: 0.2 }
-        }
-      >
-        <CardFace card={card} color={color} shineDelay={1.8} shineOpacity={0.95} holographic glowSize={65} />
+      {/* Back face — rotates out */}
+      <motion.div className="absolute" style={{ width: 152, height: 212, backfaceVisibility: 'hidden' }}
+        animate={{ rotateY: step === 'back' ? 0 : -90 }}
+        transition={{ duration: 0.24, ease: 'easeIn' }}>
+        <CardBack glow glowColor={color} />
+      </motion.div>
+
+      {/* Front face — rotates in */}
+      <motion.div className="absolute" style={{ width: 152, height: 212, backfaceVisibility: 'hidden' }}
+        animate={{ rotateY: step === 'face' ? 0 : 90 }}
+        transition={{ duration: 0.38, ease: 'easeOut' }}>
+        <CardFace card={card} color={color} shineDelay={0.25} shineOpacity={0.85}
+          holographic={BIG_PULL.has(card.rarity)} glowSize={50} />
       </motion.div>
     </div>
   );
 }
 
-function RarityReveal({ tier, card, color }: { tier: RarityTier; card: WonCard; color: string }) {
-  if (tier === 'cinematic') return <RevealCinematic card={card} color={color} />;
-  if (tier === 'ultra')     return <RevealUltra     card={card} color={color} />;
-  if (tier === 'rare')      return <RevealRare      card={card} color={color} />;
-  if (tier === 'uncommon')  return <RevealUncommon  card={card} color={color} />;
-  return <RevealCommon card={card} color={color} />;
+// ── RarityVFX — overlay after flip ────────────────────────────────────────────
+
+function RarityVFX({ tier, color }: { tier: RarityTier; color: string }) {
+  if (tier === 'common') return null;
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <VaultParticles color={color} burst={tier === 'ultra' || tier === 'cinematic'} />
+      {(tier === 'rare' || tier === 'ultra' || tier === 'cinematic') && <LightRays color={color} intense={tier === 'cinematic'} />}
+      {tier === 'ultra' && (
+        <><ShockRing color={color} size={290} /><ShockRing color={color} size={290} delay={0.12} thickness={1} /></>
+      )}
+      {tier === 'cinematic' && (
+        <>
+          <ShockRing color={color} size={360} />
+          <ShockRing color={color} size={360} delay={0.1} />
+          <ShockRing color={color} size={360} delay={0.22} thickness={1} />
+        </>
+      )}
+    </div>
+  );
 }
 
 // ── VaultPack (drag-to-tear mechanic) ─────────────────────────────────────────
@@ -270,9 +332,8 @@ function VaultPack({
   phase: RevealPhase; color: string; dragX: number;
   onDragStart: () => void; onDrag: (dx: number) => void; onDragEnd: (dx: number) => void; disabled: boolean;
 }) {
-  const active = phase !== 'idle';
-  const flashing = phase === 'tearing';
-  const dissolving = phase === 'opening' || phase === 'revealing' || phase === 'revealed';
+  const ripping = phase === 'ripping';
+  const dissolving = phase !== 'idle' && phase !== 'ripping';
   const dragProgress = Math.min(1, Math.max(0, dragX / DRAG_THRESHOLD));
 
   return (
@@ -282,21 +343,19 @@ function VaultPack({
         animate={
           dissolving
             ? { scale: [1.1, 1.22, 0.05], opacity: [1, 1, 0], y: [0, -12, 8] }
-            : flashing
+            : ripping
               ? { scale: [1, 1.06, 0.97, 1.08, 0.96, 1.02], rotate: [0, -3, 4, -3, 2, -1, 0], y: [0, -10, 5, -7, 3, 0] }
-              : active
-                ? { y: [0, -4, 0], rotate: [0, -1, 1, 0], scale: 1 + dragProgress * 0.03 }
-                : { y: 0, rotate: 0, scale: 1 }
+              : { y: 0, rotate: 0, scale: 1 }
         }
         transition={
           dissolving ? { duration: 0.65, ease: 'easeIn' }
-          : flashing ? { duration: 0.85 }
-          : { duration: 1.5, repeat: active ? Infinity : 0 }
+          : ripping ? { duration: 0.85 }
+          : { duration: 1.5 }
         }
         style={{
           background: 'linear-gradient(145deg, #202036, #080910 65%)',
           borderColor: `${color}99`,
-          boxShadow: `0 20px 55px -18px ${color}, inset 0 0 ${35 + dragProgress * 30}px ${color}${flashing ? '55' : '18'}`,
+          boxShadow: `0 20px 55px -18px ${color}, inset 0 0 ${35 + dragProgress * 30}px ${color}${ripping ? '55' : '18'}`,
         }}
       >
         <div className="absolute inset-3 rounded-[17px] border border-white/10" />
@@ -312,37 +371,31 @@ function VaultPack({
           </div>
         </div>
 
-        {/* Seal — cracks and flashes brighter the further the tab is dragged */}
         <motion.div
           className="absolute left-0 right-0 top-[68px] h-7 border-y bg-[#ffd700]/10"
-          animate={
-            flashing
-              ? { x: [-2, 2, -3, 3, 0], opacity: [1, 1, 0.4, 0], borderColor: ['#ffd70099', '#ffffffcc', '#ffd70099'] }
-              : { opacity: 1, borderColor: `#ffd700${70 + Math.round(dragProgress * 85)}` as string }
-          }
-          transition={{ duration: 0.7 }}
-          style={{ boxShadow: dragProgress > 0.15 ? `0 0 ${dragProgress * 22}px #ffd700aa` : 'none' }}
-        >
+          style={{ borderColor: `rgba(255,215,0,${0.28 + dragProgress * 0.55})`, boxShadow: dragProgress > 0.15 ? `0 0 ${dragProgress * 22}px rgba(255,215,0,0.65)` : 'none' }}
+          animate={ripping ? { x: [-2, 2, -3, 3, 0], opacity: [1, 1, 0.4, 0] } : { opacity: 1 }}
+          transition={{ duration: 0.7 }}>
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] font-bold uppercase tracking-[0.3em] text-[#ffd700]">tear seal</span>
         </motion.div>
       </motion.div>
 
-      {flashing && (
+      {ripping && (
         <motion.div className="absolute top-[65px] h-10 w-[125%] border-y-2 border-dashed border-[#ffd700]"
           style={{ left: '50%', marginLeft: '-62.5%' }}
           initial={{ scaleX: 0, opacity: 0 }} animate={{ scaleX: 1, opacity: [0, 1, 0] }} transition={{ duration: 0.8 }}
         />
       )}
 
-      {/* Draggable pull tab */}
-      {!active && (
+      {/* Draggable pull tab — only visible in idle */}
+      {phase === 'idle' && (
         <motion.div
           className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
           style={{ touchAction: 'none' }}
           animate={{ scale: 1 + dragProgress * 0.15 }}
           drag={disabled ? false : 'x'}
           dragMomentum={false}
-          dragSnapToOrigin
+          dragConstraints={{ left: 0, right: DRAG_THRESHOLD + 20 }}
           onDragStart={() => onDragStart()}
           onDrag={(_e, info) => onDrag(Math.max(0, info.offset.x))}
           onDragEnd={(_e, info) => onDragEnd(Math.max(0, info.offset.x))}
@@ -362,18 +415,19 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const { balance, matchedBalance, updateBalance } = useBalance(user?.id);
   const qc = useQueryClient();
   const [phase, setPhase] = useState<RevealPhase>('idle');
-  const [revealed, setRevealed] = useState<WonCard | null>(null);
-  const [pendingReveal, setPendingReveal] = useState<WonCard | null>(null);
+  const [wonCard, setWonCard] = useState<WonCard | null>(null);
+  const [apiReady, setApiReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragX, setDragX] = useState(0);
-  const [dragging, setDragging] = useState(false);
+  const ripFiredRef = useRef(false);
 
   useEffect(() => {
-    setPhase('idle'); setRevealed(null); setPendingReveal(null); setError(null); setDragX(0);
+    setPhase('idle'); setWonCard(null); setApiReady(false); setError(null); setDragX(0);
+    ripFiredRef.current = false;
   }, [pack.id]);
 
-  const handleRip = async () => {
-    if (phase !== 'idle' || isVaulted) return;
+  const startRip = useCallback(async () => {
+    if (ripFiredRef.current) return;
     if (!isAuthenticated || !user?.id) {
       setError('Create an account or sign in to open this vault.');
       window.dispatchEvent(new CustomEvent('pocketpull-open-auth', { detail: 'signup' }));
@@ -383,52 +437,68 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
       setError('Insufficient balance — deposit funds to open this vault.');
       return;
     }
-    setError(null); setDragging(false); setPhase('charging');
-    try {
-      const resultPromise = openPack(pack.id);
-      await wait(550); setPhase('tearing');
-      await wait(700); setPhase('opening');
-      const result = await resultPromise;
+    ripFiredRef.current = true;
+    setError(null);
+    setDragX(0);
+    setPhase('ripping');
+
+    // API fires immediately in parallel with the animation sequence
+    openPack(pack.id).then(result => {
       const won: WonCard = {
         name: result.card.name, rarity: result.card.rarity,
         value: result.card.value, imageUrl: result.card.imageUrl, emoji: result.card.emoji,
       };
-      await updateBalance(result.newBalance);
+      updateBalance(result.newBalance);
       onComplete(result.newBalance);
-      setPendingReveal(won);
-      await wait(650);
-      setPhase('revealing');
-      await wait(REVEAL_DURATION[rarityTier(won.rarity)]);
-      setRevealed(won);
-      setPendingReveal(null);
-      setPhase('revealed');
-      setDragX(0);
+      setWonCard(won);
+      setApiReady(true);
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['pack-cards', pack.id] });
       qc.invalidateQueries({ queryKey: ['packs-catalog'] });
-    } catch (err: any) {
+    }).catch((err: any) => {
       setError(err?.message || 'The vault could not be opened. Please try again.');
-      setPhase('idle'); setDragX(0);
+      setPhase('idle');
+      ripFiredRef.current = false;
+    });
+
+    await wait(620);    // pack rip shake
+    setPhase('bursting');
+    await wait(880);    // burst + fly-out
+    setPhase('carousel');
+    // User picks a card to advance
+  }, [isAuthenticated, user?.id, pack, balance, matchedBalance, updateBalance, onComplete, qc]);
+
+  const handleCardSelect = useCallback(() => {
+    if (!wonCard || !apiReady || phase !== 'carousel') return;
+    setPhase('flipping');
+  }, [wonCard, apiReady, phase]);
+
+  const handleFlipDone = useCallback(() => {
+    setPhase('reveal');
+    setTimeout(() => setPhase('result'), 1100);
+  }, []);
+
+  const handleDrag = useCallback((offsetX: number) => {
+    setDragX(offsetX);
+    if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) {
+      startRip();
     }
-  };
+  }, [startRip]);
 
-  const handleDragEnd = (offsetX: number) => {
-    setDragging(false);
-    if (offsetX >= DRAG_THRESHOLD) { handleRip(); return; }
+  const handleDragEnd = useCallback((offsetX: number) => {
+    if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) {
+      startRip();
+    }
     setDragX(0);
-  };
+  }, [startRip]);
 
-  const activeCard = revealed || pendingReveal;
-  const color = activeCard ? RARITY_COLORS[activeCard.rarity] || '#ffd700' : '#ffd700';
-  const tier = activeCard ? rarityTier(activeCard.rarity) : 'common';
-  const isBigPull = !!activeCard && BIG_PULL.has(activeCard.rarity);
-  const isAnimating = phase !== 'idle' && phase !== 'revealed';
+  const color = wonCard ? RARITY_COLORS[wonCard.rarity] || '#ffd700' : '#ffd700';
+  const tier = wonCard ? rarityTier(wonCard.rarity) : 'common';
+  const isBigPull = !!wonCard && BIG_PULL.has(wonCard.rarity);
 
-  const phaseLabel =
-    phase === 'charging' ? 'The seal is humming…'
-    : phase === 'tearing' ? 'Tearing open…'
-    : phase === 'opening' ? 'Vault breach detected…'
-    : phase === 'revealing' && pendingReveal ? REVEAL_LABEL[rarityTier(pendingReveal.rarity)]
+  const statusLabel =
+    phase === 'ripping' ? 'Tearing it open…'
+    : phase === 'bursting' ? 'Cards flying out…'
     : '';
 
   return (
@@ -446,70 +516,75 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
         </div>
       </div>
 
-      {/* Animation panel — hidden once revealed */}
-      {!isVaulted && phase !== 'revealed' && (
-        <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-[#090a12] px-4 pb-6 pt-10 text-center" style={{ minHeight: 420 }}>
-
-          {/* Background particles during animation */}
-          <AnimatePresence>
-            {isAnimating && (
-              <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <VaultParticles color={color} burst={phase === 'opening' || phase === 'revealing'} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Full-screen flash on vault breach */}
-          <AnimatePresence>
-            {phase === 'opening' && (
-              <motion.div className="pointer-events-none absolute inset-0 z-20"
-                initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }} exit={{ opacity: 0 }}
-                transition={{ duration: 0.55, times: [0, 0.35, 1] }}
-                style={{ background: `radial-gradient(circle at 50% 45%, #fff 0%, ${color} 45%, transparent 75%)` }}
-              />
-            )}
-          </AnimatePresence>
-
+      {/* Animation panel — visible until result */}
+      {!isVaulted && phase !== 'result' && (
+        <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-[#090a12] px-4 pb-8 pt-10 text-center" style={{ minHeight: 440 }}>
           <div className="relative z-10">
-            {/* Rarity-specific card entrance animation */}
-            {phase === 'revealing' && pendingReveal && (
-              <RarityReveal tier={tier} card={pendingReveal} color={color} />
-            )}
 
-            {/* Vault pack (idle / charging / tearing) */}
-            {(phase === 'idle' || phase === 'charging' || phase === 'tearing') && (
+            {/* Pack idle / ripping */}
+            {(phase === 'idle' || phase === 'ripping') && (
               <motion.div
-                animate={phase === 'charging'
+                animate={phase === 'ripping'
                   ? { scale: [1, 1.04, 1], boxShadow: [`0 0 20px ${color}22`, `0 0 75px ${color}99`, `0 0 20px ${color}22`] }
                   : {}}
-                transition={{ duration: 0.7, repeat: phase === 'charging' ? Infinity : 0 }}
-              >
+                transition={{ duration: 0.7, repeat: phase === 'ripping' ? Infinity : 0 }}>
                 <VaultPack phase={phase} color={color} dragX={dragX}
-                  disabled={phase !== 'idle'} onDragStart={() => setDragging(true)}
-                  onDrag={setDragX} onDragEnd={handleDragEnd} />
+                  disabled={phase !== 'idle'} onDragStart={() => {}}
+                  onDrag={handleDrag} onDragEnd={handleDragEnd} />
               </motion.div>
             )}
 
+            {/* Burst */}
+            {phase === 'bursting' && (
+              <div className="relative mx-auto flex items-center justify-center" style={{ height: 310 }}>
+                <CardBurst color="#ffd700" />
+              </div>
+            )}
+
+            {/* Carousel */}
+            {phase === 'carousel' && (
+              <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.38 }}>
+                <CardCarousel onSelect={handleCardSelect} apiReady={apiReady} />
+              </motion.div>
+            )}
+
+            {/* Flip */}
+            {phase === 'flipping' && wonCard && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}>
+                <CardFlip card={wonCard} color={color} onDone={handleFlipDone} />
+              </motion.div>
+            )}
+
+            {/* Reveal — static face + VFX */}
+            {phase === 'reveal' && wonCard && (
+              <motion.div className="relative mx-auto" style={{ width: 164, height: 240 }}
+                initial={{ opacity: 1 }}>
+                <RarityVFX tier={tier} color={color} />
+                <motion.div className="relative z-10 h-full w-full"
+                  animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 0.55 }}>
+                  <CardFace card={wonCard} color={color} shineDelay={0.1} shineOpacity={0.9}
+                    holographic={isBigPull} glowSize={55} />
+                </motion.div>
+              </motion.div>
+            )}
+
+            {/* Status text */}
             <AnimatePresence mode="wait">
-              <motion.p key={phaseLabel || (dragging ? 'drag' : 'idle')}
-                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className="mt-4 text-xs font-bold uppercase tracking-[0.22em] text-[#ffd700]">
-                {phaseLabel || (dragging
-                  ? (dragX >= DRAG_THRESHOLD ? 'Release to tear it open!' : 'Keep pulling…')
-                  : 'Drag the tab to tear open the vault')}
-              </motion.p>
+              {(phase === 'idle' || phase === 'ripping' || phase === 'bursting') && (
+                <motion.p key={statusLabel || 'idle'}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                  className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-[#ffd700]">
+                  {statusLabel || (dragX >= DRAG_THRESHOLD ? 'Release to tear it open!' : dragX > 8 ? 'Keep pulling…' : 'Drag the tab to tear open the vault')}
+                </motion.p>
+              )}
             </AnimatePresence>
 
+            {/* Button (idle only) */}
             {phase === 'idle' && (
-              <button onClick={handleRip}
+              <button onClick={startRip}
                 className="mt-5 rounded-xl border border-[#ffd700]/35 bg-[#ffd700]/10 px-7 py-3 font-display text-sm font-bold uppercase tracking-widest text-[#ffd700] transition-all hover:bg-[#ffd700]/20">
                 Pull tab · Rip seal
               </button>
-            )}
-            {phase !== 'idle' && (
-              <div className="mt-5 rounded-xl border border-[#ffd700]/20 bg-[#ffd700]/5 px-7 py-3 font-display text-sm font-bold uppercase tracking-widest text-[#ffd700]/60">
-                Opening…
-              </div>
             )}
           </div>
         </div>
@@ -519,8 +594,8 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
         <p className="rounded-xl border border-red-400/25 bg-red-400/10 p-3 text-center text-xs text-red-400">{error}</p>
       )}
 
-      {/* Revealed card + info panel */}
-      {phase === 'revealed' && revealed && (
+      {/* Result panel */}
+      {phase === 'result' && wonCard && (
         <motion.div
           initial={{ opacity: 0, scale: 0.92, y: 12 }}
           animate={{
@@ -535,7 +610,6 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
           className="relative overflow-hidden rounded-2xl p-6 text-center"
           style={{ background: `radial-gradient(circle at 50% 15%, ${color}35, transparent 55%), rgba(255,255,255,0.03)`, border: `1px solid ${color}88` }}
         >
-          {/* Background VFX for rare+ in revealed state */}
           {tier !== 'common' && <LightRays color={color} intense={isBigPull} />}
           {(tier === 'ultra' || tier === 'cinematic') && <VaultParticles color={color} burst={isBigPull} />}
 
@@ -544,22 +618,20 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
             <Zap size={16} />
           </motion.div>
 
-          {/* Static card — animation already played in 'revealing' phase */}
           <motion.div className="relative z-10 mx-auto mt-3 h-56 w-40"
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }} style={{ perspective: 800 }}>
-            <CardFace card={revealed} color={color}
+            <CardFace card={wonCard} color={color}
               shineDelay={0.15} shineOpacity={tier === 'common' ? 0.4 : 0.85}
               holographic={isBigPull} glowSize={isBigPull ? 60 : 40} />
           </motion.div>
 
-          {/* Info */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }} className="relative z-10">
             <p className="mt-4 text-[10px] uppercase tracking-[0.28em]" style={{ color }}>Vault pull secured</p>
-            <h3 className="mt-2 font-display text-3xl text-white">{revealed.name}</h3>
+            <h3 className="mt-2 font-display text-3xl text-white">{wonCard.name}</h3>
             <p className="mt-1 text-xs font-bold uppercase tracking-widest" style={{ color }}>
-              {revealed.rarity} · ${revealed.value.toFixed(2)}
+              {wonCard.rarity} · ${wonCard.value.toFixed(2)}
             </p>
           </motion.div>
         </motion.div>
