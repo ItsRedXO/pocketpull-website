@@ -50,11 +50,6 @@ const LAYOUT = {
   power: { top: '10%', left: '4%', width: '30%', height: '7%' },
   type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
   name: { top: '61.5%', left: '3%', width: '94%', height: '8%' },
-  // 79.5-89% is the slot's actual dark interior (a fine luminance scan found
-  // a bright divider line at 79.5% and the bottom decorative trim starting
-  // at 89%) -- the previous box ran to 91%, so the value number was
-  // rendering on top of that trim instead of inside the empty interior.
-  stats: { top: '79.5%', left: '8.5%', width: '83%', height: '9.3%' },
 };
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count }: {
@@ -70,59 +65,30 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
   const portraitScale = Math.max(1, (mon.portrait_scale ?? 1.5) * 0.8);
 
   return (
-    <div className="relative w-full">
-      {/* padding-top (relative to width) forces the exact 2:3 ratio of the
-          frame art via the box model instead of the `aspect-ratio` CSS
-          property -- inside a CSS grid cell with framer-motion's own inline
-          transforms in play, aspect-ratio sizing wasn't reliable in
-          production and let the frame `<img>` (object-fit defaults to
-          `fill`) get stretched/squashed to whatever height the grid row
-          actually gave it. */}
-      <div style={{ paddingTop: '150%' }} />
-      <motion.button
-        layout
-        initial={{ opacity: 0, y: 10, scale: 0.92 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
-        whileHover={{ y: -4, scale: 1.03 }}
-        whileTap={{ scale: 0.96 }}
-        onClick={onClick}
-        aria-label={`${nickname || mon.name}, ${TIER_LABEL[tier]} tier, power ${mon.overall_rating}`}
-        className="absolute inset-0 w-full h-full text-left"
-      >
-        {/* Full-bleed background -- fills the entire card edge to edge (the
-            frame's opaque border then sits on top and covers the outer
-            edges), instead of being confined to just the transparent window. */}
-        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: '5%' }}>
+    <motion.button
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
+      whileHover={{ y: -4, scale: 1.03 }}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      aria-label={`${nickname || mon.name}, ${TIER_LABEL[tier]} tier, power ${mon.overall_rating}`}
+      className="relative w-full block text-left"
+    >
+      {/* Frame section: 2:3 aspect ratio via paddingTop. Stats live below
+          this div so they always have room regardless of card size. */}
+      <div className="relative" style={{ paddingTop: '150%' }}>
+        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: '5% 5% 0 0' }}>
           <img src={typeBackground(mon.primary_type)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 35%' }} />
         </div>
 
-        {/* The frame art has its own baked-in transparent/glow margin
-            (measured: ~2% left/right, ~3.5% top, ~7% bottom -- asymmetric,
-            so a single scale can't zero out every side at once). Scaling
-            this whole group up around its own center pushes the visible
-            metal border out toward the card's true edge, and everything
-            inside it (window, frame, text) stays aligned to each other
-            since they all scale together as one unit. No overflow-hidden
-            here: at this scale the sides/top slightly overshoot the card's
-            own box, but that spills into the grid's gap-3 gutter between
-            cards rather than getting clipped or overlapping a neighbor. */}
         <div className="absolute inset-0" style={{ transform: 'scale(1.16)', transformOrigin: 'center' }}>
-          {/* Portrait stays confined to the window so it doesn't overlap the
-              header/name/stat text; PokemonPortrait's own wrapper hardcodes
-              position:relative inline (it wins over any position class we'd
-              pass via className), so it needs an absolutely-positioned parent
-              here rather than being absolutely positioned itself. */}
           <div className="absolute" style={LAYOUT.window}>
             <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
               className="w-full h-full" />
           </div>
 
-          {/* Selection/legendary glow is a drop-shadow on the frame image
-              itself rather than a box-shadow on the card -- drop-shadow
-              follows the artwork's actual alpha shape, so it hugs the
-              frame's real silhouette instead of drawing a rectangle that
-              mismatches where the border art actually sits. */}
           <motion.img
             src={CARD_FRAMES[tier]} alt="" aria-hidden
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
@@ -158,26 +124,25 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
               </span>
             )}
           </div>
-
-          <div className="absolute grid grid-cols-4" style={{ ...LAYOUT.stats, zIndex: 3 }}>
-            {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-              <div key={label} className="flex flex-col items-center justify-center gap-0.5">
-                <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
-                <div className="text-[10px] sm:text-xs font-black leading-none text-white">{val}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Lives inside the button (outside the frame's own zoom group) so
-            it moves together with the card's hover/tap lift instead of
-            staying pinned in place while the card animates under it. */}
         {selected && order != null && (
           <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 w-6 h-6 rounded-full bg-[#00c8ff] text-black text-xs font-black flex items-center justify-center border-2 border-[#0a0b0f] shadow">
             {order}
           </span>
         )}
-      </motion.button>
-    </div>
+      </div>
+
+      {/* Stats strip: dedicated row below the card frame so numbers are
+          never squeezed into the frame art's small slot */}
+      <div className="grid grid-cols-4 text-center py-2 px-1 rounded-b-xl border-t border-white/10" style={{ background: 'rgba(4,6,16,0.92)' }}>
+        {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
+          <div key={label as string} className="flex flex-col items-center gap-0.5">
+            <div className="text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
+            <div className="text-xs sm:text-sm font-black leading-none text-white">{val as number}</div>
+          </div>
+        ))}
+      </div>
+    </motion.button>
   );
 }
