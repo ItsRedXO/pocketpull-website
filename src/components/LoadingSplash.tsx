@@ -122,28 +122,27 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                 </motion.p>
               </AnimatePresence>
 
-              {/* Progress bar — pixel art style: dark opaque track, sharp fill */}
+              {/* Progress bar */}
               <div
                 className="relative w-full overflow-hidden"
                 style={{
-                  height: '22px',
+                  height: `${config.barHeight}px`,
+                  borderRadius: `${config.barRadius}px`,
                   background: 'rgba(4, 6, 16, 0.82)',
                   border: '2px solid rgba(255,255,255,0.45)',
-                  /* dark outer ring = classic double-border pixel art frame */
                   boxShadow: '0 0 0 2px rgba(0,0,0,0.72), 0 4px 24px rgba(0,0,0,0.4), inset 0 2px 6px rgba(0,0,0,0.5)',
                 }}
               >
-                {/* Fill */}
                 <div
                   className="absolute inset-0"
                   style={{
                     width: `${progress}%`,
+                    borderRadius: `${config.barRadius}px`,
                     background: `linear-gradient(90deg, ${config.barColor1} 0%, ${config.barColor2} 100%)`,
                     boxShadow: `0 0 14px ${config.barColor2}cc`,
                     transition: 'width 0.12s linear',
                   }}
                 />
-                {/* Top highlight — 8-bit HP bar shine */}
                 <div
                   className="absolute pointer-events-none"
                   style={{

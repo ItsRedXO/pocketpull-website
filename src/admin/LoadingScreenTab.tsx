@@ -92,12 +92,54 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
 
             {/* Live gradient preview strip */}
             <div
-              className="w-full h-3 rounded-sm"
+              className="w-full"
               style={{
+                height: '10px',
                 background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
                 boxShadow: `0 0 10px ${draft.barColor2}88`,
+                borderRadius: `${draft.barRadius}px`,
               }}
             />
+          </div>
+
+          {/* Bar size & shape */}
+          <div
+            className="rounded-xl p-5 border border-white/8 space-y-4"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
+          >
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Bar Size &amp; Shape</h3>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Height</p>
+                <span className="text-[10px] font-mono text-gray-400">{draft.barHeight}px</span>
+              </div>
+              <input
+                type="range" min={8} max={48} step={1}
+                value={draft.barHeight}
+                onChange={e => setDraft(d => ({ ...d, barHeight: Number(e.target.value) }))}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex justify-between text-[9px] text-gray-700 mt-0.5">
+                <span>8px</span><span>48px</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Corner Radius</p>
+                <span className="text-[10px] font-mono text-gray-400">{draft.barRadius}px</span>
+              </div>
+              <input
+                type="range" min={0} max={24} step={1}
+                value={draft.barRadius}
+                onChange={e => setDraft(d => ({ ...d, barRadius: Number(e.target.value) }))}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex justify-between text-[9px] text-gray-700 mt-0.5">
+                <span>Sharp</span><span>Rounded</span>
+              </div>
+            </div>
           </div>
 
           {/* Messages */}
@@ -177,7 +219,8 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               <div
                 className="relative w-full overflow-hidden"
                 style={{
-                  height: '18px',
+                  height: `${draft.barHeight}px`,
+                  borderRadius: `${draft.barRadius}px`,
                   background: 'rgba(4,6,16,0.82)',
                   border: '2px solid rgba(255,255,255,0.45)',
                   boxShadow: '0 0 0 2px rgba(0,0,0,0.72)',
@@ -187,6 +230,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                   style={{
                     position: 'absolute', inset: 0,
                     width: `${previewProgress}%`,
+                    borderRadius: `${draft.barRadius}px`,
                     background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
                     boxShadow: `0 0 12px ${draft.barColor2}cc`,
                     transition: 'width 0.1s',
