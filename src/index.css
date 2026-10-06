@@ -25,30 +25,30 @@
 
 :root {
   /* Core Brand */
-  --background: 240 10% 4%;
-  --foreground: 0 0% 96%;
-  --card: 240 8% 6%;
-  --card-foreground: 0 0% 96%;
-  --popover: 240 10% 5%;
-  --popover-foreground: 0 0% 96%;
+  --background: 222 25% 4%;
+  --foreground: 0 0% 97%;
+  --card: 222 20% 6%;
+  --card-foreground: 0 0% 97%;
+  --popover: 222 22% 5%;
+  --popover-foreground: 0 0% 97%;
 
   /* Primary: Neon Blue */
-  --primary: 195 100% 50%;
-  --primary-foreground: 240 10% 4%;
+  --primary: 195 100% 52%;
+  --primary-foreground: 222 25% 4%;
 
-  /* Secondary: Electric Purple */
-  --secondary: 267 100% 67%;
+  /* Secondary: Electric Indigo */
+  --secondary: 258 100% 68%;
   --secondary-foreground: 0 0% 100%;
 
-  /* Accent: Gold */
-  --accent: 45 100% 50%;
-  --accent-foreground: 240 10% 4%;
+  /* Accent: Vivid Yellow */
+  --accent: 48 100% 52%;
+  --accent-foreground: 222 25% 4%;
 
-  --muted: 240 8% 12%;
-  --muted-foreground: 240 5% 55%;
-  --border: 240 8% 14%;
-  --input: 240 8% 12%;
-  --ring: 195 100% 50%;
+  --muted: 222 18% 11%;
+  --muted-foreground: 222 10% 55%;
+  --border: 222 16% 14%;
+  --input: 222 18% 11%;
+  --ring: 195 100% 52%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
   --radius: 0.75rem;
