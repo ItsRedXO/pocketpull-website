@@ -120,7 +120,7 @@ export function TeamTab() {
       ) : benchDisplayGroups.length === 0 ? (
         <p className="text-white/30 text-xs">No Pokémon match "{benchSearch}".</p>
       ) : (
-        <div className={`grid gap-3 ${benchDense ? 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-8' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
+        <div className={`grid gap-3 ${benchDense ? 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}>
           <AnimatePresence>
             {benchDisplayGroups.map((group, i) => {
               const mon = group[0];

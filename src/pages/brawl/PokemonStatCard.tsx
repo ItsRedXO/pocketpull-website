@@ -161,9 +161,9 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
 
           <div className="absolute grid grid-cols-4" style={{ ...LAYOUT.stats, zIndex: 3 }}>
             {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-              <div key={label} className="flex flex-col items-center justify-between h-full py-px">
+              <div key={label} className="flex flex-col items-center justify-center gap-0.5">
                 <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
-                <div className="text-xs sm:text-sm font-black leading-none text-white">{val}</div>
+                <div className="text-[10px] sm:text-xs font-black leading-none text-white">{val}</div>
               </div>
             ))}
           </div>

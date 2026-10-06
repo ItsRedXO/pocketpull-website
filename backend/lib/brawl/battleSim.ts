@@ -64,7 +64,8 @@ export interface BattleOutcome {
   maxTicks: number;
 }
 
-const HP_SCALE = 2;
+// HP: rating 1-100 → actual HP 1-250 (max-stat pokemon has 250 HP)
+const HP_SCALE = 2.5;
 const DAMAGE_SCALE = 0.4;
 const STAB_MULTIPLIER = 1.5;
 const MOVE_STEP = 5;
@@ -159,8 +160,11 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
 }
 
+// Speed maps to an attack-rate multiplier: 100 SPD ≈ 1.25x, 50 SPD = 1.0x, 1 SPD ≈ 0.75x.
+// The multiplier shrinks the cooldown window so faster pokemon get more attacks per match.
 function cooldownTicksFor(speed: number): number {
-  return clamp(Math.round(9 - speed / 25), 2, 8);
+  const mult = 0.75 + (speed / 100) * 0.50;
+  return clamp(Math.round(5 / mult), 2, 9);
 }
 
 function cross(ax: number, ay: number, bx: number, by: number): number {
@@ -399,20 +403,20 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
       const stab = move.type === fighter.primaryType || move.type === fighter.secondaryType ? STAB_MULTIPLIER : 1;
       const variance = 0.85 + Math.random() * 0.15;
 
-      // Bounded 0..1 attack/defense ratio (instead of a raw division) so a big
-      // stat mismatch swings damage without ever exploding into a one-shot --
-      // e.g. 97 attack vs 4 defense lands ~1.37x, not ~24x. overallFactor is a
-      // gentler secondary nudge from each side's overall rating, so the single
-      // attack-vs-defense pair isn't the *only* thing damage answers to.
-      const statRatio = atkStat / Math.max(1, atkStat + defStat);
-      const statMultiplier = 0.6 + statRatio * 0.8;
+      // ATK scales damage independently: rating 1-100 → factor 0.70-1.30.
+      // DEF applies a separate flat damage reduction: rating 100 = 20% block, 50 = 10%, 1 ≈ 0%.
+      // Keeping them independent means raising DEF always helps and raising ATK always helps,
+      // regardless of the opponent's other stats.
+      const atkFactor = 0.70 + (atkStat / 100) * 0.60;
+      const defBlock = (defStat / 100) * 0.20;
       const overallFactor = clamp(1 + (fighter.overall - target.overall) / 300, 0.85, 1.15);
       const falloff = rangeFalloffMultiplier(move, dist);
 
       let damage = 0;
       if (mult > 0) {
-        const raw = move.power * DAMAGE_SCALE * statMultiplier * overallFactor * stab * mult * falloff * variance;
-        damage = Math.max(1, Math.round(Math.min(raw, target.maxHp * ONE_SHOT_CAP)));
+        const raw = move.power * DAMAGE_SCALE * atkFactor * overallFactor * stab * mult * falloff * variance;
+        const capped = Math.min(raw, target.maxHp * ONE_SHOT_CAP);
+        damage = Math.max(1, Math.round(capped * (1 - defBlock)));
       }
       target.hp = Math.max(0, target.hp - damage);
       fighter.cooldown = cooldownTicksFor(fighter.speed);
