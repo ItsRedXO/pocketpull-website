@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const LOADING_STEPS = [
-  'Loading Your Collection...',
-  'Preparing Your Pulls...',
-  'Entering the Vault...',
-  'Initializing Pack System...',
-];
+import { useLoadingScreenConfig, DEFAULT_LOADING_CONFIG } from '../hooks/useSiteConfig';
 
 interface LoadingSplashProps {
   ready?: boolean;
 }
 
 export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) => {
+  const { config } = useLoadingScreenConfig();
+  const messages = config.messages.length ? config.messages : DEFAULT_LOADING_CONFIG.messages;
+
   const [visible, setVisible]     = useState(true);
   const [progress, setProgress]   = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
@@ -37,10 +34,10 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setStepIndex(i => (i + 1) % LOADING_STEPS.length);
+      setStepIndex(i => (i + 1) % messages.length);
     }, 1100);
     return () => clearInterval(interval);
-  }, []);
+  }, [messages.length]);
 
   useEffect(() => {
     const mountedAt = performance.now();
@@ -121,19 +118,19 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                     textShadow: '0 2px 8px rgba(0,0,0,0.9), 0 0 20px rgba(155,92,255,0.5)',
                   }}
                 >
-                  {LOADING_STEPS[stepIndex]}
+                  {messages[stepIndex % messages.length]}
                 </motion.p>
               </AnimatePresence>
 
-              {/* Progress bar — pixel art style: transparent track, sharp fill */}
+              {/* Progress bar — pixel art style: dark opaque track, sharp fill */}
               <div
-                className="relative w-full"
+                className="relative w-full overflow-hidden"
                 style={{
-                  height: '18px',
-                  background: 'transparent',
-                  /* outer dark pixel border */
-                  boxShadow:
-                    '0 0 0 2px rgba(0,0,0,0.75), 0 0 0 4px rgba(255,255,255,0.18)',
+                  height: '22px',
+                  background: 'rgba(4, 6, 16, 0.82)',
+                  border: '2px solid rgba(255,255,255,0.45)',
+                  /* dark outer ring = classic double-border pixel art frame */
+                  boxShadow: '0 0 0 2px rgba(0,0,0,0.72), 0 4px 24px rgba(0,0,0,0.4), inset 0 2px 6px rgba(0,0,0,0.5)',
                 }}
               >
                 {/* Fill */}
@@ -141,22 +138,21 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                   className="absolute inset-0"
                   style={{
                     width: `${progress}%`,
-                    background: 'linear-gradient(180deg, #c084fc 0%, #9333ea 40%, #6b21a8 100%)',
-                    boxShadow:
-                      '0 0 14px rgba(168,85,247,0.95), 0 0 28px rgba(124,58,237,0.55)',
-                    transition: 'width 0.1s linear',
+                    background: `linear-gradient(90deg, ${config.barColor1} 0%, ${config.barColor2} 100%)`,
+                    boxShadow: `0 0 14px ${config.barColor2}cc`,
+                    transition: 'width 0.12s linear',
                   }}
                 />
-                {/* Highlight strip — top 3px, same pixel-art feel */}
+                {/* Top highlight — 8-bit HP bar shine */}
                 <div
                   className="absolute pointer-events-none"
                   style={{
-                    top: 0,
+                    top: '3px',
                     left: 0,
                     height: '4px',
                     width: `${progress}%`,
-                    background: 'rgba(255,255,255,0.28)',
-                    transition: 'width 0.1s linear',
+                    background: 'rgba(255,255,255,0.26)',
+                    transition: 'width 0.12s linear',
                   }}
                 />
               </div>
