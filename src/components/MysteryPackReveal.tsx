@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useBalance } from '../hooks/useBalance';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card3DFlip } from './pack/Card3DFlip';
+import cardBackImg from '../assets/card-back.webp';
 
 interface Props {
   pack: PackCatalog;
@@ -30,7 +31,7 @@ const RARITY_COLORS: Record<string, string> = {
   secret: '#ffd700', god: '#ff4fd8', rainbow: '#ff0060',
 };
 const BIG_PULL = new Set(['secret', 'god', 'rainbow']);
-const CARD_BACK_URL = '/card-back.webp'; // drop pokemon card back image here
+const CARD_BACK_URL = cardBackImg; // bundled via Vite — no LFS/path issues
 const CARD_COUNT_MAX = 8; // cap carousel at this many cards
 const DRAG_THRESHOLD = 80; // slide fires at this px offset
 const SLIDE_TRACK_MAX = 120; // total slide track travel in px
@@ -301,10 +302,9 @@ function VaultPack({ pack, color, onDrag, onDragEnd }: {
 
   return (
     <div className="relative mx-auto h-[290px] w-[210px] sm:h-[330px] sm:w-[240px]">
-      <div className="absolute inset-0 overflow-hidden rounded-[22px] border-2"
+      <div className="absolute inset-0 overflow-hidden rounded-[22px]"
         style={{
-          borderColor: `${color}99`,
-          boxShadow: `0 20px 55px -18px ${color}, inset 0 0 ${35 + dragProgress * 30}px ${color}18`,
+          boxShadow: `0 20px 55px -18px ${color}`,
           background: pack.imageUrl ? '#080910' : 'linear-gradient(145deg, #202036, #080910 65%)',
         }}>
 
@@ -328,12 +328,12 @@ function VaultPack({ pack, color, onDrag, onDragEnd }: {
             </>
           )}
 
-        {/* Slide-to-tear track at the bottom */}
-        <div className="absolute bottom-0 left-0 right-0 rounded-b-[20px] border-t px-3 py-3"
+        {/* Slide-to-tear track at the top */}
+        <div className="absolute top-0 left-0 right-0 rounded-t-[20px] border-b px-3 py-3"
           style={{
             background: 'rgba(0,0,0,0.72)',
             borderColor: `rgba(255,215,0,${0.25 + dragProgress * 0.5})`,
-            boxShadow: dragProgress > 0.1 ? `0 -6px ${Math.round(dragProgress * 18)}px rgba(255,215,0,0.45)` : 'none',
+            boxShadow: dragProgress > 0.1 ? `0 6px ${Math.round(dragProgress * 18)}px rgba(255,215,0,0.45)` : 'none',
           }}>
           {/* Track rail */}
           <div className="relative h-9 w-full overflow-hidden rounded-full border border-[#ffd700]/22 bg-black/50">
@@ -549,7 +549,9 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
           {isVaulted ? <LockKeyhole size={14} /> : <Sparkles size={14} />}
           {isVaulted ? 'Vaulted Archive' : 'Mystery Vault'}
         </div>
-        <div className="mt-3 text-white font-display text-2xl">Collected {collectedTotal}/{originalTotal}</div>
+        <div className="mt-3 text-white font-display text-2xl">
+          Collected {collectedTotal}<span className="font-sans text-white/50 mx-1">/</span>{originalTotal}
+        </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
           <div className="h-full rounded-full bg-gradient-to-r from-[#ffd700] to-[#9b5cff] transition-all"
             style={{ width: `${originalTotal ? (collectedTotal / originalTotal) * 100 : 0}%` }} />
