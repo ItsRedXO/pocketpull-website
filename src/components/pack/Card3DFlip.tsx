@@ -113,22 +113,26 @@ interface CardMeshProps {
   card: WonCard;
   colorHex: string;
   tier: RarityTier;
+  cardBackUrl?: string;
   onFlipComplete: () => void;
 }
 
-function CardMesh({ card, colorHex, tier, onFlipComplete }: CardMeshProps) {
+function CardMesh({ card, colorHex, tier, cardBackUrl, onFlipComplete }: CardMeshProps) {
   const groupRef = useRef<THREE.Group>(null!);
   const orbRef = useRef<THREE.PointLight>(null!);
   const frontMatRef = useRef<THREE.MeshStandardMaterial>(null!);
 
-  const backTex = useMemo(() => makeBackTexture(), []);
+  const canvasBackTex = useMemo(() => makeBackTexture(), []);
   const fallbackTex = useMemo(() => makeFallbackFront(card, colorHex), [card, colorHex]);
   const loadedTex = useLoader(THREE.TextureLoader, card.imageUrl || BLANK);
+  const urlBackTex = useLoader(THREE.TextureLoader, cardBackUrl || BLANK);
+
   const frontTex = card.imageUrl ? loadedTex : fallbackTex;
+  const backTex = cardBackUrl ? urlBackTex : canvasBackTex;
 
   const color3 = useMemo(() => new THREE.Color(colorHex), [colorHex]);
 
-  useEffect(() => () => { backTex.dispose(); fallbackTex.dispose(); }, [backTex, fallbackTex]);
+  useEffect(() => () => { canvasBackTex.dispose(); fallbackTex.dispose(); }, [canvasBackTex, fallbackTex]);
 
   // Orbiting fill light and holographic emissive cycle
   useFrame((state) => {
@@ -209,10 +213,11 @@ interface Card3DFlipProps {
   card: WonCard;
   colorHex: string;
   tier: RarityTier;
+  cardBackUrl?: string;
   onDone: () => void;
 }
 
-export function Card3DFlip({ card, colorHex, tier, onDone }: Card3DFlipProps) {
+export function Card3DFlip({ card, colorHex, tier, cardBackUrl, onDone }: Card3DFlipProps) {
   return (
     <div style={{ width: 260, height: 365, margin: '0 auto' }}>
       <Canvas
@@ -222,7 +227,7 @@ export function Card3DFlip({ card, colorHex, tier, onDone }: Card3DFlipProps) {
         <ambientLight intensity={0.28} />
         <directionalLight position={[3, 4, 5]} intensity={0.85} />
         <Suspense fallback={<LoadingCard />}>
-          <CardMesh card={card} colorHex={colorHex} tier={tier} onFlipComplete={onDone} />
+          <CardMesh card={card} colorHex={colorHex} tier={tier} cardBackUrl={cardBackUrl} onFlipComplete={onDone} />
         </Suspense>
       </Canvas>
     </div>

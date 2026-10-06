@@ -30,8 +30,10 @@ const RARITY_COLORS: Record<string, string> = {
   secret: '#ffd700', god: '#ff4fd8', rainbow: '#ff0060',
 };
 const BIG_PULL = new Set(['secret', 'god', 'rainbow']);
-const DRAG_THRESHOLD = 72;
-const CARD_COUNT = 5;
+const CARD_BACK_URL = '/card-back.webp'; // drop pokemon card back image here
+const CARD_COUNT_MAX = 8; // cap carousel at this many cards
+const DRAG_THRESHOLD = 80; // slide fires at this px offset
+const SLIDE_TRACK_MAX = 120; // total slide track travel in px
 
 function rarityTier(rarity: string): RarityTier {
   if (BIG_PULL.has(rarity)) return 'cinematic';
@@ -147,7 +149,19 @@ function CardFace({ card, color, shineDelay = 0.4, shineOpacity = 0.9, holograph
 
 // ── CardBack ──────────────────────────────────────────────────────────────────
 
-function CardBack({ glow = false, glowColor = '#ffd700' }: { glow?: boolean; glowColor?: string }) {
+function CardBack({ glow = false, glowColor = '#ffd700', imageUrl }: { glow?: boolean; glowColor?: string; imageUrl?: string }) {
+  if (imageUrl) {
+    return (
+      <div className="relative h-full w-full overflow-hidden rounded-xl"
+        style={{
+          border: `1px solid ${glow ? glowColor + '90' : 'rgba(255,215,0,0.2)'}`,
+          boxShadow: glow ? `0 0 24px ${glowColor}50` : '0 4px 16px rgba(0,0,0,0.55)',
+        }}>
+        <img src={imageUrl} alt="Card back" className="h-full w-full object-cover" draggable={false} />
+        {glow && <div className="pointer-events-none absolute inset-0 rounded-xl" style={{ boxShadow: `inset 0 0 20px ${glowColor}45` }} />}
+      </div>
+    );
+  }
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl"
       style={{
@@ -174,14 +188,14 @@ function CardBack({ glow = false, glowColor = '#ffd700' }: { glow?: boolean; glo
 
 // ── CardCarousel — GSAP-powered 3D fan ───────────────────────────────────────
 
-function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: boolean }) {
-  const [activeIdx, setActiveIdx] = useState(2);
+function CardCarousel({ onSelect, apiReady, cardCount }: { onSelect: () => void; apiReady: boolean; cardCount: number }) {
+  const [activeIdx, setActiveIdx] = useState(() => Math.floor(cardCount / 2));
   const containerRef = useRef<HTMLDivElement>(null);
 
   const positionCards = useCallback((idx: number, animated: boolean) => {
     if (!containerRef.current) return;
-    const cards = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
-    cards.forEach((el, i) => {
+    const els = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
+    els.forEach((el, i) => {
       const offset = i - idx;
       const abs = Math.abs(offset);
       const props = {
@@ -189,18 +203,17 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
         rotationY: offset * -15,
         scale: i === idx ? 1.0 : 1 - abs * 0.08,
         opacity: abs > 2 ? 0.28 : 1 - abs * 0.11,
-        zIndex: CARD_COUNT - abs,
+        zIndex: cardCount - abs,
       };
-      if (animated) {
-        gsap.to(el, { ...props, duration: 0.38, ease: 'back.out(1.6)' });
-      } else {
-        gsap.set(el, props);
-      }
+      if (animated) gsap.to(el, { ...props, duration: 0.38, ease: 'back.out(1.6)' });
+      else gsap.set(el, props);
     });
-  }, []);
+  }, [cardCount]);
+
+  const initialIdx = Math.floor(cardCount / 2);
 
   // Initial placement without animation
-  useEffect(() => { positionCards(2, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { positionCards(initialIdx, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Animate when selection changes
   useEffect(() => { positionCards(activeIdx, true); }, [activeIdx, positionCards]);
@@ -208,8 +221,8 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
   // Entry: cards drop in from above with stagger
   useEffect(() => {
     if (!containerRef.current) return;
-    const cards = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
-    gsap.from(cards, {
+    const els = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
+    gsap.from(els, {
       y: -80, opacity: 0, duration: 0.55,
       stagger: { each: 0.06, from: 'center' },
       ease: 'back.out(2)',
@@ -221,34 +234,34 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
     <div className="relative flex flex-col items-center gap-5 py-2">
       <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
         className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">
-        {apiReady ? 'Choose Your Card' : 'Shuffling your hand…'}
+        {apiReady ? `Choose Your Card · ${cardCount} remaining` : 'Shuffling your hand…'}
       </motion.p>
 
       <div ref={containerRef} className="relative flex items-center justify-center"
         style={{ height: 200, width: '100%', perspective: '900px' }}>
-        {Array.from({ length: CARD_COUNT }, (_, i) => (
+        {Array.from({ length: cardCount }, (_, i) => (
           <div key={i} data-cc className="absolute cursor-pointer"
             style={{ width: 88, height: 124, left: '50%', marginLeft: -44, top: '50%', marginTop: -62 }}
             onClick={() => i !== activeIdx && setActiveIdx(i)}>
-            <CardBack glow={i === activeIdx} glowColor="#ffd700" />
+            <CardBack glow={i === activeIdx} glowColor="#ffd700" imageUrl={CARD_BACK_URL} />
           </div>
         ))}
       </div>
 
       <div className="flex items-center gap-5">
         <button onClick={() => setActiveIdx(p => Math.max(0, p - 1))} disabled={activeIdx === 0}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/55 hover:text-[#ffd700] disabled:opacity-22">
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/55 hover:text-[#ffd700] disabled:opacity-25">
           <ChevronLeft size={16} />
         </button>
         <div className="flex gap-2">
-          {Array.from({ length: CARD_COUNT }, (_, i) => (
+          {Array.from({ length: cardCount }, (_, i) => (
             <button key={i} onClick={() => setActiveIdx(i)}
               className="rounded-full transition-all"
               style={{ height: 8, width: i === activeIdx ? 20 : 8, background: i === activeIdx ? '#ffd700' : 'rgba(255,255,255,0.2)' }} />
           ))}
         </div>
-        <button onClick={() => setActiveIdx(p => Math.min(CARD_COUNT - 1, p + 1))} disabled={activeIdx === CARD_COUNT - 1}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/55 hover:text-[#ffd700] disabled:opacity-22">
+        <button onClick={() => setActiveIdx(p => Math.min(cardCount - 1, p + 1))} disabled={activeIdx === cardCount - 1}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/55 hover:text-[#ffd700] disabled:opacity-25">
           <ChevronRight size={16} />
         </button>
       </div>
@@ -266,52 +279,90 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
   );
 }
 
-// ── VaultPack (simplified — GSAP handles shake externally) ────────────────────
+// ── VaultPack — inline slide-to-tear, uses pack.imageUrl ─────────────────────
 
-function VaultPack({ color, dragX, onDrag, onDragEnd }: {
-  color: string; dragX: number;
+function VaultPack({ pack, color, onDrag, onDragEnd }: {
+  pack: PackCatalog; color: string;
   onDrag: (dx: number) => void; onDragEnd: (dx: number) => void;
 }) {
-  const dragProgress = Math.min(1, Math.max(0, dragX / DRAG_THRESHOLD));
+  const [dragX, setDragX] = useState(0);
+  const dragProgress = Math.min(1, Math.max(0, dragX / SLIDE_TRACK_MAX));
+
+  const handleDrag = (_e: MouseEvent | TouchEvent | PointerEvent, info: { offset: { x: number } }) => {
+    const dx = Math.max(0, info.offset.x);
+    setDragX(dx);
+    onDrag(dx);
+  };
+  const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: { offset: { x: number } }) => {
+    const dx = Math.max(0, info.offset.x);
+    onDragEnd(dx);
+    setDragX(0);
+  };
+
   return (
     <div className="relative mx-auto h-[290px] w-[210px] sm:h-[330px] sm:w-[240px]">
-      <div className="absolute inset-0 rounded-[22px] border-2"
+      <div className="absolute inset-0 overflow-hidden rounded-[22px] border-2"
         style={{
-          background: 'linear-gradient(145deg, #202036, #080910 65%)',
           borderColor: `${color}99`,
           boxShadow: `0 20px 55px -18px ${color}, inset 0 0 ${35 + dragProgress * 30}px ${color}18`,
+          background: pack.imageUrl ? '#080910' : 'linear-gradient(145deg, #202036, #080910 65%)',
         }}>
-        <div className="absolute inset-3 rounded-[17px] border border-white/10" />
-        <div className="absolute left-1/2 top-10 -translate-x-1/2 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">PocketPull</p>
-          <p className="mt-2 font-display text-3xl uppercase tracking-widest text-white">VAULT</p>
-          <div className="mx-auto mt-4 h-px w-20 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent" />
-        </div>
-        <div className="absolute bottom-8 left-0 right-0 text-center">
-          <p className="text-[9px] uppercase tracking-[0.28em] text-white/35">Sealed collectible archive</p>
-          <div className="mx-auto mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#ffd700]/50 text-[#ffd700]">
-            <LockKeyhole size={14} />
+
+        {/* Pack artwork if provided */}
+        {pack.imageUrl
+          ? <img src={pack.imageUrl} alt={pack.name} className="absolute inset-0 h-full w-full object-cover opacity-85" draggable={false} />
+          : (
+            <>
+              <div className="absolute inset-3 rounded-[17px] border border-white/10" />
+              <div className="absolute left-1/2 top-10 -translate-x-1/2 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">PocketPull</p>
+                <p className="mt-2 font-display text-3xl uppercase tracking-widest text-white">VAULT</p>
+                <div className="mx-auto mt-4 h-px w-20 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent" />
+              </div>
+              <div className="absolute bottom-16 left-0 right-0 text-center">
+                <p className="text-[9px] uppercase tracking-[0.28em] text-white/35">Sealed collectible archive</p>
+                <div className="mx-auto mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#ffd700]/50 text-[#ffd700]">
+                  <LockKeyhole size={14} />
+                </div>
+              </div>
+            </>
+          )}
+
+        {/* Slide-to-tear track at the bottom */}
+        <div className="absolute bottom-0 left-0 right-0 rounded-b-[20px] border-t px-3 py-3"
+          style={{
+            background: 'rgba(0,0,0,0.72)',
+            borderColor: `rgba(255,215,0,${0.25 + dragProgress * 0.5})`,
+            boxShadow: dragProgress > 0.1 ? `0 -6px ${Math.round(dragProgress * 18)}px rgba(255,215,0,0.45)` : 'none',
+          }}>
+          {/* Track rail */}
+          <div className="relative h-9 w-full overflow-hidden rounded-full border border-[#ffd700]/22 bg-black/50">
+            {/* Fill */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[#ffd700]/18 transition-none"
+              style={{ width: `${dragProgress * 100}%` }} />
+            {/* Label (hidden when dragging) */}
+            {dragProgress < 0.15 && (
+              <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.32em] text-[#ffd700]/50">
+                slide → tear
+              </span>
+            )}
+            {/* Draggable handle */}
+            <motion.div
+              drag="x"
+              dragMomentum={false}
+              dragElastic={0}
+              dragConstraints={{ left: 0, right: SLIDE_TRACK_MAX }}
+              className="absolute left-0.5 top-0.5 flex h-8 w-10 cursor-grab items-center justify-center rounded-full bg-[#ffd700] text-black shadow-[0_0_14px_rgba(255,215,0,0.65)] active:cursor-grabbing"
+              style={{ touchAction: 'none' }}
+              onDrag={handleDrag}
+              onDragEnd={handleDragEnd}
+              aria-label="Slide to tear the vault seal open"
+            >
+              <GripHorizontal size={14} />
+            </motion.div>
           </div>
         </div>
-        <div className="absolute left-0 right-0 top-[68px] h-7 border-y bg-[#ffd700]/10"
-          style={{ borderColor: `rgba(255,215,0,${0.28 + dragProgress * 0.55})`, boxShadow: dragProgress > 0.15 ? `0 0 ${dragProgress * 22}px rgba(255,215,0,0.65)` : 'none' }}>
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] font-bold uppercase tracking-[0.3em] text-[#ffd700]">tear seal</span>
-        </div>
       </div>
-
-      <motion.div
-        className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
-        style={{ touchAction: 'none' }}
-        animate={{ scale: 1 + dragProgress * 0.16 }}
-        drag="x"
-        dragMomentum={false}
-        dragConstraints={{ left: 0, right: DRAG_THRESHOLD + 20 }}
-        onDrag={(_e, info) => onDrag(Math.max(0, info.offset.x))}
-        onDragEnd={(_e, info) => onDragEnd(Math.max(0, info.offset.x))}
-        aria-label="Drag to tear the vault seal open"
-      >
-        <GripHorizontal size={20} />
-      </motion.div>
     </div>
   );
 }
@@ -358,15 +409,15 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const [wonCard, setWonCard] = useState<WonCard | null>(null);
   const [apiReady, setApiReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dragX, setDragX] = useState(0);
   const ripFiredRef = useRef(false);
+  const cardCount = Math.min(CARD_COUNT_MAX, Math.max(1, cards.length));
 
   // GSAP refs
   const packWrapRef = useRef<HTMLDivElement>(null);
   const burstRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setPhase('idle'); setWonCard(null); setApiReady(false); setError(null); setDragX(0);
+    setPhase('idle'); setWonCard(null); setApiReady(false); setError(null);
     ripFiredRef.current = false;
   }, [pack.id]);
 
@@ -436,7 +487,6 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
     }
     ripFiredRef.current = true;
     setError(null);
-    setDragX(0);
     setPhase('ripping');
 
     openPack(pack.id).then(result => {
@@ -474,13 +524,11 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   }, []);
 
   const handleDrag = useCallback((offsetX: number) => {
-    setDragX(offsetX);
     if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) startRip();
   }, [startRip]);
 
   const handleDragEnd = useCallback((offsetX: number) => {
     if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) startRip();
-    setDragX(0);
   }, [startRip]);
 
   const color = wonCard ? RARITY_COLORS[wonCard.rarity] || '#ffd700' : '#ffd700';
@@ -515,7 +563,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
             {/* Pack idle — GSAP shake wraps the pack */}
             {(phase === 'idle' || phase === 'ripping') && (
               <div ref={packWrapRef} style={{ willChange: 'transform' }}>
-                <VaultPack color={color} dragX={dragX} onDrag={handleDrag} onDragEnd={handleDragEnd} />
+                <VaultPack pack={pack} color={color} onDrag={handleDrag} onDragEnd={handleDragEnd} />
               </div>
             )}
 
@@ -525,14 +573,14 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
             {/* Carousel — GSAP handled inside component */}
             {phase === 'carousel' && (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
-                <CardCarousel onSelect={handleCardSelect} apiReady={apiReady} />
+                <CardCarousel onSelect={handleCardSelect} apiReady={apiReady} cardCount={cardCount} />
               </motion.div>
             )}
 
             {/* 3D Flip via R3F */}
             {phase === 'flipping' && wonCard && (
               <motion.div initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
-                <Card3DFlip card={wonCard} colorHex={color} tier={tier} onDone={handleFlipDone} />
+                <Card3DFlip card={wonCard} colorHex={color} tier={tier} cardBackUrl={CARD_BACK_URL} onDone={handleFlipDone} />
               </motion.div>
             )}
 
@@ -555,7 +603,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
                 <motion.p key={statusLabel || 'idle'}
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
                   className="mt-5 text-xs font-bold uppercase tracking-[0.22em] text-[#ffd700]">
-                  {statusLabel || (dragX >= DRAG_THRESHOLD ? 'Release to tear it open!' : dragX > 8 ? 'Keep pulling…' : 'Drag the tab to tear open the vault')}
+                  {statusLabel || 'Slide the tab to tear open the vault'}
                 </motion.p>
               )}
             </AnimatePresence>
