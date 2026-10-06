@@ -10,6 +10,7 @@ export interface LoadingScreenConfig {
   barHeight: number;
   barRadius: number;
   barY: number;
+  barWidth: number;
 }
 
 export const DEFAULT_LOADING_CONFIG: LoadingScreenConfig = {
@@ -24,6 +25,7 @@ export const DEFAULT_LOADING_CONFIG: LoadingScreenConfig = {
   barHeight: 22,
   barRadius: 0,
   barY: 50,
+  barWidth: 100,
 };
 
 const LOADING_KEY = ['site_config', 'loading_screen'];

@@ -4,12 +4,15 @@ import { useLoadingScreenConfig, DEFAULT_LOADING_CONFIG, type LoadingScreenConfi
 
 interface Props { showToast: (msg: string, ok?: boolean) => void; }
 
+type DragMode = 'none' | 'position' | 'width';
+
 export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
   const { config, saveConfig, isSaving } = useLoadingScreenConfig();
   const [draft, setDraft] = useState<LoadingScreenConfig>(DEFAULT_LOADING_CONFIG);
   const [previewProgress, setPreviewProgress] = useState(65);
-  const [dragging, setDragging] = useState(false);
+  const [dragMode, setDragMode] = useState<DragMode>('none');
   const previewRef = useRef<HTMLDivElement>(null);
+  const contentBlockRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setDraft(config); }, [config]);
 
@@ -34,11 +37,20 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
   };
 
   const onPreviewMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!dragging || !previewRef.current) return;
+    if (dragMode === 'none' || !previewRef.current) return;
     const rect = previewRef.current.getBoundingClientRect();
-    const pct = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-    setDraft(d => ({ ...d, barY: Math.max(5, Math.min(95, pct)) }));
+
+    if (dragMode === 'position') {
+      const pct = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+      setDraft(d => ({ ...d, barY: Math.max(5, Math.min(95, pct)) }));
+    } else if (dragMode === 'width' && contentBlockRef.current) {
+      const blockRect = contentBlockRef.current.getBoundingClientRect();
+      const pct = Math.round(((e.clientX - blockRect.left) / blockRect.width) * 100);
+      setDraft(d => ({ ...d, barWidth: Math.max(20, Math.min(100, pct)) }));
+    }
   };
+
+  const stopDrag = () => setDragMode('none');
 
   const SliderRow = ({
     label, field, min, max, unit = 'px',
@@ -63,7 +75,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-display text-lg uppercase tracking-widest text-white">Loading Screen</h2>
-          <p className="text-xs text-gray-500 mt-1">Drag the content block in the preview to reposition it</p>
+          <p className="text-xs text-gray-500 mt-1">Drag the preview — block to reposition, right edge of bar to resize width</p>
         </div>
         <button
           onClick={handleSave}
@@ -114,6 +126,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                 background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
                 boxShadow: `0 0 10px ${draft.barColor2}88`,
                 borderRadius: `${draft.barRadius}px`,
+                width: `${draft.barWidth}%`,
               }}
             />
           </div>
@@ -121,10 +134,11 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
           {/* Bar size, shape & position */}
           <div className="rounded-xl p-5 border border-white/8 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Bar Size, Shape &amp; Position</h3>
+            <SliderRow label="Width" field="barWidth" min={20} max={100} unit="%" />
             <SliderRow label="Height" field="barHeight" min={8} max={48} />
             <SliderRow label="Corner Radius" field="barRadius" min={0} max={24} />
             <SliderRow label="Vertical Position" field="barY" min={5} max={95} unit="%" />
-            <p className="text-[9px] text-gray-600">Or drag the content block directly in the preview →</p>
+            <p className="text-[9px] text-gray-600">Or use the preview: drag block to move, drag bar right-edge to resize width</p>
           </div>
 
           {/* Messages */}
@@ -170,10 +184,12 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               <Monitor size={13} className="text-gray-500" />
               <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Live Preview</span>
             </div>
-            <span className="text-[9px] text-gray-600 uppercase tracking-wider">Drag block to reposition</span>
+            <span className="text-[9px] text-gray-600 uppercase tracking-wider">
+              {dragMode === 'position' ? '↕ repositioning...' : dragMode === 'width' ? '↔ resizing...' : 'Drag to edit'}
+            </span>
           </div>
 
-          {/* Preview canvas — drag to reposition */}
+          {/* Preview canvas */}
           <div
             ref={previewRef}
             className="relative"
@@ -182,43 +198,39 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               backgroundImage: "url('/loading-bg.webp')",
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              cursor: dragging ? 'grabbing' : 'default',
+              cursor: dragMode === 'position' ? 'ns-resize' : dragMode === 'width' ? 'ew-resize' : 'default',
               userSelect: 'none',
             }}
             onMouseMove={onPreviewMouseMove}
-            onMouseUp={() => setDragging(false)}
-            onMouseLeave={() => setDragging(false)}
+            onMouseUp={stopDrag}
+            onMouseLeave={stopDrag}
           >
             <div className="absolute inset-0" style={{ background: 'rgba(4,8,16,0.18)' }} />
 
             {/* Horizontal guideline */}
             <div
               className="absolute left-0 right-0 pointer-events-none"
-              style={{
-                top: `${draft.barY}%`,
-                height: '1px',
-                background: 'rgba(255,255,255,0.12)',
-              }}
+              style={{ top: `${draft.barY}%`, height: '1px', background: 'rgba(255,255,255,0.12)' }}
             />
 
-            {/* Draggable content block */}
+            {/* Content block — drag to reposition vertically */}
             <div
+              ref={contentBlockRef}
               className="absolute flex flex-col items-center gap-3"
               style={{
                 top: `${draft.barY}%`,
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '65%',
-                cursor: dragging ? 'grabbing' : 'grab',
+                width: '70%',
                 zIndex: 10,
+                cursor: dragMode === 'position' ? 'ns-resize' : 'grab',
               }}
-              onMouseDown={e => { e.preventDefault(); setDragging(true); }}
+              onMouseDown={e => { e.preventDefault(); setDragMode('position'); }}
             >
-              {/* Drag handle hint */}
-              {!dragging && (
+              {dragMode === 'none' && (
                 <div
-                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] uppercase tracking-widest whitespace-nowrap px-2 py-0.5 rounded"
-                  style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }}
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] uppercase tracking-widest whitespace-nowrap px-2 py-0.5 rounded pointer-events-none"
+                  style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.4)' }}
                 >
                   ↕ drag to move
                 </div>
@@ -228,7 +240,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                 src="/pocketpull-logo.png"
                 alt="PocketPull"
                 draggable={false}
-                style={{ width: '64px', height: '64px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+                style={{ width: '60px', height: '60px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
               />
 
               <p
@@ -238,30 +250,60 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                 {draft.messages[0]}
               </p>
 
-              {/* Bar */}
-              <div
-                className="relative w-full overflow-hidden"
-                style={{
-                  height: `${draft.barHeight}px`,
-                  borderRadius: `${draft.barRadius}px`,
-                  background: 'rgba(4,6,16,0.82)',
-                  border: '2px solid rgba(255,255,255,0.45)',
-                  boxShadow: '0 0 0 2px rgba(0,0,0,0.72)',
-                }}
-              >
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  width: `${previewProgress}%`,
-                  borderRadius: `${draft.barRadius}px`,
-                  background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
-                  boxShadow: `0 0 12px ${draft.barColor2}cc`,
-                  transition: dragging ? 'none' : 'width 0.1s',
-                }} />
-                <div style={{
-                  position: 'absolute', top: '3px', left: 0, height: '4px',
-                  width: `${previewProgress}%`,
-                  background: 'rgba(255,255,255,0.26)',
-                }} />
+              {/* Bar + right-edge resize handle */}
+              <div className="relative w-full flex items-center">
+                <div
+                  className="relative overflow-hidden"
+                  style={{
+                    height: `${draft.barHeight}px`,
+                    width: `${draft.barWidth}%`,
+                    borderRadius: `${draft.barRadius}px`,
+                    background: 'rgba(4,6,16,0.82)',
+                    border: '2px solid rgba(255,255,255,0.45)',
+                    boxShadow: '0 0 0 2px rgba(0,0,0,0.72)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    width: `${previewProgress}%`,
+                    borderRadius: `${draft.barRadius}px`,
+                    background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
+                    boxShadow: `0 0 12px ${draft.barColor2}cc`,
+                  }} />
+                  <div style={{
+                    position: 'absolute', top: '3px', left: 0, height: '4px',
+                    width: `${previewProgress}%`,
+                    background: 'rgba(255,255,255,0.26)',
+                  }} />
+                </div>
+
+                {/* Right-edge resize handle */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${draft.barWidth}%`,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '14px',
+                    height: `${Math.max(draft.barHeight + 8, 20)}px`,
+                    cursor: 'ew-resize',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 20,
+                  }}
+                  onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setDragMode('width'); }}
+                >
+                  <div style={{
+                    width: '5px',
+                    height: '70%',
+                    borderRadius: '3px',
+                    background: dragMode === 'width' ? '#c084fc' : 'rgba(255,255,255,0.6)',
+                    boxShadow: dragMode === 'width' ? '0 0 8px #c084fc' : 'none',
+                    transition: 'background 0.15s',
+                  }} />
+                </div>
               </div>
 
               <p

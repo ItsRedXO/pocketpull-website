@@ -134,8 +134,9 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
 
               {/* Progress bar */}
               <div
-                className="relative w-full overflow-hidden"
+                className="relative overflow-hidden"
                 style={{
+                  width: `${config.barWidth}%`,
                   height: `${config.barHeight}px`,
                   borderRadius: `${config.barRadius}px`,
                   background: 'rgba(4, 6, 16, 0.82)',
