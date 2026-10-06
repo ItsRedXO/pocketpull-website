@@ -91,19 +91,6 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
               transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
               className="relative flex items-center justify-center"
             >
-              {/* Outer pulse ring */}
-              <motion.div
-                className="absolute rounded-full pointer-events-none"
-                animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.15, 0.5] }}
-                transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
-                style={{
-                  width: '240px',
-                  height: '240px',
-                  border: '2px solid rgba(155,92,255,0.5)',
-                  boxShadow: '0 0 40px 8px rgba(155,92,255,0.35)',
-                  borderRadius: '50%',
-                }}
-              />
               {/* Logo circle */}
               <div
                 style={{
@@ -111,8 +98,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                   height: '200px',
                   borderRadius: '50%',
                   overflow: 'hidden',
-                  border: '3px solid rgba(155,92,255,0.8)',
-                  boxShadow: '0 0 30px -4px rgba(155,92,255,0.9), 0 0 60px -12px rgba(124,58,237,0.6), 0 12px 40px rgba(0,0,0,0.7)',
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
                 }}
               >
                 <img
