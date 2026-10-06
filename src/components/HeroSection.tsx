@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { Pencil, Check, X, Loader2 } from 'lucide-react';
 import { useLiveCounters } from '../hooks/useLiveCounters';
+import { useAuth, useUserStats } from '../hooks/useAuth';
+import { useHeroCardPositions } from '../hooks/useSiteConfig';
 
 // ── Animated counter via RAF ──────────────────────────────────────────────────
 function AnimatedCounter({
@@ -52,8 +55,6 @@ interface ShowcaseCard {
   floatAmount: number;
   entranceDelay: number;
   zIndex: number;
-  // Absolute % positions within the full hero section
-  position: { left?: string; right?: string; top?: string; bottom?: string };
   imageUrl: string;
 }
 
@@ -71,7 +72,6 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 16,
     entranceDelay: 0.5,
     zIndex: 25,
-    position: { left: '47.5%', top: '36%' },
     imageUrl: 'https://images.pokemontcg.io/swsh7/215_hires.png',
   },
   {
@@ -87,7 +87,6 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 12,
     entranceDelay: 0.7,
     zIndex: 35,
-    position: { left: '68%', top: '41%' },
     imageUrl: 'https://images.pokemontcg.io/gym2/14_hires.png',
   },
   {
@@ -103,21 +102,31 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 14,
     entranceDelay: 0.9,
     zIndex: 20,
-    position: { left: '81%', top: '32%' },
     imageUrl: 'https://images.pokemontcg.io/base1/4_hires.png',
   },
 ];
 
 // ── Floating Pokémon Card ─────────────────────────────────────────────────────
-function FloatingCard({ card }: { card: ShowcaseCard }) {
+function FloatingCard({
+  card,
+  position,
+  editMode = false,
+  onPointerDown,
+}: {
+  card: ShowcaseCard;
+  position: { left: number; top: number };
+  editMode?: boolean;
+  onPointerDown?: (e: React.PointerEvent<HTMLDivElement>) => void;
+}) {
   const isGod = card.rarity === 'GOD PULL';
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.7, y: 44 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 1.0, delay: card.entranceDelay, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 1.0, delay: editMode ? 0 : card.entranceDelay, ease: [0.16, 1, 0.3, 1] }}
       className="absolute"
-      style={{ ...card.position, zIndex: card.zIndex }}
+      onPointerDown={onPointerDown}
+      style={{ left: `${position.left}%`, top: `${position.top}%`, zIndex: card.zIndex }}
     >
       {/* Ambient glow */}
       <div
@@ -131,14 +140,25 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
         }}
       />
 
+      {editMode && (
+        <div
+          className="absolute inset-0 rounded-[14px] z-50 pointer-events-none"
+          style={{
+            border: '2px dashed rgba(255,255,255,0.5)',
+            boxShadow: '0 0 12px rgba(255,255,255,0.15)',
+          }}
+        />
+      )}
+
       <motion.div
-        animate={{ y: [0, -card.floatAmount, 0] }}
-        transition={{ duration: card.floatDuration, repeat: Infinity, ease: 'easeInOut', delay: card.floatDelay }}
-        className="relative cursor-pointer select-none"
+        animate={editMode ? { y: 0 } : { y: [0, -card.floatAmount, 0] }}
+        transition={editMode ? {} : { duration: card.floatDuration, repeat: Infinity, ease: 'easeInOut', delay: card.floatDelay }}
+        className="relative select-none"
         style={{
           width: '156px',
           height: '218px',
           borderRadius: '14px',
+          cursor: editMode ? 'grab' : 'pointer',
           transform: `rotate(${card.rotate}deg)`,
           overflow: 'hidden',
           border: isGod
@@ -154,14 +174,14 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
             ? `0 0 30px -6px ${card.glowColor}99, 0 0 60px -20px ${card.glowColor2}66, 0 28px 56px rgba(0,0,0,0.9)`
             : `0 0 24px -6px ${card.glowColor}77, 0 0 48px -16px ${card.glowColor2}55, 0 28px 56px rgba(0,0,0,0.85)`,
         }}
-        whileHover={{ scale: 1.06, y: -6, zIndex: 50 }}
+        {...(!editMode && { whileHover: { scale: 1.06, y: -6, zIndex: 50 } })}
       >
         <img
           src={card.imageUrl}
           alt={card.name}
           loading="lazy"
           className="w-full h-full object-cover"
-          style={{ display: 'block', borderRadius: '12px' }}
+          style={{ display: 'block', borderRadius: '12px', pointerEvents: 'none', userSelect: 'none', WebkitUserDrag: 'none' } as React.CSSProperties}
           onError={(e) => {
             const el = e.currentTarget as HTMLImageElement;
             el.style.display = 'none';
@@ -200,6 +220,82 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
 // ── Hero Section ──────────────────────────────────────────────────────────────
 export const HeroSection: React.FC = () => {
   const { packsOpened, cardsWonToday, biggestPull, livePlayers } = useLiveCounters();
+  const { user } = useAuth();
+  const { stats } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified);
+  const isAdmin = stats?.role === 'admin';
+
+  const { positions: savedPositions, savePositions, isSaving } = useHeroCardPositions();
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editPositions, setEditPositions] = useState<Array<{ left: number; top: number }>>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const sectionRef = useRef<HTMLElement>(null);
+  const dragRef = useRef<{ cardIdx: number; offsetX: number; offsetY: number } | null>(null);
+
+  const activePositions = isEditMode
+    ? editPositions
+    : savedPositions.map(p => ({ left: p.left, top: p.top }));
+
+  const enterEditMode = () => {
+    setSaveError(null);
+    setEditPositions(savedPositions.map(p => ({ left: p.left, top: p.top })));
+    setIsEditMode(true);
+  };
+
+  const cancelEditMode = () => {
+    dragRef.current = null;
+    setIsEditMode(false);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaveError(null);
+      await savePositions(
+        SHOWCASE_CARDS.map((card, i) => ({
+          name: card.name,
+          left: editPositions[i]?.left ?? savedPositions[i]?.left ?? 0,
+          top: editPositions[i]?.top ?? savedPositions[i]?.top ?? 0,
+        }))
+      );
+      setIsEditMode(false);
+    } catch {
+      setSaveError('Save failed — check your connection.');
+    }
+  };
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, cardIdx: number) => {
+    if (!sectionRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const section = sectionRef.current.getBoundingClientRect();
+    const pos = editPositions[cardIdx] ?? savedPositions[cardIdx];
+    const cardLeftPx = (pos.left / 100) * section.width;
+    const cardTopPx = (pos.top / 100) * section.height;
+    dragRef.current = {
+      cardIdx,
+      offsetX: e.clientX - section.left - cardLeftPx,
+      offsetY: e.clientY - section.top - cardTopPx,
+    };
+  }, [editPositions, savedPositions]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    if (!dragRef.current || !sectionRef.current) return;
+    e.preventDefault();
+    const section = sectionRef.current.getBoundingClientRect();
+    const { cardIdx, offsetX, offsetY } = dragRef.current;
+    const newLeft = Math.max(0, Math.min(88, ((e.clientX - section.left - offsetX) / section.width) * 100));
+    const newTop = Math.max(0, Math.min(80, ((e.clientY - section.top - offsetY) / section.height) * 100));
+    setEditPositions(prev => {
+      const next = [...prev];
+      next[cardIdx] = { left: newLeft, top: newTop };
+      return next;
+    });
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    dragRef.current = null;
+  }, []);
 
   const liveStats = [
     { label: 'Packs Opened', value: packsOpened, prefix: '', suffix: '+' },
@@ -209,8 +305,12 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section
+      ref={sectionRef}
       className="relative overflow-hidden"
-      style={{ minHeight: '680px' }}
+      style={{ minHeight: '680px', touchAction: isEditMode ? 'none' : undefined }}
+      onPointerMove={isEditMode ? handlePointerMove : undefined}
+      onPointerUp={isEditMode ? handlePointerUp : undefined}
+      onPointerLeave={isEditMode ? handlePointerUp : undefined}
     >
       {/* Left-to-right gradient: keeps text readable, fades to transparent */}
       <div
@@ -294,17 +394,67 @@ export const HeroSection: React.FC = () => {
               </div>
             ))}
           </motion.div>
+
+          {/* Admin edit button */}
+          {isAdmin && !isEditMode && (
+            <button
+              onClick={enterEditMode}
+              className="inline-flex items-center gap-2 self-start mt-1 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/60 hover:text-white/90 border border-white/10 hover:border-white/25 bg-white/[0.04] hover:bg-white/[0.08] transition-all duration-150"
+            >
+              <Pencil size={12} />
+              Edit Cards
+            </button>
+          )}
         </motion.div>
       </div>
 
       {/* ── Floating cards – absolute over full section ────────────────────── */}
-      <div className="absolute inset-0 z-20 pointer-events-none hidden lg:block">
-        {SHOWCASE_CARDS.map((card) => (
-          <div key={card.name} className="pointer-events-auto">
-            <FloatingCard card={card} />
-          </div>
+      <div className={`absolute inset-0 z-20 hidden lg:block${isEditMode ? '' : ' pointer-events-none'}`}>
+        {SHOWCASE_CARDS.map((card, idx) => (
+          <FloatingCard
+            key={card.name}
+            card={card}
+            position={activePositions[idx] ?? { left: 0, top: 0 }}
+            editMode={isEditMode}
+            onPointerDown={isEditMode ? (e) => handlePointerDown(e, idx) : undefined}
+          />
         ))}
       </div>
+
+      {/* ── Edit mode: save / cancel bar ─────────────────────────────────── */}
+      {isEditMode && (
+        <div
+          className="absolute bottom-8 left-1/2 z-50 flex items-center gap-3"
+          style={{ transform: 'translateX(-50%)' }}
+        >
+          <div
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/15"
+            style={{ background: 'rgba(8,12,20,0.92)', backdropFilter: 'blur(12px)' }}
+          >
+            <span className="text-[12px] text-white/50 font-medium">Drag cards to reposition</span>
+            <div className="w-px h-4 bg-white/15" />
+            <button
+              onClick={cancelEditMode}
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-white/70 hover:text-white border border-white/10 hover:border-white/25 bg-white/[0.05] hover:bg-white/[0.1] transition-all duration-150 disabled:opacity-40"
+            >
+              <X size={13} />
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[12px] font-semibold text-white border border-[#7c3aed]/60 bg-[#7c3aed]/30 hover:bg-[#7c3aed]/50 transition-all duration-150 disabled:opacity-60"
+            >
+              {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {isSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+          {saveError && (
+            <span className="text-[11px] text-red-400">{saveError}</span>
+          )}
+        </div>
+      )}
     </section>
   );
 };
