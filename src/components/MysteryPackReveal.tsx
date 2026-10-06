@@ -302,65 +302,53 @@ function VaultPack({ pack, color, onDrag, onDragEnd }: {
 
   return (
     <div className="relative mx-auto h-[290px] w-[210px] sm:h-[330px] sm:w-[240px]">
-      <div className="absolute inset-0 overflow-hidden rounded-[22px]"
-        style={{
-          boxShadow: `0 20px 55px -18px ${color}`,
-          background: pack.imageUrl ? '#080910' : 'linear-gradient(145deg, #202036, #080910 65%)',
-        }}>
-
-        {/* Pack artwork if provided */}
-        {pack.imageUrl
-          ? <img src={pack.imageUrl} alt={pack.name} className="absolute inset-0 h-full w-full object-cover opacity-85" draggable={false} />
-          : (
-            <>
-              <div className="absolute inset-3 rounded-[17px] border border-white/10" />
-              <div className="absolute left-1/2 top-10 -translate-x-1/2 text-center">
-                <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">PocketPull</p>
-                <p className="mt-2 font-display text-3xl uppercase tracking-widest text-white">VAULT</p>
-                <div className="mx-auto mt-4 h-px w-20 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent" />
+      {/* Pack image — no wrapper border, just the art */}
+      {pack.imageUrl
+        ? <img src={pack.imageUrl} alt={pack.name} className="absolute inset-0 h-full w-full object-cover rounded-[22px]" draggable={false} />
+        : (
+          <div className="absolute inset-0 rounded-[22px]"
+            style={{ background: 'linear-gradient(145deg, #202036, #080910 65%)' }}>
+            <div className="absolute left-1/2 top-12 -translate-x-1/2 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">PocketPull</p>
+              <p className="mt-2 font-display text-3xl uppercase tracking-widest text-white">VAULT</p>
+              <div className="mx-auto mt-4 h-px w-20 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent" />
+            </div>
+            <div className="absolute bottom-20 left-0 right-0 text-center">
+              <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#ffd700]/50 text-[#ffd700]">
+                <LockKeyhole size={14} />
               </div>
-              <div className="absolute bottom-16 left-0 right-0 text-center">
-                <p className="text-[9px] uppercase tracking-[0.28em] text-white/35">Sealed collectible archive</p>
-                <div className="mx-auto mt-3 flex h-8 w-8 items-center justify-center rounded-full border border-[#ffd700]/50 text-[#ffd700]">
-                  <LockKeyhole size={14} />
-                </div>
-              </div>
-            </>
-          )}
-
-        {/* Slide-to-tear track at the top */}
-        <div className="absolute top-0 left-0 right-0 rounded-t-[20px] border-b px-3 py-3"
-          style={{
-            background: 'rgba(0,0,0,0.72)',
-            borderColor: `rgba(255,215,0,${0.25 + dragProgress * 0.5})`,
-            boxShadow: dragProgress > 0.1 ? `0 6px ${Math.round(dragProgress * 18)}px rgba(255,215,0,0.45)` : 'none',
-          }}>
-          {/* Track rail */}
-          <div className="relative h-9 w-full overflow-hidden rounded-full border border-[#ffd700]/22 bg-black/50">
-            {/* Fill */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[#ffd700]/18 transition-none"
-              style={{ width: `${dragProgress * 100}%` }} />
-            {/* Label (hidden when dragging) */}
-            {dragProgress < 0.15 && (
-              <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.32em] text-[#ffd700]/50">
-                slide → tear
-              </span>
-            )}
-            {/* Draggable handle */}
-            <motion.div
-              drag="x"
-              dragMomentum={false}
-              dragElastic={0}
-              dragConstraints={{ left: 0, right: SLIDE_TRACK_MAX }}
-              className="absolute left-0.5 top-0.5 flex h-8 w-10 cursor-grab items-center justify-center rounded-full bg-[#ffd700] text-black shadow-[0_0_14px_rgba(255,215,0,0.65)] active:cursor-grabbing"
-              style={{ touchAction: 'none' }}
-              onDrag={handleDrag}
-              onDragEnd={handleDragEnd}
-              aria-label="Slide to tear the vault seal open"
-            >
-              <GripHorizontal size={14} />
-            </motion.div>
+            </div>
           </div>
+        )}
+
+      {/* Slide-to-tear overlay at top — no border, blends into image */}
+      <div className="absolute top-0 left-0 right-0 z-10 rounded-t-[22px] px-3 py-3"
+        style={{ background: 'rgba(0,0,0,0.68)' }}>
+        {/* Track rail */}
+        <div className="relative h-9 w-full overflow-hidden rounded-full bg-white/10">
+          {/* Fill */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-[#ffd700]/25 transition-none"
+            style={{ width: `${dragProgress * 100}%` }} />
+          {/* Label */}
+          {dragProgress < 0.15 && (
+            <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.32em] text-white/40">
+              slide → tear
+            </span>
+          )}
+          {/* Draggable handle */}
+          <motion.div
+            drag="x"
+            dragMomentum={false}
+            dragElastic={0}
+            dragConstraints={{ left: 0, right: SLIDE_TRACK_MAX }}
+            className="absolute left-0.5 top-0.5 flex h-8 w-10 cursor-grab items-center justify-center rounded-full bg-[#ffd700] text-black shadow-[0_0_14px_rgba(255,215,0,0.65)] active:cursor-grabbing"
+            style={{ touchAction: 'none' }}
+            onDrag={handleDrag}
+            onDragEnd={handleDragEnd}
+            aria-label="Slide to tear the vault seal open"
+          >
+            <GripHorizontal size={14} />
+          </motion.div>
         </div>
       </div>
     </div>
@@ -550,7 +538,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
           {isVaulted ? 'Vaulted Archive' : 'Mystery Vault'}
         </div>
         <div className="mt-3 text-white font-display text-2xl">
-          Collected {collectedTotal}<span className="font-sans text-white/50 mx-1">/</span>{originalTotal}
+          Collected {collectedTotal}<span style={{ fontFamily: 'Inter, system-ui, sans-serif', opacity: 0.55, margin: '0 4px' }}>/</span>{originalTotal}
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
           <div className="h-full rounded-full bg-gradient-to-r from-[#ffd700] to-[#9b5cff] transition-all"

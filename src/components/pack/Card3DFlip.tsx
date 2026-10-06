@@ -1,7 +1,20 @@
-import React, { Suspense, useEffect, useMemo, useRef } from 'react';
+import React, { Component, Suspense, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import gsap from 'gsap';
+
+class FlipErrorBoundary extends Component<{ children: React.ReactNode; onError?: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  componentDidCatch() { this.setState({ failed: true }); this.props.onError?.(); }
+  render() {
+    if (this.state.failed) return (
+      <div style={{ width: 260, height: 365, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffd700', fontSize: 13 }}>
+        Card reveal unavailable
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 export type WonCard = { name: string; rarity: string; value: number; imageUrl: string | null; emoji?: string };
 export type RarityTier = 'common' | 'uncommon' | 'rare' | 'ultra' | 'cinematic';
@@ -219,17 +232,19 @@ interface Card3DFlipProps {
 
 export function Card3DFlip({ card, colorHex, tier, cardBackUrl, onDone }: Card3DFlipProps) {
   return (
-    <div style={{ width: 260, height: 365, margin: '0 auto' }}>
-      <Canvas
-        gl={{ alpha: true, antialias: true }}
-        camera={{ position: [0, 0, 5], fov: 45 }}
-      >
-        <ambientLight intensity={0.28} />
-        <directionalLight position={[3, 4, 5]} intensity={0.85} />
-        <Suspense fallback={<LoadingCard />}>
-          <CardMesh card={card} colorHex={colorHex} tier={tier} cardBackUrl={cardBackUrl} onFlipComplete={onDone} />
-        </Suspense>
-      </Canvas>
-    </div>
+    <FlipErrorBoundary onError={onDone}>
+      <div style={{ width: 260, height: 365, margin: '0 auto' }}>
+        <Canvas
+          gl={{ alpha: true, antialias: true }}
+          camera={{ position: [0, 0, 5], fov: 45 }}
+        >
+          <ambientLight intensity={0.28} />
+          <directionalLight position={[3, 4, 5]} intensity={0.85} />
+          <Suspense fallback={<LoadingCard />}>
+            <CardMesh card={card} colorHex={colorHex} tier={tier} cardBackUrl={cardBackUrl} onFlipComplete={onDone} />
+          </Suspense>
+        </Canvas>
+      </div>
+    </FlipErrorBoundary>
   );
 }
