@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimate } from 'framer-motion';
 import { Play, Pause, FastForward, X, Skull, Trophy, Coins, Clock } from 'lucide-react';
 import type { ArenaAttackEvent, ArenaFrame, ArenaObstacle, BrawlMatchResult, Effectiveness } from '../../lib/brawlApi';
 import { typeColor } from './typeColors';
@@ -198,18 +198,25 @@ function PokemonIcon({ mon, tickSeconds, hitEffect, tick }: { mon: ArenaFrame['p
       animate={{ left: `${mon.x}%`, top: `${mon.y}%`, opacity: mon.fainted ? 0.2 : 1 }}
       transition={{ duration: tickSeconds, ease: 'linear' }}
     >
-      <div className="relative w-7 h-7 rounded-full overflow-hidden flex items-center justify-center" style={{ background: '#0006', border: `1.5px solid ${accent}`, filter: mon.fainted ? 'grayscale(1)' : undefined }}>
+      <motion.div
+        className="relative w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
+        style={{ background: '#0009', border: `2px solid ${accent}`, filter: mon.fainted ? 'grayscale(1) brightness(0.5)' : undefined, boxShadow: mon.fainted ? 'none' : `0 0 10px ${accent}60` }}
+        animate={mon.fainted ? { scale: 0.7, rotate: mon.side === 'user' ? -30 : 30, y: 6 } : { scale: 1, rotate: 0, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
         {mon.artworkUrl ? <img src={mon.artworkUrl} alt={mon.name} className="w-full h-full object-contain scale-[2.2]" style={{ objectPosition: 'top' }} /> : null}
         <AnimatePresence>
           {!mon.fainted && hitEffect && hitEffect !== 'neutral' && <HitFlash key={tick} effectiveness={hitEffect} />}
         </AnimatePresence>
+      </motion.div>
+      <div className="w-9 h-[4px] rounded-full bg-white/15 mt-0.5 overflow-hidden">
+        <motion.div
+          className="h-full rounded-full"
+          animate={{ width: `${hpPct}%`, background: hpColor }}
+          transition={{ duration: 0.3 }}
+        />
       </div>
-      {!mon.fainted && (
-        <div className="w-6 h-[3px] rounded-full bg-white/15 mt-0.5 overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${hpPct}%`, background: hpColor }} />
-        </div>
-      )}
-      <div className="text-[7px] font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: mon.fainted ? '#666' : accent }}>{mon.name}</div>
+      <div className="text-[8px] font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: mon.fainted ? '#555' : accent }}>{mon.name}</div>
     </motion.div>
   );
 }
@@ -217,8 +224,17 @@ function PokemonIcon({ mon, tickSeconds, hitEffect, tick }: { mon: ArenaFrame['p
 function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; obstacles: ArenaObstacle[]; tickSeconds: number; theme: ArenaTheme }) {
   const rangedAttacks = frame.attacks.filter(a => Math.hypot(a.toX - a.fromX, a.toY - a.fromY) >= MELEE_VISUAL_THRESHOLD);
   const meleeAttacks = frame.attacks.filter(a => Math.hypot(a.toX - a.fromX, a.toY - a.fromY) < MELEE_VISUAL_THRESHOLD);
+  const [arenaScope, animateArena] = useAnimate();
+  const hasSuperHit = frame.attacks.some(a => a.effectiveness === 'super-effective');
+  const prevTickRef = React.useRef(-1);
+  React.useEffect(() => {
+    if (hasSuperHit && frame.tick !== prevTickRef.current) {
+      prevTickRef.current = frame.tick;
+      animateArena(arenaScope.current, { x: [0, -5, 5, -3, 3, -1, 1, 0], y: [0, -3, 2, -2, 3, -1, 1, 0] }, { duration: 0.35, ease: 'easeOut' });
+    }
+  }, [frame.tick, hasSuperHit]);
   return (
-    <div className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border" style={{ background: theme.background, borderColor: `${theme.vignette}30`, boxShadow: `inset 0 0 60px ${theme.vignette}18` }}>
+    <div ref={arenaScope} className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border" style={{ background: theme.background, borderColor: `${theme.vignette}30`, boxShadow: `inset 0 0 60px ${theme.vignette}18` }}>
       <ArenaAmbience theme={theme} />
       <div className="absolute inset-y-0 left-1/2 w-px" style={{ background: `${theme.vignette}25` }} />
       {obstacles.map((o, i) => (
@@ -257,10 +273,18 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   const [matchIndex, setMatchIndex] = useState(0);
   const [gameIndex, setGameIndex] = useState(0);
   const [frameIndex, setFrameIndex] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false);
   const [finished, setFinished] = useState(false);
   const [speed, setSpeed] = useState<typeof SPEED_OPTIONS[number]>(1);
+  const [showVsIntro, setShowVsIntro] = useState(true);
   const theme = useMemo(() => ARENA_THEMES[Math.floor(Math.random() * ARENA_THEMES.length)], [matchIndex]);
+
+  useEffect(() => {
+    setShowVsIntro(true);
+    setPlaying(false);
+    const t = setTimeout(() => { setShowVsIntro(false); setPlaying(true); }, 1800);
+    return () => clearTimeout(t);
+  }, [matchIndex, gameIndex]);
 
   const match = matches[matchIndex];
   const game = match.games[gameIndex];
@@ -324,6 +348,41 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
 
             <div className="relative">
               <Arena frame={currentFrame} obstacles={game.obstacles} tickSeconds={tickDelayMs / 1000} theme={theme} />
+              <AnimatePresence>
+                {showVsIntro && frames[0] && (
+                  <motion.div
+                    className="absolute inset-0 z-40 flex items-center justify-center rounded-xl overflow-hidden"
+                    style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.04 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <div className="flex items-center gap-8">
+                      <div className="text-center space-y-1">
+                        {frames[0].pokemon.filter(p => p.side === 'user').map(p => (
+                          <div key={p.id} className="flex flex-col items-center gap-0.5">
+                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-14 h-14 object-contain" style={{ objectPosition: 'top', transform: 'scale(1.4)', transformOrigin: 'top center' }} />}
+                            <span className="text-[10px] font-bold text-[#00c8ff] uppercase tracking-wider">{p.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <motion.div
+                        className="font-display text-5xl text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.6)]"
+                        initial={{ scale: 0 }} animate={{ scale: [0, 1.4, 1] }} transition={{ delay: 0.2, duration: 0.45 }}
+                      >
+                        VS
+                      </motion.div>
+                      <div className="text-center space-y-1">
+                        {frames[0].pokemon.filter(p => p.side !== 'user').map(p => (
+                          <div key={p.id} className="flex flex-col items-center gap-0.5">
+                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-14 h-14 object-contain" style={{ objectPosition: 'top', transform: 'scale(1.4)', transformOrigin: 'top center' }} />}
+                            <span className="text-[10px] font-bold text-[#f87171] uppercase tracking-wider">{p.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* kill feed, top-right */}
               <div className="absolute top-3 right-3 flex flex-col gap-1 items-end max-w-[45%]">
