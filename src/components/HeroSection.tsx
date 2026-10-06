@@ -57,12 +57,6 @@ interface ShowcaseCard {
   imageUrl: string;
 }
 
-// Positions tuned to hover above the three grass indents in hero-bg.webp.
-// Background is rendered at cover scale (1280/1670 ≈ 0.766) with
-// backgroundPosition: center 80%, giving a visible y range of ~42–929px
-// in the original image. The three indents sit at original ~(570,790),
-// (780,810), (990,790) → element coords ~(34%,84%), (47%,86%), (59%,84%).
-// Cards are positioned so their bottoms are ~40px above each indent centre.
 const SHOWCASE_CARDS: ShowcaseCard[] = [
   {
     name: 'Umbreon VMAX',
@@ -77,7 +71,7 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 16,
     entranceDelay: 0.5,
     zIndex: 25,
-    position: { left: '32%', top: '44%' },
+    position: { left: '44%', top: '36%' },
     imageUrl: 'https://images.pokemontcg.io/swsh7/215_hires.png',
   },
   {
@@ -93,7 +87,7 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 12,
     entranceDelay: 0.7,
     zIndex: 35,
-    position: { left: '43%', top: '47%' },
+    position: { left: '56%', top: '41%' },
     imageUrl: 'https://images.pokemontcg.io/gym2/14_hires.png',
   },
   {
@@ -109,7 +103,7 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 14,
     entranceDelay: 0.9,
     zIndex: 20,
-    position: { left: '54%', top: '42%' },
+    position: { left: '67%', top: '32%' },
     imageUrl: 'https://images.pokemontcg.io/base1/4_hires.png',
   },
 ];
@@ -244,7 +238,7 @@ export const HeroSection: React.FC = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
           className="flex flex-col gap-6"
-          style={{ maxWidth: '460px' }}
+          style={{ maxWidth: '420px' }}
         >
           {/* Eyebrow pill */}
           <motion.div
