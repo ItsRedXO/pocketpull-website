@@ -104,7 +104,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.7 }}
               className="flex flex-col items-center"
-              style={{ gap: '14px', width: '560px', maxWidth: '90vw' }}
+              style={{ gap: '14px', width: '420px', maxWidth: '82vw' }}
             >
               {/* Cycling loading message */}
               <AnimatePresence mode="wait">
@@ -125,34 +125,38 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
                 </motion.p>
               </AnimatePresence>
 
-              {/* Progress bar track */}
+              {/* Progress bar — pixel art style: transparent track, sharp fill */}
               <div
-                className="relative w-full rounded-full overflow-hidden"
+                className="relative w-full"
                 style={{
-                  height: '20px',
-                  background: 'rgba(10, 12, 28, 0.75)',
-                  border: '1.5px solid rgba(155,92,255,0.4)',
-                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.6)',
+                  height: '18px',
+                  background: 'transparent',
+                  /* outer dark pixel border */
+                  boxShadow:
+                    '0 0 0 2px rgba(0,0,0,0.75), 0 0 0 4px rgba(255,255,255,0.18)',
                 }}
               >
                 {/* Fill */}
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full"
+                  className="absolute inset-0"
                   style={{
                     width: `${progress}%`,
-                    background: 'linear-gradient(90deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%)',
-                    boxShadow: '0 0 12px rgba(168,85,247,0.8), 0 0 24px rgba(124,58,237,0.5)',
+                    background: 'linear-gradient(180deg, #c084fc 0%, #9333ea 40%, #6b21a8 100%)',
+                    boxShadow:
+                      '0 0 14px rgba(168,85,247,0.95), 0 0 28px rgba(124,58,237,0.55)',
                     transition: 'width 0.1s linear',
                   }}
                 />
-                {/* Traveling shimmer */}
+                {/* Highlight strip — top 3px, same pixel-art feel */}
                 <div
-                  className="absolute inset-y-0 rounded-full pointer-events-none"
+                  className="absolute pointer-events-none"
                   style={{
-                    width: '60px',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
-                    left: `${Math.max(0, progress - 10)}%`,
-                    transition: 'left 0.1s linear',
+                    top: 0,
+                    left: 0,
+                    height: '4px',
+                    width: `${progress}%`,
+                    background: 'rgba(255,255,255,0.28)',
+                    transition: 'width 0.1s linear',
                   }}
                 />
               </div>
