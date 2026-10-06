@@ -184,7 +184,7 @@ export const InventoryPanel: React.FC<InventoryPanelProps> = ({
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                         <p className="text-[9px] font-bold text-center uppercase" style={{ color }}>{card.rarity}</p>
                       </div>
-                      <p className="text-xs font-display text-center text-[#ffd700] mt-1">${card.value.toFixed(2)}</p>
+                      <p className="text-xs font-sans font-bold text-center text-[#ffd700] mt-1">${card.value.toFixed(2)}</p>
                     </motion.button>
                   );
                 })}

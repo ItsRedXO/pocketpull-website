@@ -349,7 +349,7 @@ export function CircularMeter({
             className="flex flex-col items-center gap-1"
           >
             <span
-              className="font-display text-5xl leading-none tabular-nums"
+              className="font-sans text-4xl leading-none tabular-nums font-bold"
               style={{
                 color: arcColor,
                 textShadow: (outcome === 'win' && !spinning)

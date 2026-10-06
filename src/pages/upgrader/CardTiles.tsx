@@ -114,7 +114,7 @@ export function InvCardTile({
           {card.cardName}
         </p>
         <RarityBadge rarity={card.rarity} />
-        <p className="text-sm font-display font-bold text-center mt-1" style={{ color: '#fbbf24' }}>
+        <p className="text-sm font-sans font-bold text-center mt-1" style={{ color: '#fbbf24' }}>
           ${Number(card.value).toFixed(2)}
         </p>
       </div>
@@ -179,7 +179,7 @@ export function TargetCardTile({
           {card.name}
         </p>
         <RarityBadge rarity={card.rarity} />
-        <p className="text-sm font-display font-bold text-center mt-1" style={{ color: '#fbbf24' }}>
+        <p className="text-sm font-sans font-bold text-center mt-1" style={{ color: '#fbbf24' }}>
           ${card.value.toFixed(2)}
         </p>
       </div>

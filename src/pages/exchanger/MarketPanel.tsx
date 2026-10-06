@@ -180,7 +180,7 @@ export const MarketPanel: React.FC<Props> = ({ marketCards, maxValue, selectedId
                           <p className="text-[7px] text-gray-500 uppercase truncate w-full text-center">{card.packName}</p>
                         )}
                       </div>
-                      <p className="text-xs font-display text-center text-[#ffd700] mt-1">${card.value.toFixed(2)}</p>
+                      <p className="text-xs font-sans font-bold text-center text-[#ffd700] mt-1">${card.value.toFixed(2)}</p>
                     </motion.button>
                   );
                 })}

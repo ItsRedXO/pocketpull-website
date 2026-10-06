@@ -73,7 +73,7 @@ export const ExchangeSummary: React.FC<ExchangeSummaryProps> = ({
                       <p className="text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color: col }}>{c.rarity}</p>
                     </div>
                     <div className="text-right shrink-0 pr-1">
-                      <p className="text-[15px] text-[#ffd700] font-display font-bold">${c.value.toFixed(2)}</p>
+                      <p className="text-[15px] text-[#ffd700] font-sans font-bold">${c.value.toFixed(2)}</p>
                     </div>
                     <button onClick={() => toggleOffer(c)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-red-400 hover:bg-red-400/15 transition-all shrink-0">
                       <X size={14} />
