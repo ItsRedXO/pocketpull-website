@@ -5,6 +5,8 @@ import { PokemonPortrait } from './PokemonPortrait';
 import { typeColor } from './typeColors';
 import { typeBackground } from './typeBackgrounds';
 import { CARD_FRAMES } from './cardFrames';
+import type { BrawlCardLayout } from '../../hooks/useSiteConfig';
+import { DEFAULT_BRAWL_CARD_LAYOUT } from '../../hooks/useSiteConfig';
 
 export type CardTier = 'bronze' | 'silver' | 'gold' | 'legendary';
 
@@ -50,40 +52,41 @@ const LAYOUT = {
   power: { top: '10%', left: '4%', width: '30%', height: '7%' },
   type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
   name: { top: '61.5%', left: '3%', width: '94%', height: '8%' },
+  // 79.5–89% = the baked stats slot interior in the frame art
+  stats: { top: '79.5%', left: '8.5%', width: '83%', height: '9.3%' },
 };
 
-export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count }: {
+export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count, layout: layoutProp }: {
   mon: PokemonLike; selected?: boolean; order?: number | null; index?: number; onClick?: () => void; nickname?: string | null; count?: number;
+  layout?: Partial<BrawlCardLayout>;
 }) {
+  const layout = { ...DEFAULT_BRAWL_CARD_LAYOUT, ...layoutProp };
+  const statsLayout = { top: `${layout.statsTop}%`, left: '8.5%', width: '83%', height: `${layout.statsHeight}%` };
   const tier = getCardTier(mon);
   const accent = TIER_ACCENT[tier];
   const isLegendary = tier === 'legendary';
   const selectionGlow = selected ? 'drop-shadow(0 0 2px #00c8ff) drop-shadow(0 0 9px rgba(0,200,255,0.85))' : '';
-  // Trimmed down from the raw per-species crop so the full sprite clears the
-  // window's edges at this size -- the untrimmed scale was tuned for smaller
-  // thumbnails elsewhere and clips heads/feet when blown up this large.
   const portraitScale = Math.max(1, (mon.portrait_scale ?? 1.5) * 0.8);
 
   return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, y: 10, scale: 0.92 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
-      whileHover={{ y: -4, scale: 1.03 }}
-      whileTap={{ scale: 0.96 }}
-      onClick={onClick}
-      aria-label={`${nickname || mon.name}, ${TIER_LABEL[tier]} tier, power ${mon.overall_rating}`}
-      className="relative w-full block text-left"
-    >
-      {/* Frame section: 2:3 aspect ratio via paddingTop. Stats live below
-          this div so they always have room regardless of card size. */}
-      <div className="relative" style={{ paddingTop: '150%' }}>
-        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: '5% 5% 0 0' }}>
+    <div className="relative w-full">
+      <div style={{ paddingTop: '150%' }} />
+      <motion.button
+        layout
+        initial={{ opacity: 0, y: 10, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}
+        whileHover={{ y: -4, scale: 1.03 }}
+        whileTap={{ scale: 0.96 }}
+        onClick={onClick}
+        aria-label={`${nickname || mon.name}, ${TIER_LABEL[tier]} tier, power ${mon.overall_rating}`}
+        className="absolute inset-0 w-full h-full text-left"
+      >
+        <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: '5%' }}>
           <img src={typeBackground(mon.primary_type)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'center 35%' }} />
         </div>
 
-        <div className="absolute inset-0" style={{ transform: 'scale(1.16)', transformOrigin: 'center' }}>
+        <div className="absolute inset-0" style={{ transform: `scale(${layout.scale})`, transformOrigin: 'center' }}>
           <div className="absolute" style={LAYOUT.window}>
             <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
               className="w-full h-full" />
@@ -124,6 +127,15 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
               </span>
             )}
           </div>
+
+          <div className="absolute grid grid-cols-4" style={{ ...statsLayout, zIndex: 3 }}>
+            {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
+              <div key={label} className="flex flex-col items-center justify-center gap-0.5">
+                <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
+                <div className="text-[10px] sm:text-xs font-black leading-none text-white">{val}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {selected && order != null && (
@@ -131,18 +143,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
             {order}
           </span>
         )}
-      </div>
-
-      {/* Stats strip: dedicated row below the card frame so numbers are
-          never squeezed into the frame art's small slot */}
-      <div className="grid grid-cols-4 text-center py-2 px-1 rounded-b-xl border-t border-white/10" style={{ background: 'rgba(4,6,16,0.92)' }}>
-        {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-          <div key={label as string} className="flex flex-col items-center gap-0.5">
-            <div className="text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
-            <div className="text-xs sm:text-sm font-black leading-none text-white">{val as number}</div>
-          </div>
-        ))}
-      </div>
-    </motion.button>
+      </motion.button>
+    </div>
   );
 }

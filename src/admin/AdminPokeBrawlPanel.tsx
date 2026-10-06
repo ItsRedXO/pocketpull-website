@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, ShoppingBag, Target } from 'lucide-react';
+import { Swords, ShoppingBag, Target, LayoutTemplate } from 'lucide-react';
 import { BrawlSpeciesTab } from './BrawlSpeciesTab';
 import { BrawlItemsTab } from './BrawlItemsTab';
 import { BrawlChallengesTab } from './BrawlChallengesTab';
+import { BrawlCardLayoutTab } from './BrawlCardLayoutTab';
 
-type BrawlSubTab = 'species' | 'items' | 'challenges';
+type BrawlSubTab = 'species' | 'items' | 'challenges' | 'cardlayout';
 
 const SUB_TABS: { id: BrawlSubTab; label: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
   { id: 'species', label: 'Species', icon: Swords },
   { id: 'items', label: 'Items', icon: ShoppingBag },
   { id: 'challenges', label: 'Challenges', icon: Target },
+  { id: 'cardlayout', label: 'Card Layout', icon: LayoutTemplate },
 ];
 
 export function AdminPokeBrawlPanel({ showToast }: { showToast: (m: string, ok?: boolean) => void }) {
@@ -37,6 +39,7 @@ export function AdminPokeBrawlPanel({ showToast }: { showToast: (m: string, ok?:
           {tab === 'species' && <BrawlSpeciesTab showToast={showToast} />}
           {tab === 'items' && <BrawlItemsTab showToast={showToast} />}
           {tab === 'challenges' && <BrawlChallengesTab showToast={showToast} />}
+          {tab === 'cardlayout' && <BrawlCardLayoutTab showToast={showToast} />}
         </motion.div>
       </AnimatePresence>
     </div>

@@ -4,16 +4,18 @@ import { Check, Star, Users, Search, ArrowUpDown, LayoutGrid, Rows3 } from 'luci
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getBrawlRoster, setBrawlTeam, type BrawlInstance } from '../../lib/brawlApi';
 import { PokemonStatCard } from './PokemonStatCard';
+import { useBrawlCardLayout } from '../../hooks/useSiteConfig';
 
 type SortKey = 'power' | 'name';
 
-function PokemonCard({ mon, selected, order, index, count, onClick }: { mon: BrawlInstance; selected: boolean; order: number | null; index: number; count?: number; onClick: () => void }) {
-  return <PokemonStatCard mon={mon} nickname={mon.nickname} selected={selected} order={order} index={index} count={count} onClick={onClick} />;
+function PokemonCard({ mon, selected, order, index, count, onClick, layout }: { mon: BrawlInstance; selected: boolean; order: number | null; index: number; count?: number; onClick: () => void; layout?: Parameters<typeof PokemonStatCard>[0]['layout'] }) {
+  return <PokemonStatCard mon={mon} nickname={mon.nickname} selected={selected} order={order} index={index} count={count} onClick={onClick} layout={layout} />;
 }
 
 export function TeamTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['brawl-roster'], queryFn: getBrawlRoster });
+  const { layout: cardLayout } = useBrawlCardLayout();
   const roster = data?.roster || [];
   const [selected, setSelected] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -85,10 +87,10 @@ export function TeamTab() {
         </motion.button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8 min-h-[6rem]">
+      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8 min-h-[6rem]`} style={{ gridTemplateColumns: `repeat(${cardLayout.teamCols}, minmax(0, 1fr))` }}>
         <AnimatePresence>
-          {selected.length === 0 && <div className="col-span-2 sm:col-span-3 lg:col-span-6 text-white/30 text-xs py-6 text-center border border-dashed border-white/10 rounded-xl">Tap Pokemon below to add them to your active team.</div>}
-          {selected.map((id, i) => { const mon = roster.find(m => m.id === id); if (!mon) return null; return <PokemonCard key={id} mon={mon} selected order={i + 1} index={i} onClick={() => toggle(id)} />; })}
+          {selected.length === 0 && <div className="col-span-2 sm:col-span-3 text-white/30 text-xs py-6 text-center border border-dashed border-white/10 rounded-xl" style={{ gridColumn: `1 / span ${cardLayout.teamCols}` }}>Tap Pokemon below to add them to your active team.</div>}
+          {selected.map((id, i) => { const mon = roster.find(m => m.id === id); if (!mon) return null; return <PokemonCard key={id} mon={mon} selected order={i + 1} index={i} onClick={() => toggle(id)} layout={cardLayout} />; })}
         </AnimatePresence>
       </div>
 
@@ -124,7 +126,7 @@ export function TeamTab() {
           <AnimatePresence>
             {benchDisplayGroups.map((group, i) => {
               const mon = group[0];
-              return <PokemonCard key={mon.species_id} mon={mon} selected={false} order={null} index={i} count={group.length} onClick={() => toggle(mon.id)} />;
+              return <PokemonCard key={mon.species_id} mon={mon} selected={false} order={null} index={i} count={group.length} onClick={() => toggle(mon.id)} layout={cardLayout} />;
             })}
           </AnimatePresence>
         </div>
