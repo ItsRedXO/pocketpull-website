@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save } from 'lucide-react';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { blink } from '../lib/blink';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 import { BACKEND_BASE } from '../lib/backend';
 import { uploadFile } from '../lib/upload';
 
@@ -136,14 +137,12 @@ export const PackForm: React.FC<Props> = ({ pack, existingCards, onSave, onClose
     const qLimit = Math.min(50000, Math.max(0, parseInt(packDraft.quantityLimit) || 0));
     setSaving(true);
     try {
-      const token = await blink.auth.getValidToken();
-      const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+      const authHeaders = await getAdminAuthHeaders();
       const response = await fetch(`${BACKEND_BASE}/admin/packs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(adminSecret ? { 'X-Admin-Secret': adminSecret } : {}),
+          ...authHeaders,
         },
         body: JSON.stringify({
           pack: {

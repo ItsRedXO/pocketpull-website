@@ -6,6 +6,7 @@ import { blink } from '../lib/blink';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { PackForm } from './PackForm';
 import { BACKEND_BASE } from '../lib/backend';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 async function logAdminAction(action: string, targetUser: string, details: Record<string, any> = {}) {
   try {
@@ -18,14 +19,10 @@ async function logAdminAction(action: string, targetUser: string, details: Recor
 }
 
 async function adminPackDelete(packId: string) {
-  const token = await blink.auth.getValidToken();
-  const secret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  const authHeaders = await getAdminAuthHeaders();
   const response = await fetch(`${BACKEND_BASE}/admin/packs/${encodeURIComponent(packId)}`, {
     method: 'DELETE',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(secret ? { 'X-Admin-Secret': secret } : {}),
-    },
+    headers: authHeaders,
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload?.success) throw new Error(payload?.error || `Delete failed (${response.status})`);
