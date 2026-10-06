@@ -38,7 +38,7 @@ function AnimatedCounter({
     setPrevValue(value);
   }, [value, duration, preserveAnimation]);
 
-  return <span>{prefix}{count.toLocaleString()}{suffix}</span>;
+  return <span>{prefix}{count.toLocaleString('en-US')}{suffix}</span>;
 }
 
 // ── Pokémon card showcase data ────────────────────────────────────────────────
@@ -356,7 +356,7 @@ export const HeroSection: React.FC = () => {
             className="font-display leading-[0.92] tracking-tight text-white"
             style={{ fontSize: 'clamp(1.75rem, 7vw, 4rem)' }}
           >
-            Open Rare Pokémon Packs.<br />
+            Open Rare Pokemon Packs.<br />
             <span
               className="bg-clip-text text-transparent bg-gradient-to-r from-[#00d4ff] to-[#7c5fff]"
               style={{ filter: 'drop-shadow(0 0 20px rgba(0,212,255,0.7)) drop-shadow(0 0 40px rgba(124,95,255,0.4))' }}

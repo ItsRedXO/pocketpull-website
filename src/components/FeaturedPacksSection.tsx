@@ -219,11 +219,11 @@ const PackCard: React.FC<PackCardProps> = ({ pack, index, onDetails, lastOpenedA
       )}
 
       {/* Pack image */}
-      <div className="relative flex items-center justify-center pt-6 pb-3 px-4" style={{ minHeight: '180px' }}>
+      <div className="relative flex items-center justify-center pt-4 sm:pt-6 pb-3 px-4" style={{ minHeight: '140px' }}>
         <motion.img
           src={pack.imageUrl}
           alt={pack.name}
-          className="relative z-10 max-h-[160px] w-auto object-contain"
+          className="relative z-10 max-h-[120px] sm:max-h-[160px] w-auto object-contain"
           animate={hovered ? { scale: 1.06, y: -4 } : { scale: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           style={{

@@ -345,7 +345,7 @@ export const LiveTicker: React.FC = React.memo(() => {
       <div
         className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none"
         style={{
-          width: '180px',
+          width: 'clamp(88px, 23vw, 180px)',
           background: 'linear-gradient(to right, rgba(8,12,20,0.95) 30%, rgba(8,12,20,0.5) 60%, transparent)',
         }}
       />
