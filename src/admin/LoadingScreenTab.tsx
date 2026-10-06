@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, RefreshCw, Plus, Trash2, Monitor } from 'lucide-react';
 import { useLoadingScreenConfig, DEFAULT_LOADING_CONFIG, type LoadingScreenConfig } from '../hooks/useSiteConfig';
 
@@ -8,6 +8,8 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
   const { config, saveConfig, isSaving } = useLoadingScreenConfig();
   const [draft, setDraft] = useState<LoadingScreenConfig>(DEFAULT_LOADING_CONFIG);
   const [previewProgress, setPreviewProgress] = useState(65);
+  const [dragging, setDragging] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setDraft(config); }, [config]);
 
@@ -31,13 +33,37 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
     setDraft(d => ({ ...d, messages: d.messages.filter((_, i) => i !== idx) }));
   };
 
+  const onPreviewMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragging || !previewRef.current) return;
+    const rect = previewRef.current.getBoundingClientRect();
+    const pct = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+    setDraft(d => ({ ...d, barY: Math.max(5, Math.min(95, pct)) }));
+  };
+
+  const SliderRow = ({
+    label, field, min, max, unit = 'px',
+  }: { label: string; field: keyof LoadingScreenConfig; min: number; max: number; unit?: string }) => (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</p>
+        <span className="text-[10px] font-mono text-gray-400">{draft[field]}{unit}</span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={1}
+        value={draft[field] as number}
+        onChange={e => setDraft(d => ({ ...d, [field]: Number(e.target.value) }))}
+        className="w-full accent-violet-500"
+      />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-display text-lg uppercase tracking-widest text-white">Loading Screen</h2>
-          <p className="text-xs text-gray-500 mt-1">Customize the bar colors and cycling messages</p>
+          <p className="text-xs text-gray-500 mt-1">Drag the content block in the preview to reposition it</p>
         </div>
         <button
           onClick={handleSave}
@@ -56,41 +82,31 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
         <div className="space-y-5">
 
           {/* Bar colors */}
-          <div
-            className="rounded-xl p-5 border border-white/8 space-y-4"
-            style={{ background: 'rgba(255,255,255,0.02)' }}
-          >
+          <div className="rounded-xl p-5 border border-white/8 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Bar Gradient</h3>
             <div className="grid grid-cols-2 gap-4">
-              {(
-                [
-                  { key: 'barColor1' as const, label: 'Start (left)' },
-                  { key: 'barColor2' as const, label: 'End (right)' },
-                ] as const
-              ).map(({ key, label }) => (
+              {([
+                { key: 'barColor1' as const, label: 'Start (left)' },
+                { key: 'barColor2' as const, label: 'End (right)' },
+              ] as const).map(({ key, label }) => (
                 <div key={key}>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">{label}</p>
                   <div className="flex items-center gap-2">
                     <input
-                      type="color"
-                      value={draft[key]}
+                      type="color" value={draft[key]}
                       onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
                       className="w-9 h-9 rounded-lg cursor-pointer border border-white/10 shrink-0"
                       style={{ padding: '2px', background: 'rgba(255,255,255,0.05)' }}
                     />
                     <input
-                      type="text"
-                      value={draft[key]}
+                      type="text" value={draft[key]} maxLength={9}
                       onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
                       className="admin-input font-mono text-[11px]"
-                      maxLength={9}
                     />
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* Live gradient preview strip */}
             <div
               className="w-full"
               style={{
@@ -102,51 +118,17 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
             />
           </div>
 
-          {/* Bar size & shape */}
-          <div
-            className="rounded-xl p-5 border border-white/8 space-y-4"
-            style={{ background: 'rgba(255,255,255,0.02)' }}
-          >
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Bar Size &amp; Shape</h3>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Height</p>
-                <span className="text-[10px] font-mono text-gray-400">{draft.barHeight}px</span>
-              </div>
-              <input
-                type="range" min={8} max={48} step={1}
-                value={draft.barHeight}
-                onChange={e => setDraft(d => ({ ...d, barHeight: Number(e.target.value) }))}
-                className="w-full accent-violet-500"
-              />
-              <div className="flex justify-between text-[9px] text-gray-700 mt-0.5">
-                <span>8px</span><span>48px</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Corner Radius</p>
-                <span className="text-[10px] font-mono text-gray-400">{draft.barRadius}px</span>
-              </div>
-              <input
-                type="range" min={0} max={24} step={1}
-                value={draft.barRadius}
-                onChange={e => setDraft(d => ({ ...d, barRadius: Number(e.target.value) }))}
-                className="w-full accent-violet-500"
-              />
-              <div className="flex justify-between text-[9px] text-gray-700 mt-0.5">
-                <span>Sharp</span><span>Rounded</span>
-              </div>
-            </div>
+          {/* Bar size, shape & position */}
+          <div className="rounded-xl p-5 border border-white/8 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Bar Size, Shape &amp; Position</h3>
+            <SliderRow label="Height" field="barHeight" min={8} max={48} />
+            <SliderRow label="Corner Radius" field="barRadius" min={0} max={24} />
+            <SliderRow label="Vertical Position" field="barY" min={5} max={95} unit="%" />
+            <p className="text-[9px] text-gray-600">Or drag the content block directly in the preview →</p>
           </div>
 
           {/* Messages */}
-          <div
-            className="rounded-xl p-5 border border-white/8 space-y-3"
-            style={{ background: 'rgba(255,255,255,0.02)' }}
-          >
+          <div className="rounded-xl p-5 border border-white/8 space-y-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
             <div className="flex items-center justify-between">
               <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
                 Cycling Messages ({draft.messages.length})
@@ -164,8 +146,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                 <div key={idx} className="flex items-center gap-2">
                   <span className="text-[10px] text-gray-700 w-5 text-right shrink-0 font-mono">{idx + 1}</span>
                   <input
-                    type="text"
-                    value={msg}
+                    type="text" value={msg}
                     onChange={e => setMessage(idx, e.target.value)}
                     className="admin-input flex-1 text-[11px]"
                   />
@@ -184,33 +165,75 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
 
         {/* ── Right: Preview ── */}
         <div className="rounded-xl overflow-hidden border border-white/8" style={{ background: 'rgba(255,255,255,0.02)' }}>
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8">
-            <Monitor size={13} className="text-gray-500" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Live Preview</span>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+            <div className="flex items-center gap-2">
+              <Monitor size={13} className="text-gray-500" />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Live Preview</span>
+            </div>
+            <span className="text-[9px] text-gray-600 uppercase tracking-wider">Drag block to reposition</span>
           </div>
 
-          {/* Preview canvas */}
+          {/* Preview canvas — drag to reposition */}
           <div
-            className="relative flex flex-col items-center justify-center"
+            ref={previewRef}
+            className="relative"
             style={{
-              height: '300px',
+              height: '380px',
               backgroundImage: "url('/loading-bg.webp')",
               backgroundSize: 'cover',
               backgroundPosition: 'center',
+              cursor: dragging ? 'grabbing' : 'default',
+              userSelect: 'none',
             }}
+            onMouseMove={onPreviewMouseMove}
+            onMouseUp={() => setDragging(false)}
+            onMouseLeave={() => setDragging(false)}
           >
             <div className="absolute inset-0" style={{ background: 'rgba(4,8,16,0.18)' }} />
 
-            <div className="relative z-10 flex flex-col items-center gap-4" style={{ width: '60%' }}>
+            {/* Horizontal guideline */}
+            <div
+              className="absolute left-0 right-0 pointer-events-none"
+              style={{
+                top: `${draft.barY}%`,
+                height: '1px',
+                background: 'rgba(255,255,255,0.12)',
+              }}
+            />
+
+            {/* Draggable content block */}
+            <div
+              className="absolute flex flex-col items-center gap-3"
+              style={{
+                top: `${draft.barY}%`,
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '65%',
+                cursor: dragging ? 'grabbing' : 'grab',
+                zIndex: 10,
+              }}
+              onMouseDown={e => { e.preventDefault(); setDragging(true); }}
+            >
+              {/* Drag handle hint */}
+              {!dragging && (
+                <div
+                  className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] uppercase tracking-widest whitespace-nowrap px-2 py-0.5 rounded"
+                  style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }}
+                >
+                  ↕ drag to move
+                </div>
+              )}
+
               <img
                 src="/pocketpull-logo.png"
                 alt="PocketPull"
-                style={{ width: '72px', height: '72px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+                draggable={false}
+                style={{ width: '64px', height: '64px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
               />
 
               <p
                 className="font-display text-white uppercase text-center w-full"
-                style={{ fontSize: '0.6rem', letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                style={{ fontSize: '0.55rem', letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
               >
                 {draft.messages[0]}
               </p>
@@ -226,38 +249,36 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                   boxShadow: '0 0 0 2px rgba(0,0,0,0.72)',
                 }}
               >
-                <div
-                  style={{
-                    position: 'absolute', inset: 0,
-                    width: `${previewProgress}%`,
-                    borderRadius: `${draft.barRadius}px`,
-                    background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
-                    boxShadow: `0 0 12px ${draft.barColor2}cc`,
-                    transition: 'width 0.1s',
-                  }}
-                />
-                <div
-                  style={{
-                    position: 'absolute', top: '3px', left: 0, height: '4px',
-                    width: `${previewProgress}%`,
-                    background: 'rgba(255,255,255,0.26)',
-                    transition: 'width 0.1s',
-                  }}
-                />
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  width: `${previewProgress}%`,
+                  borderRadius: `${draft.barRadius}px`,
+                  background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
+                  boxShadow: `0 0 12px ${draft.barColor2}cc`,
+                  transition: dragging ? 'none' : 'width 0.1s',
+                }} />
+                <div style={{
+                  position: 'absolute', top: '3px', left: 0, height: '4px',
+                  width: `${previewProgress}%`,
+                  background: 'rgba(255,255,255,0.26)',
+                }} />
               </div>
 
               <p
                 className="font-display text-white tabular-nums"
-                style={{ fontSize: '0.6rem', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                style={{ fontSize: '0.55rem', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
               >
                 {Math.round(previewProgress)}%
               </p>
             </div>
           </div>
 
-          {/* Scrubber */}
+          {/* Progress scrubber */}
           <div className="px-5 py-4 border-t border-white/8">
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Drag to preview progress</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Preview progress</p>
+              <span className="text-[10px] font-mono text-gray-400">{previewProgress}%</span>
+            </div>
             <input
               type="range" min={0} max={100} value={previewProgress}
               onChange={e => setPreviewProgress(Number(e.target.value))}

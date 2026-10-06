@@ -78,8 +78,18 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
             style={{ background: 'rgba(4, 8, 16, 0.18)' }}
           />
 
-          {/* ── Center content ── */}
-          <div className="relative z-10 flex flex-col items-center" style={{ gap: '28px' }}>
+          {/* ── Center content — positioned by barY % from top ── */}
+          <div
+            className="absolute z-10 flex flex-col items-center"
+            style={{
+              gap: '28px',
+              top: `${config.barY}%`,
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '420px',
+              maxWidth: '90vw',
+            }}
+          >
 
             {/* Logo */}
             <motion.div
@@ -100,8 +110,8 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.7 }}
-              className="flex flex-col items-center"
-              style={{ gap: '14px', width: '420px', maxWidth: '82vw' }}
+              className="flex flex-col items-center w-full"
+              style={{ gap: '14px' }}
             >
               {/* Cycling loading message */}
               <AnimatePresence mode="wait">
