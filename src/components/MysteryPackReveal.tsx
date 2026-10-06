@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LockKeyhole, Sparkles, GripHorizontal, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import gsap from 'gsap';
 import type { PackCatalog, PackCard } from '../hooks/usePacks';
 import { openPack } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useBalance } from '../hooks/useBalance';
 import { useQueryClient } from '@tanstack/react-query';
+import { Card3DFlip } from './pack/Card3DFlip';
 
 interface Props {
   pack: PackCatalog;
@@ -39,7 +41,7 @@ function rarityTier(rarity: string): RarityTier {
   return 'common';
 }
 
-// ── Shared primitives ─────────────────────────────────────────────────────────
+// ── Shared Framer Motion primitives (particles / rays / rings) ────────────────
 
 function VaultParticles({ color, burst = false }: { color: string; burst?: boolean }) {
   const count = burst ? 56 : 28;
@@ -49,8 +51,7 @@ function VaultParticles({ color, burst = false }: { color: string; burst?: boole
     const isStreak = i % 6 === 0;
     const isDiamond = i % 4 === 0 && !isStreak;
     return {
-      x: Math.round(Math.cos(angle) * dist),
-      y: Math.round(Math.sin(angle) * dist),
+      x: Math.round(Math.cos(angle) * dist), y: Math.round(Math.sin(angle) * dist),
       delay: (i % 10) * 0.022,
       w: isStreak ? 2 + (i % 3) * 2 : 2 + (i % 4),
       h: isStreak ? 1 : 2 + (i % 4),
@@ -74,10 +75,10 @@ function VaultParticles({ color, burst = false }: { color: string; burst?: boole
 
 function LightRays({ color, intense = false }: { color: string; intense?: boolean }) {
   const fade = 'radial-gradient(circle, black 0%, black 45%, transparent 78%)';
-  const size = 320;
+  const sz = 320;
   return (
     <motion.div className="pointer-events-none absolute overflow-hidden"
-      style={{ width: size, height: size, left: '50%', top: '50%', marginLeft: -size / 2, marginTop: -size / 2 }}
+      style={{ width: sz, height: sz, left: '50%', top: '50%', marginLeft: -sz / 2, marginTop: -sz / 2 }}
       initial={{ opacity: 0, scale: 0.6, rotate: 0 }}
       animate={{ opacity: intense ? [0, 0.9, 0.65] : [0, 0.5], scale: 1, rotate: 90 }}
       transition={{ duration: intense ? 1.6 : 1.2, ease: 'easeOut' }}>
@@ -97,6 +98,20 @@ function ShockRing({ color, size = 300, delay = 0, thickness = 2 }: { color: str
       animate={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, opacity: 0 }}
       transition={{ duration: 0.75, delay, ease: 'easeOut' }}
     />
+  );
+}
+
+function RarityVFX({ tier, color }: { tier: RarityTier; color: string }) {
+  if (tier === 'common') return null;
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <VaultParticles color={color} burst={tier === 'ultra' || tier === 'cinematic'} />
+      {(tier === 'rare' || tier === 'ultra' || tier === 'cinematic') && <LightRays color={color} intense={tier === 'cinematic'} />}
+      {tier === 'ultra' && <><ShockRing color={color} size={290} /><ShockRing color={color} size={290} delay={0.12} thickness={1} /></>}
+      {tier === 'cinematic' && (
+        <><ShockRing color={color} size={360} /><ShockRing color={color} size={360} delay={0.1} /><ShockRing color={color} size={360} delay={0.22} thickness={1} /></>
+      )}
+    </div>
   );
 }
 
@@ -130,72 +145,77 @@ function CardFace({ card, color, shineDelay = 0.4, shineOpacity = 0.9, holograph
   );
 }
 
-// ── CardBack — face-down card ─────────────────────────────────────────────────
+// ── CardBack ──────────────────────────────────────────────────────────────────
 
 function CardBack({ glow = false, glowColor = '#ffd700' }: { glow?: boolean; glowColor?: string }) {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl"
       style={{
         background: 'linear-gradient(145deg, #1a1b2e, #0d0e1a)',
-        border: `1px solid ${glow ? glowColor + '99' : 'rgba(255,215,0,0.22)'}`,
-        boxShadow: glow ? `0 0 22px ${glowColor}55, inset 0 0 18px ${glowColor}10` : '0 4px 16px rgba(0,0,0,0.5)',
+        border: `1px solid ${glow ? glowColor + '90' : 'rgba(255,215,0,0.2)'}`,
+        boxShadow: glow ? `0 0 24px ${glowColor}50, inset 0 0 18px ${glowColor}10` : '0 4px 16px rgba(0,0,0,0.55)',
       }}>
-      <div className="absolute inset-0 opacity-[0.06]"
+      <div className="absolute inset-0 opacity-[0.055]"
         style={{ backgroundImage: 'linear-gradient(rgba(255,215,0,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,215,0,0.5) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
       <div className="absolute inset-3 rounded-lg border border-[#ffd700]/18" />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#ffd700]/45"
+        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#ffd700]/40"
           style={{ background: 'rgba(255,215,0,0.07)' }}>
-          <span className="font-display text-lg font-black text-[#ffd700]" style={{ textShadow: '0 0 10px #ffd700aa' }}>P</span>
+          <span className="font-display text-lg font-black text-[#ffd700]" style={{ textShadow: '0 0 10px rgba(255,215,0,0.65)' }}>P</span>
         </div>
-        <p className="text-[6px] font-bold uppercase tracking-[0.3em] text-[#ffd700]/55">PocketPull</p>
+        <p className="text-[6px] font-bold uppercase tracking-[0.28em] text-[#ffd700]/50">PocketPull</p>
       </div>
-      {([['top-2 left-2'], ['top-2 right-2'], ['bottom-2 left-2'], ['bottom-2 right-2']] as const).map(([pos], idx) => (
-        <div key={idx} className={`absolute ${pos} h-2 w-2 rotate-45 rounded-sm bg-[#ffd700]/18`} />
+      {(['top-2 left-2', 'top-2 right-2', 'bottom-2 left-2', 'bottom-2 right-2'] as const).map((pos, i) => (
+        <div key={i} className={`absolute ${pos} h-2 w-2 rotate-45 rounded-sm bg-[#ffd700]/16`} />
       ))}
     </div>
   );
 }
 
-// ── CardBurst — pack explosion with 6 flying cards ────────────────────────────
-
-function CardBurst({ color }: { color: string }) {
-  const slots = useMemo(() => Array.from({ length: 6 }, (_, i) => {
-    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2 + (i % 2 === 0 ? 0.28 : -0.28);
-    return {
-      x: Math.round(Math.cos(angle) * (88 + (i % 3) * 22)),
-      y: Math.round(Math.sin(angle) * (68 + (i % 3) * 16)),
-      rotate: -20 + i * 14,
-      delay: i * 0.05,
-    };
-  }), []);
-
-  return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-visible">
-      <motion.div className="absolute inset-0 z-10 rounded-2xl"
-        initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }}
-        transition={{ duration: 0.38, ease: 'easeOut' }}
-        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.12) 50%, transparent 70%)' }}
-      />
-      <ShockRing color={color} size={240} />
-      <ShockRing color={color} size={240} delay={0.1} thickness={1} />
-      <VaultParticles color={color} burst />
-      {slots.map((s, i) => (
-        <motion.div key={i} className="absolute" style={{ width: 62, height: 87 }}
-          initial={{ x: 0, y: 0, opacity: 0, rotate: 0, scale: 0.2 }}
-          animate={{ x: s.x, y: s.y, opacity: [0, 1, 1, 0.85], rotate: s.rotate, scale: [0.2, 1.08, 0.92] }}
-          transition={{ duration: 0.65, delay: s.delay, ease: 'easeOut' }}>
-          <CardBack />
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-// ── CardCarousel — 5 face-down cards in 3D fan ────────────────────────────────
+// ── CardCarousel — GSAP-powered 3D fan ───────────────────────────────────────
 
 function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: boolean }) {
   const [activeIdx, setActiveIdx] = useState(2);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const positionCards = useCallback((idx: number, animated: boolean) => {
+    if (!containerRef.current) return;
+    const cards = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
+    cards.forEach((el, i) => {
+      const offset = i - idx;
+      const abs = Math.abs(offset);
+      const props = {
+        x: offset * 72,
+        rotationY: offset * -15,
+        scale: i === idx ? 1.0 : 1 - abs * 0.08,
+        opacity: abs > 2 ? 0.28 : 1 - abs * 0.11,
+        zIndex: CARD_COUNT - abs,
+      };
+      if (animated) {
+        gsap.to(el, { ...props, duration: 0.38, ease: 'back.out(1.6)' });
+      } else {
+        gsap.set(el, props);
+      }
+    });
+  }, []);
+
+  // Initial placement without animation
+  useEffect(() => { positionCards(2, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Animate when selection changes
+  useEffect(() => { positionCards(activeIdx, true); }, [activeIdx, positionCards]);
+
+  // Entry: cards drop in from above with stagger
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const cards = containerRef.current.querySelectorAll<HTMLElement>('[data-cc]');
+    gsap.from(cards, {
+      y: -80, opacity: 0, duration: 0.55,
+      stagger: { each: 0.06, from: 'center' },
+      ease: 'back.out(2)',
+      clearProps: 'y,opacity',
+    });
+  }, []);
 
   return (
     <div className="relative flex flex-col items-center gap-5 py-2">
@@ -204,32 +224,20 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
         {apiReady ? 'Choose Your Card' : 'Shuffling your hand…'}
       </motion.p>
 
-      <div className="relative flex items-center justify-center" style={{ height: 188, width: '100%', perspective: 900 }}>
-        {Array.from({ length: CARD_COUNT }, (_, i) => {
-          const offset = i - activeIdx;
-          const abs = Math.abs(offset);
-          const isCenter = offset === 0;
-          return (
-            <motion.div key={i}
-              className="absolute cursor-pointer"
-              style={{ width: 86, height: 120, zIndex: CARD_COUNT - abs }}
-              animate={{
-                x: offset * 66,
-                rotateY: offset * -13,
-                scale: isCenter ? 1 : 1 - abs * 0.075,
-                opacity: abs > 2 ? 0.35 : 1 - abs * 0.1,
-              }}
-              transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-              onClick={() => !isCenter && setActiveIdx(i)}>
-              <CardBack glow={isCenter} glowColor="#ffd700" />
-            </motion.div>
-          );
-        })}
+      <div ref={containerRef} className="relative flex items-center justify-center"
+        style={{ height: 200, width: '100%', perspective: '900px' }}>
+        {Array.from({ length: CARD_COUNT }, (_, i) => (
+          <div key={i} data-cc className="absolute cursor-pointer"
+            style={{ width: 88, height: 124, left: '50%', marginLeft: -44, top: '50%', marginTop: -62 }}
+            onClick={() => i !== activeIdx && setActiveIdx(i)}>
+            <CardBack glow={i === activeIdx} glowColor="#ffd700" />
+          </div>
+        ))}
       </div>
 
       <div className="flex items-center gap-5">
         <button onClick={() => setActiveIdx(p => Math.max(0, p - 1))} disabled={activeIdx === 0}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/50 hover:text-[#ffd700] disabled:opacity-20">
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/55 hover:text-[#ffd700] disabled:opacity-22">
           <ChevronLeft size={16} />
         </button>
         <div className="flex gap-2">
@@ -240,17 +248,17 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
           ))}
         </div>
         <button onClick={() => setActiveIdx(p => Math.min(CARD_COUNT - 1, p + 1))} disabled={activeIdx === CARD_COUNT - 1}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/50 hover:text-[#ffd700] disabled:opacity-20">
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/55 transition-all hover:border-[#ffd700]/55 hover:text-[#ffd700] disabled:opacity-22">
           <ChevronRight size={16} />
         </button>
       </div>
 
       <motion.button onClick={() => apiReady && onSelect()} disabled={!apiReady}
-        whileHover={apiReady ? { scale: 1.04 } : undefined}
-        whileTap={apiReady ? { scale: 0.96 } : undefined}
+        whileHover={apiReady ? { scale: 1.05 } : undefined}
+        whileTap={apiReady ? { scale: 0.95 } : undefined}
         className="rounded-xl px-8 py-3 font-display text-sm font-bold uppercase tracking-widest transition-all"
         style={apiReady
-          ? { background: 'linear-gradient(90deg, #ffd700, #ff9500)', color: '#000', boxShadow: '0 0 22px rgba(255,165,0,0.45)' }
+          ? { background: 'linear-gradient(90deg, #ffd700, #ff9500)', color: '#000', boxShadow: '0 0 24px rgba(255,165,0,0.45)' }
           : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}>
         {apiReady ? 'Reveal This Card' : 'Fetching…'}
       </motion.button>
@@ -258,106 +266,21 @@ function CardCarousel({ onSelect, apiReady }: { onSelect: () => void; apiReady: 
   );
 }
 
-// ── CardFlip — 3D back→flash→face reveal ──────────────────────────────────────
+// ── VaultPack (simplified — GSAP handles shake externally) ────────────────────
 
-type FlipStep = 'back' | 'flash' | 'face';
-
-function CardFlip({ card, color, onDone }: { card: WonCard; color: string; onDone: () => void }) {
-  const [step, setStep] = useState<FlipStep>('back');
-  const doneRef = useRef(false);
-  useEffect(() => {
-    const t1 = setTimeout(() => setStep('flash'), 480);
-    const t2 = setTimeout(() => setStep('face'), 720);
-    const t3 = setTimeout(() => { if (!doneRef.current) { doneRef.current = true; onDone(); } }, 1500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []);
-
-  return (
-    <div className="relative mx-auto flex items-center justify-center" style={{ height: 230, width: 164, perspective: 1000 }}>
-      <AnimatePresence>
-        {step === 'flash' && (
-          <motion.div className="absolute inset-[-60px] z-20 rounded-3xl"
-            initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0] }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.32 }}
-            style={{ background: `radial-gradient(circle, #fff 0%, ${color}70 55%, transparent 72%)` }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Back face — rotates out */}
-      <motion.div className="absolute" style={{ width: 152, height: 212, backfaceVisibility: 'hidden' }}
-        animate={{ rotateY: step === 'back' ? 0 : -90 }}
-        transition={{ duration: 0.24, ease: 'easeIn' }}>
-        <CardBack glow glowColor={color} />
-      </motion.div>
-
-      {/* Front face — rotates in */}
-      <motion.div className="absolute" style={{ width: 152, height: 212, backfaceVisibility: 'hidden' }}
-        animate={{ rotateY: step === 'face' ? 0 : 90 }}
-        transition={{ duration: 0.38, ease: 'easeOut' }}>
-        <CardFace card={card} color={color} shineDelay={0.25} shineOpacity={0.85}
-          holographic={BIG_PULL.has(card.rarity)} glowSize={50} />
-      </motion.div>
-    </div>
-  );
-}
-
-// ── RarityVFX — overlay after flip ────────────────────────────────────────────
-
-function RarityVFX({ tier, color }: { tier: RarityTier; color: string }) {
-  if (tier === 'common') return null;
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      <VaultParticles color={color} burst={tier === 'ultra' || tier === 'cinematic'} />
-      {(tier === 'rare' || tier === 'ultra' || tier === 'cinematic') && <LightRays color={color} intense={tier === 'cinematic'} />}
-      {tier === 'ultra' && (
-        <><ShockRing color={color} size={290} /><ShockRing color={color} size={290} delay={0.12} thickness={1} /></>
-      )}
-      {tier === 'cinematic' && (
-        <>
-          <ShockRing color={color} size={360} />
-          <ShockRing color={color} size={360} delay={0.1} />
-          <ShockRing color={color} size={360} delay={0.22} thickness={1} />
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── VaultPack (drag-to-tear mechanic) ─────────────────────────────────────────
-
-function VaultPack({
-  phase, color, dragX, onDragStart, onDrag, onDragEnd, disabled,
-}: {
-  phase: RevealPhase; color: string; dragX: number;
-  onDragStart: () => void; onDrag: (dx: number) => void; onDragEnd: (dx: number) => void; disabled: boolean;
+function VaultPack({ color, dragX, onDrag, onDragEnd }: {
+  color: string; dragX: number;
+  onDrag: (dx: number) => void; onDragEnd: (dx: number) => void;
 }) {
-  const ripping = phase === 'ripping';
-  const dissolving = phase !== 'idle' && phase !== 'ripping';
   const dragProgress = Math.min(1, Math.max(0, dragX / DRAG_THRESHOLD));
-
   return (
-    <div className="relative mx-auto h-[290px] w-[210px] sm:h-[330px] sm:w-[240px]" style={{ perspective: 900 }}>
-      <motion.div
-        className="absolute inset-0 rounded-[22px] border-2"
-        animate={
-          dissolving
-            ? { scale: [1.1, 1.22, 0.05], opacity: [1, 1, 0], y: [0, -12, 8] }
-            : ripping
-              ? { scale: [1, 1.06, 0.97, 1.08, 0.96, 1.02], rotate: [0, -3, 4, -3, 2, -1, 0], y: [0, -10, 5, -7, 3, 0] }
-              : { y: 0, rotate: 0, scale: 1 }
-        }
-        transition={
-          dissolving ? { duration: 0.65, ease: 'easeIn' }
-          : ripping ? { duration: 0.85 }
-          : { duration: 1.5 }
-        }
+    <div className="relative mx-auto h-[290px] w-[210px] sm:h-[330px] sm:w-[240px]">
+      <div className="absolute inset-0 rounded-[22px] border-2"
         style={{
           background: 'linear-gradient(145deg, #202036, #080910 65%)',
           borderColor: `${color}99`,
-          boxShadow: `0 20px 55px -18px ${color}, inset 0 0 ${35 + dragProgress * 30}px ${color}${ripping ? '55' : '18'}`,
-        }}
-      >
+          boxShadow: `0 20px 55px -18px ${color}, inset 0 0 ${35 + dragProgress * 30}px ${color}18`,
+        }}>
         <div className="absolute inset-3 rounded-[17px] border border-white/10" />
         <div className="absolute left-1/2 top-10 -translate-x-1/2 text-center">
           <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#ffd700]">PocketPull</p>
@@ -370,40 +293,56 @@ function VaultPack({
             <LockKeyhole size={14} />
           </div>
         </div>
-
-        <motion.div
-          className="absolute left-0 right-0 top-[68px] h-7 border-y bg-[#ffd700]/10"
-          style={{ borderColor: `rgba(255,215,0,${0.28 + dragProgress * 0.55})`, boxShadow: dragProgress > 0.15 ? `0 0 ${dragProgress * 22}px rgba(255,215,0,0.65)` : 'none' }}
-          animate={ripping ? { x: [-2, 2, -3, 3, 0], opacity: [1, 1, 0.4, 0] } : { opacity: 1 }}
-          transition={{ duration: 0.7 }}>
+        <div className="absolute left-0 right-0 top-[68px] h-7 border-y bg-[#ffd700]/10"
+          style={{ borderColor: `rgba(255,215,0,${0.28 + dragProgress * 0.55})`, boxShadow: dragProgress > 0.15 ? `0 0 ${dragProgress * 22}px rgba(255,215,0,0.65)` : 'none' }}>
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] font-bold uppercase tracking-[0.3em] text-[#ffd700]">tear seal</span>
-        </motion.div>
+        </div>
+      </div>
+
+      <motion.div
+        className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+        animate={{ scale: 1 + dragProgress * 0.16 }}
+        drag="x"
+        dragMomentum={false}
+        dragConstraints={{ left: 0, right: DRAG_THRESHOLD + 20 }}
+        onDrag={(_e, info) => onDrag(Math.max(0, info.offset.x))}
+        onDragEnd={(_e, info) => onDragEnd(Math.max(0, info.offset.x))}
+        aria-label="Drag to tear the vault seal open"
+      >
+        <GripHorizontal size={20} />
       </motion.div>
+    </div>
+  );
+}
 
-      {ripping && (
-        <motion.div className="absolute top-[65px] h-10 w-[125%] border-y-2 border-dashed border-[#ffd700]"
-          style={{ left: '50%', marginLeft: '-62.5%' }}
-          initial={{ scaleX: 0, opacity: 0 }} animate={{ scaleX: 1, opacity: [0, 1, 0] }} transition={{ duration: 0.8 }}
-        />
-      )}
+// ── Burst container — GSAP stagger ───────────────────────────────────────────
 
-      {/* Draggable pull tab — only visible in idle */}
-      {phase === 'idle' && (
-        <motion.div
-          className="absolute -right-5 top-[60px] flex h-12 w-12 cursor-grab items-center justify-center rounded-full border-2 border-[#ffd700] bg-[#191827] text-[#ffd700] shadow-[0_0_20px_rgba(255,215,0,0.35)] active:cursor-grabbing"
-          style={{ touchAction: 'none' }}
-          animate={{ scale: 1 + dragProgress * 0.15 }}
-          drag={disabled ? false : 'x'}
-          dragMomentum={false}
-          dragConstraints={{ left: 0, right: DRAG_THRESHOLD + 20 }}
-          onDragStart={() => onDragStart()}
-          onDrag={(_e, info) => onDrag(Math.max(0, info.offset.x))}
-          onDragEnd={(_e, info) => onDragEnd(Math.max(0, info.offset.x))}
-          aria-label="Drag to tear the vault seal open"
-        >
-          <GripHorizontal size={20} />
-        </motion.div>
-      )}
+const BURST_SLOTS = Array.from({ length: 6 }, (_, i) => {
+  const angle = (i / 6) * Math.PI * 2 - Math.PI / 2 + (i % 2 === 0 ? 0.3 : -0.3);
+  return {
+    x: Math.round(Math.cos(angle) * (92 + (i % 3) * 24)),
+    y: Math.round(Math.sin(angle) * (72 + (i % 3) * 18)),
+    rotate: -22 + i * 14,
+  };
+});
+
+function BurstCards({ burstRef }: { burstRef: React.RefObject<HTMLDivElement | null> }) {
+  return (
+    <div ref={burstRef} className="pointer-events-none relative flex items-center justify-center overflow-visible" style={{ height: 310 }}>
+      <div data-flash className="absolute inset-0 rounded-2xl opacity-0"
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.1) 55%, transparent 72%)' }} />
+      <ShockRing color="#ffd700" size={240} />
+      <ShockRing color="#ffd700" size={240} delay={0.1} thickness={1} />
+      <VaultParticles color="#ffd700" burst />
+      {BURST_SLOTS.map((s, i) => (
+        <div key={i} data-burst
+          data-bx={s.x} data-by={s.y} data-br={s.rotate}
+          className="absolute opacity-0"
+          style={{ width: 64, height: 90, left: '50%', marginLeft: -32, top: '50%', marginTop: -45 }}>
+          <CardBack />
+        </div>
+      ))}
     </div>
   );
 }
@@ -414,6 +353,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const { user, isAuthenticated } = useAuth();
   const { balance, matchedBalance, updateBalance } = useBalance(user?.id);
   const qc = useQueryClient();
+
   const [phase, setPhase] = useState<RevealPhase>('idle');
   const [wonCard, setWonCard] = useState<WonCard | null>(null);
   const [apiReady, setApiReady] = useState(false);
@@ -421,11 +361,68 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
   const [dragX, setDragX] = useState(0);
   const ripFiredRef = useRef(false);
 
+  // GSAP refs
+  const packWrapRef = useRef<HTMLDivElement>(null);
+  const burstRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setPhase('idle'); setWonCard(null); setApiReady(false); setError(null); setDragX(0);
     ripFiredRef.current = false;
   }, [pack.id]);
 
+  // ── GSAP: pack shake + exit on ripping ──────────────────────────────────────
+  useEffect(() => {
+    if (phase !== 'ripping' || !packWrapRef.current) return;
+    const el = packWrapRef.current;
+    gsap.killTweensOf(el);
+
+    const tl = gsap.timeline();
+    // Punchy organic shake
+    tl.to(el, { x: -9, duration: 0.055, ease: 'power2.out' })
+      .to(el, { x: 13, duration: 0.07, ease: 'power2.inOut' })
+      .to(el, { x: -16, rotate: -3.5, duration: 0.07, ease: 'power2.inOut' })
+      .to(el, { x: 18, rotate: 4.5, scale: 1.05, duration: 0.065, ease: 'power2.inOut' })
+      .to(el, { x: -12, rotate: -3, scale: 1.07, duration: 0.065, ease: 'power2.inOut' })
+      .to(el, { x: 9, rotate: 2, scale: 1.1, duration: 0.06, ease: 'power2.inOut' })
+      .to(el, { x: 0, rotate: 0, scale: 1.12, duration: 0.09, ease: 'back.out(2)' })
+      // Brief hold, then blast off
+      .to(el, { y: -70, scale: 1.35, opacity: 0, duration: 0.22, delay: 0.1, ease: 'back.in(1.8)' });
+
+    return () => { tl.kill(); };
+  }, [phase]);
+
+  // ── GSAP: burst card fly-out with stagger ────────────────────────────────────
+  useEffect(() => {
+    if (phase !== 'bursting' || !burstRef.current) return;
+    const container = burstRef.current;
+    const cardEls = container.querySelectorAll<HTMLElement>('[data-burst]');
+    const flashEl = container.querySelector<HTMLElement>('[data-flash]');
+
+    gsap.set(cardEls, { x: 0, y: 0, rotation: 0, scale: 0.15, opacity: 0 });
+
+    // Flash first
+    if (flashEl) {
+      gsap.to(flashEl, { opacity: 1, duration: 0.1, ease: 'power2.in' });
+      gsap.to(flashEl, { opacity: 0, duration: 0.25, delay: 0.1, ease: 'power2.out' });
+    }
+
+    // Cards burst out with physics stagger
+    gsap.to(cardEls, {
+      x: (_i: number, el: Element) => Number((el as HTMLElement).getAttribute('data-bx')),
+      y: (_i: number, el: Element) => Number((el as HTMLElement).getAttribute('data-by')),
+      rotation: (_i: number, el: Element) => Number((el as HTMLElement).getAttribute('data-br')),
+      scale: 0.92,
+      opacity: 1,
+      duration: 0.62,
+      stagger: { each: 0.042, from: 'center' },
+      ease: 'power3.out',
+      delay: 0.06,
+    });
+
+    return () => { gsap.killTweensOf(cardEls); };
+  }, [phase]);
+
+  // ── Async pack open flow ─────────────────────────────────────────────────────
   const startRip = useCallback(async () => {
     if (ripFiredRef.current) return;
     if (!isAuthenticated || !user?.id) {
@@ -442,7 +439,6 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
     setDragX(0);
     setPhase('ripping');
 
-    // API fires immediately in parallel with the animation sequence
     openPack(pack.id).then(result => {
       const won: WonCard = {
         name: result.card.name, rarity: result.card.rarity,
@@ -461,11 +457,10 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
       ripFiredRef.current = false;
     });
 
-    await wait(620);    // pack rip shake
+    await wait(800);   // GSAP shake + exit finishes (~0.72s)
     setPhase('bursting');
-    await wait(880);    // burst + fly-out
+    await wait(920);   // burst + fly-out
     setPhase('carousel');
-    // User picks a card to advance
   }, [isAuthenticated, user?.id, pack, balance, matchedBalance, updateBalance, onComplete, qc]);
 
   const handleCardSelect = useCallback(() => {
@@ -475,20 +470,16 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
 
   const handleFlipDone = useCallback(() => {
     setPhase('reveal');
-    setTimeout(() => setPhase('result'), 1100);
+    setTimeout(() => setPhase('result'), 1150);
   }, []);
 
   const handleDrag = useCallback((offsetX: number) => {
     setDragX(offsetX);
-    if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) {
-      startRip();
-    }
+    if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) startRip();
   }, [startRip]);
 
   const handleDragEnd = useCallback((offsetX: number) => {
-    if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) {
-      startRip();
-    }
+    if (offsetX >= DRAG_THRESHOLD && !ripFiredRef.current) startRip();
     setDragX(0);
   }, [startRip]);
 
@@ -516,59 +507,49 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
         </div>
       </div>
 
-      {/* Animation panel — visible until result */}
+      {/* Animation panel */}
       {!isVaulted && phase !== 'result' && (
         <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-[#090a12] px-4 pb-8 pt-10 text-center" style={{ minHeight: 440 }}>
           <div className="relative z-10">
 
-            {/* Pack idle / ripping */}
+            {/* Pack idle — GSAP shake wraps the pack */}
             {(phase === 'idle' || phase === 'ripping') && (
-              <motion.div
-                animate={phase === 'ripping'
-                  ? { scale: [1, 1.04, 1], boxShadow: [`0 0 20px ${color}22`, `0 0 75px ${color}99`, `0 0 20px ${color}22`] }
-                  : {}}
-                transition={{ duration: 0.7, repeat: phase === 'ripping' ? Infinity : 0 }}>
-                <VaultPack phase={phase} color={color} dragX={dragX}
-                  disabled={phase !== 'idle'} onDragStart={() => {}}
-                  onDrag={handleDrag} onDragEnd={handleDragEnd} />
-              </motion.div>
-            )}
-
-            {/* Burst */}
-            {phase === 'bursting' && (
-              <div className="relative mx-auto flex items-center justify-center" style={{ height: 310 }}>
-                <CardBurst color="#ffd700" />
+              <div ref={packWrapRef} style={{ willChange: 'transform' }}>
+                <VaultPack color={color} dragX={dragX} onDrag={handleDrag} onDragEnd={handleDragEnd} />
               </div>
             )}
 
-            {/* Carousel */}
+            {/* Burst */}
+            {phase === 'bursting' && <BurstCards burstRef={burstRef} />}
+
+            {/* Carousel — GSAP handled inside component */}
             {phase === 'carousel' && (
-              <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.38 }}>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
                 <CardCarousel onSelect={handleCardSelect} apiReady={apiReady} />
               </motion.div>
             )}
 
-            {/* Flip */}
+            {/* 3D Flip via R3F */}
             {phase === 'flipping' && wonCard && (
-              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}>
-                <CardFlip card={wonCard} color={color} onDone={handleFlipDone} />
+              <motion.div initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
+                <Card3DFlip card={wonCard} colorHex={color} tier={tier} onDone={handleFlipDone} />
               </motion.div>
             )}
 
-            {/* Reveal — static face + VFX */}
+            {/* Reveal — static face + Framer Motion VFX */}
             {phase === 'reveal' && wonCard && (
               <motion.div className="relative mx-auto" style={{ width: 164, height: 240 }}
                 initial={{ opacity: 1 }}>
                 <RarityVFX tier={tier} color={color} />
                 <motion.div className="relative z-10 h-full w-full"
-                  animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 0.55 }}>
+                  animate={{ scale: [1, 1.07, 1] }} transition={{ duration: 0.5 }}>
                   <CardFace card={wonCard} color={color} shineDelay={0.1} shineOpacity={0.9}
                     holographic={isBigPull} glowSize={55} />
                 </motion.div>
               </motion.div>
             )}
 
-            {/* Status text */}
+            {/* Status label */}
             <AnimatePresence mode="wait">
               {(phase === 'idle' || phase === 'ripping' || phase === 'bursting') && (
                 <motion.p key={statusLabel || 'idle'}
@@ -579,7 +560,6 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
               )}
             </AnimatePresence>
 
-            {/* Button (idle only) */}
             {phase === 'idle' && (
               <button onClick={startRip}
                 className="mt-5 rounded-xl border border-[#ffd700]/35 bg-[#ffd700]/10 px-7 py-3 font-display text-sm font-bold uppercase tracking-widest text-[#ffd700] transition-all hover:bg-[#ffd700]/20">
@@ -620,7 +600,7 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
 
           <motion.div className="relative z-10 mx-auto mt-3 h-56 w-40"
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }} style={{ perspective: 800 }}>
+            transition={{ duration: 0.3 }}>
             <CardFace card={wonCard} color={color}
               shineDelay={0.15} shineOpacity={tier === 'common' ? 0.4 : 0.85}
               holographic={isBigPull} glowSize={isBigPull ? 60 : 40} />
