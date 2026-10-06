@@ -7,7 +7,7 @@ import type { CardTier } from './PokemonStatCard';
 // as percentage coordinates in PokemonStatCard.
 const FRAME_BASE = '/brawl/frames';
 export const CARD_FRAMES: Record<CardTier, string> = {
-  bronze: `${FRAME_BASE}/bronze.png`,
+  bronze: `${FRAME_BASE}/bronze.webp`,
   silver: `${FRAME_BASE}/silver.png`,
   gold: `${FRAME_BASE}/gold.png`,
   legendary: `${FRAME_BASE}/legendary.png`,

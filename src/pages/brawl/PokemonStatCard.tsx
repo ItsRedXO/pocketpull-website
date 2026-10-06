@@ -52,8 +52,6 @@ const LAYOUT = {
   power: { top: '10%', left: '4%', width: '30%', height: '7%' },
   type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
   name: { top: '61.5%', left: '3%', width: '94%', height: '8%' },
-  // 79.5–89% = the baked stats slot interior in the frame art
-  stats: { top: '79.5%', left: '8.5%', width: '83%', height: '9.3%' },
 };
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count, layout: layoutProp }: {
@@ -61,7 +59,8 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
   layout?: Partial<BrawlCardLayout>;
 }) {
   const layout = { ...DEFAULT_BRAWL_CARD_LAYOUT, ...layoutProp };
-  const statsLayout = { top: `${layout.statsTop}%`, left: '8.5%', width: '83%', height: `${layout.statsHeight}%` };
+  const statsLabelLayout = { top: `${layout.statsLabelTop}%`, left: '8.5%', width: '83%', height: `${layout.statsLabelHeight}%` };
+  const statsValueLayout = { top: `${layout.statsValueTop}%`, left: '8.5%', width: '83%', height: `${layout.statsValueHeight}%` };
   const tier = getCardTier(mon);
   const accent = TIER_ACCENT[tier];
   const isLegendary = tier === 'legendary';
@@ -128,11 +127,17 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
             )}
           </div>
 
-          <div className="absolute grid grid-cols-4" style={{ ...statsLayout, zIndex: 3 }}>
-            {[['ATK', mon.base_attack], ['DEF', mon.base_defense], ['HP', mon.base_hp], ['SPD', mon.base_speed]].map(([label, val]) => (
-              <div key={label} className="flex flex-col items-center justify-center gap-0.5">
+          <div className="absolute grid grid-cols-4" style={{ ...statsLabelLayout, zIndex: 3 }}>
+            {(['ATK', 'DEF', 'HP', 'SPD'] as const).map(label => (
+              <div key={label} className="flex items-center justify-center">
                 <div className="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-wide leading-none" style={{ color: accent }}>{label}</div>
-                <div className="text-[10px] sm:text-xs font-black leading-none text-white">{val}</div>
+              </div>
+            ))}
+          </div>
+          <div className="absolute grid grid-cols-4" style={{ ...statsValueLayout, zIndex: 3 }}>
+            {[mon.base_attack, mon.base_defense, mon.base_hp, mon.base_speed].map((val, i) => (
+              <div key={i} className="flex items-center justify-center">
+                <div className="text-[11px] sm:text-sm font-black leading-none text-white">{val}</div>
               </div>
             ))}
           </div>
