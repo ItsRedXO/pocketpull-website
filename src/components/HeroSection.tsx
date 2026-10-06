@@ -71,7 +71,7 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 16,
     entranceDelay: 0.5,
     zIndex: 25,
-    position: { left: '44%', top: '36%' },
+    position: { left: '50%', top: '36%' },
     imageUrl: 'https://images.pokemontcg.io/swsh7/215_hires.png',
   },
   {
@@ -87,7 +87,7 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 12,
     entranceDelay: 0.7,
     zIndex: 35,
-    position: { left: '56%', top: '41%' },
+    position: { left: '62%', top: '41%' },
     imageUrl: 'https://images.pokemontcg.io/gym2/14_hires.png',
   },
   {
@@ -103,7 +103,7 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     floatAmount: 14,
     entranceDelay: 0.9,
     zIndex: 20,
-    position: { left: '67%', top: '32%' },
+    position: { left: '73%', top: '32%' },
     imageUrl: 'https://images.pokemontcg.io/base1/4_hires.png',
   },
 ];

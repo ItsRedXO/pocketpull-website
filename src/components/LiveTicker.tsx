@@ -283,9 +283,9 @@ export const LiveTicker: React.FC = React.memo(() => {
 
   if (isLoading && feed.length === 0) {
     return (
-      <div 
-        style={{ marginTop: '56px', height: `${SECTION_H}px` }} 
-        className="flex items-center justify-center bg-[#07080e]"
+      <div
+        style={{ marginTop: '56px', height: `${SECTION_H}px`, background: 'rgba(8,12,20,0.6)', backdropFilter: 'blur(8px)' }}
+        className="flex items-center justify-center"
       >
         <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-[#00c8ff] animate-spin" />
       </div>
@@ -294,7 +294,7 @@ export const LiveTicker: React.FC = React.memo(() => {
 
   if (feed.length === 0 && isError) {
     return (
-      <div style={{ marginTop: '56px', height: `${SECTION_H}px` }} className="flex items-center justify-center gap-3 bg-[#07080e] text-xs text-gray-500">
+      <div style={{ marginTop: '56px', height: `${SECTION_H}px`, background: 'rgba(8,12,20,0.6)', backdropFilter: 'blur(8px)' }} className="flex items-center justify-center gap-3 text-xs text-gray-500">
         <span>Recent pulls are temporarily unavailable.</span>
         <button onClick={() => refetch()} className="text-[#00c8ff] font-bold">Try again</button>
       </div>
@@ -312,8 +312,10 @@ export const LiveTicker: React.FC = React.memo(() => {
       style={{
         marginTop: '56px',
         height: `${SECTION_H}px`,
-        background: 'linear-gradient(180deg, #07080e 0%, #0a0b15 100%)',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        background: 'rgba(8, 12, 20, 0.60)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
         overflow: 'hidden',
       }}
     >
@@ -341,7 +343,7 @@ export const LiveTicker: React.FC = React.memo(() => {
         className="absolute left-0 top-0 bottom-0 z-10 pointer-events-none"
         style={{
           width: '180px',
-          background: 'linear-gradient(to right, #07080e 40%, #07080e 20%, transparent)',
+          background: 'linear-gradient(to right, rgba(8,12,20,0.95) 30%, rgba(8,12,20,0.5) 60%, transparent)',
         }}
       />
       {/* Right fade */}
@@ -349,7 +351,7 @@ export const LiveTicker: React.FC = React.memo(() => {
         className="absolute right-0 top-0 bottom-0 z-10 pointer-events-none"
         style={{
           width: '120px',
-          background: 'linear-gradient(to left, #07080e 40%, transparent)',
+          background: 'linear-gradient(to left, rgba(8,12,20,0.95) 30%, transparent)',
         }}
       />
 
