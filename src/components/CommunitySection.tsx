@@ -104,7 +104,7 @@ export const CommunitySection: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 bg-[#060710]">
+    <section className="py-16">
       <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-16">
 
         {/* ── Community Stats ── */}

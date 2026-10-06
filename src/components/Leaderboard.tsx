@@ -45,7 +45,7 @@ export const Leaderboard: React.FC = () => {
   };
 
   return (
-    <section className="py-16 px-4 md:px-6" style={{ backgroundColor: '#0a0b0f' }}>
+    <section className="py-16 px-4 md:px-6" style={{ backgroundColor: 'transparent' }}>
       <div className="max-w-7xl mx-auto">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}

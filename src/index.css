@@ -84,11 +84,22 @@
 
   body {
     background-color: hsl(var(--background));
+    background-image: url('/hero-bg.webp');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center 70%;
     color: hsl(var(--foreground));
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+  }
+
+  /* iOS doesn't support background-attachment: fixed — fall back to scroll */
+  @supports (-webkit-touch-callout: none) {
+    body {
+      background-attachment: scroll;
+    }
   }
 
   h1, h2, h3, h4, h5, .font-display {

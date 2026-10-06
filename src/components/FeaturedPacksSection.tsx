@@ -17,7 +17,7 @@ export const FeaturedPacksSection: React.FC = () => {
   return (
     <section
       className="pb-20 pt-0 px-4 md:px-6"
-      style={{ backgroundColor: '#0a0b0f' }}
+      style={{ backgroundColor: 'transparent' }}
     >
       <div className="max-w-7xl mx-auto">
 

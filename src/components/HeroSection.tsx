@@ -210,12 +210,7 @@ export const HeroSection: React.FC = () => {
   return (
     <section
       className="relative overflow-hidden"
-      style={{
-        minHeight: '680px',
-        backgroundImage: 'url(/hero-bg.webp)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center 80%',
-      }}
+      style={{ minHeight: '680px' }}
     >
       {/* Left-to-right gradient: keeps text readable, fades to transparent */}
       <div
