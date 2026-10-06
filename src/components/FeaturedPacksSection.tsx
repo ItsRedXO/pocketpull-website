@@ -187,12 +187,14 @@ const PackCard: React.FC<PackCardProps> = ({ pack, index, onDetails, lastOpenedA
       onMouseLeave={() => setHovered(false)}
       className="relative flex flex-col rounded-2xl cursor-pointer select-none overflow-hidden"
       style={{
-        background: 'linear-gradient(160deg, #0d0f1c 0%, #090b14 100%)',
+        background: hovered ? 'rgba(12, 18, 36, 0.52)' : 'rgba(8, 12, 28, 0.38)',
+        backdropFilter: 'blur(22px)',
+        WebkitBackdropFilter: 'blur(22px)',
         border: `1.5px solid ${hovered ? glow + '88' : glow + '28'}`,
         boxShadow: hovered
-          ? `0 0 32px -6px ${glow}66, 0 12px 40px rgba(0,0,0,0.6)`
-          : `0 0 12px -6px ${glow}33, 0 4px 16px rgba(0,0,0,0.4)`,
-        transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
+          ? `0 0 32px -6px ${glow}66, 0 12px 40px rgba(0,0,0,0.5)`
+          : `0 0 12px -6px ${glow}33, 0 4px 16px rgba(0,0,0,0.3)`,
+        transition: 'box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease',
       }}
       onClick={onDetails}
     >
@@ -229,7 +231,6 @@ const PackCard: React.FC<PackCardProps> = ({ pack, index, onDetails, lastOpenedA
               ? `drop-shadow(0 0 20px ${glow}cc) drop-shadow(0 4px 12px ${glow}66)`
               : `drop-shadow(0 0 10px ${glow}55) drop-shadow(0 2px 8px rgba(0,0,0,0.5))`,
             transition: 'filter 0.35s ease',
-            mixBlendMode: 'screen',
           }}
         />
       </div>
