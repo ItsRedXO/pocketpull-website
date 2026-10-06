@@ -119,7 +119,7 @@ export const LiveBattleBoard: React.FC<Props> = ({ onCreateBattle, onJoinBattle,
   const pagedBattles = filteredLive.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="min-h-screen bg-[#0a0b0f] px-4 py-10">
+    <div className="min-h-screen px-4 py-10">
       <div className="max-w-6xl mx-auto">
 
         {/* ── Page header ─────────────────────────────────────────────────── */}

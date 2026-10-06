@@ -253,7 +253,7 @@ export const ExchangerPage: React.FC = () => {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="min-h-screen bg-[#0a0b0f] px-4 py-10"
+      className="min-h-screen px-4 py-10"
     >
       <div className="max-w-[1400px] mx-auto">
         <ExchangerHeader />

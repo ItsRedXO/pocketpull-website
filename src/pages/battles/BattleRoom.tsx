@@ -57,7 +57,7 @@ export const BattleRoom: React.FC<Props> = ({ battleId, onBack, watchOnly = fals
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0b0f] flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-[#00c8ff]/30 border-t-[#00c8ff] rounded-full animate-spin" />
       </div>
     );
@@ -65,7 +65,7 @@ export const BattleRoom: React.FC<Props> = ({ battleId, onBack, watchOnly = fals
 
   if (!battle) {
     return (
-      <div className="min-h-screen bg-[#0a0b0f] flex items-center justify-center flex-col gap-4">
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
         <Swords size={40} className="text-gray-700" />
         <p className="text-gray-500">Battle not found.</p>
         <button onClick={onBack} className="text-[#00c8ff] text-sm hover:underline">Go back</button>
@@ -99,7 +99,7 @@ export const BattleRoom: React.FC<Props> = ({ battleId, onBack, watchOnly = fals
   const isPlayer = isHost || (players || []).some(p => p.userId === user?.id);
 
   return (
-    <div className="min-h-screen bg-[#0a0b0f] px-4 py-8 relative overflow-hidden">
+    <div className="min-h-screen px-4 py-8 relative overflow-hidden">
       {/* Animated background glow */}
       {(phase === 'countdown' || phase === 'opening') && (
         <motion.div

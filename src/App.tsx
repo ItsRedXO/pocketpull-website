@@ -52,6 +52,7 @@ export default function App() {
   const packsQuery = usePacks();
   const recentPullsQuery = useRecentPulls();
   const homepageReady = !authLoading && (!user || (!statsLoading && !balanceLoading && !!stats)) && (packsQuery.isSuccess || packsQuery.isError) && (recentPullsQuery.isSuccess || recentPullsQuery.isError);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [currentPage]);
   const handlePageChange = useCallback((page: string) => {
     if (['home', 'upgrader', 'battle', 'exchanger', 'inventory', 'profile', 'vault', 'brawl', 'shop'].includes(page)) setCurrentPage(page as Page);
   }, []);

@@ -51,7 +51,7 @@ export function PokeBrawlPage() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="min-h-screen px-3 md:px-5 py-8" style={{ background: '#0a0b0f' }}>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="min-h-screen px-3 md:px-5 py-8">
       <div className="max-w-[1400px] mx-auto">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 mb-6">
           <div className="flex items-center gap-3">

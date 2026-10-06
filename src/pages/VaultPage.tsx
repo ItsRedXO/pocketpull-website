@@ -8,7 +8,7 @@ export const VaultPage: React.FC = () => {
   const vaultPacks = packs.filter(p => p.packType === 'mystery');
   const [detailPack, setDetailPack] = useState<PackCatalog | null>(null);
 
-  return <section className="min-h-[calc(100vh-7rem)] px-4 md:px-8 py-12 bg-[#0a0b0f]">
+  return <section className="min-h-[calc(100vh-7rem)] px-4 md:px-8 py-12">
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-3"><Vault className="text-[#ffd700]" size={30}/><h1 className="font-display text-3xl uppercase tracking-wider text-white">The Vault</h1></div>
       <p className="text-sm text-white/45 mb-10">Limited mystery packs. Every remaining slab has an equal chance.</p>

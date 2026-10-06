@@ -97,7 +97,7 @@ export const CreateBattlePage: React.FC<Props> = ({ onCreated, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0b0f] px-4 py-8">
+    <div className="min-h-screen px-4 py-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">

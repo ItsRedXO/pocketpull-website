@@ -31,7 +31,6 @@ export const UpgraderPage: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       className="min-h-screen px-3 md:px-5 py-8"
-      style={{ background: '#0a0b0f' }}
     >
       <AnimatePresence>
         {outcome && !upgrading && <ResultOverlay outcome={outcome} wonCards={wonCards} onReset={handleReset} />}

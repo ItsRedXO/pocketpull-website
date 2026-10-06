@@ -266,7 +266,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onBack }) => {
   ];
 
   return (
-    <div className="min-h-screen py-8 px-4 md:px-6" style={{ backgroundColor: '#0a0b0f' }}>
+    <div className="min-h-screen py-8 px-4 md:px-6">
       <div className="max-w-3xl mx-auto">
         {/* Back */}
         <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 group text-sm font-bold">
