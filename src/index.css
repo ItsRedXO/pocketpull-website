@@ -111,8 +111,8 @@
   }
 
   h1, h2, h3, h4, h5, .font-display {
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 700;
+    font-family: 'Karmatic Arcade', monospace;
+    font-weight: normal;
   }
 
   /* Custom scrollbar */
@@ -203,8 +203,8 @@
   .btn-primary {
     background: hsl(var(--primary));
     color: hsl(var(--primary-foreground));
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 700;
+    font-family: 'Karmatic Arcade', monospace;
+    font-weight: normal;
     padding: 12px 28px;
     border-radius: 12px;
     border: none;
@@ -235,8 +235,8 @@
 
 @layer utilities {
   .font-display {
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 700;
+    font-family: 'Karmatic Arcade', monospace;
+    font-weight: normal;
   }
 
   .scrollbar-none {

@@ -69,9 +69,9 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
           transition={{ duration: 0.65, ease: [0.4, 0, 0.2, 1] }}
           className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden"
           style={{
-            backgroundImage: "url('/hero-bg.webp')",
+            backgroundImage: "url('/loading-bg.webp')",
             backgroundSize: 'cover',
-            backgroundPosition: 'center 60%',
+            backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
           }}
         >
