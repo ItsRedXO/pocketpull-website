@@ -41,18 +41,13 @@ interface PokemonLike {
   is_legendary?: number; is_mythical?: number; star_level?: number; card_tier_override?: string | null;
 }
 
-// Percentage-of-card-size boxes, measured once against the 1024x1536 frame
-// art (see cardFrames.ts) by sampling pixel alpha/luminance in the browser --
-// the frame is the same layout across all 4 tiers, just recolored, so one
-// set of coordinates covers all of them. Tier name and box outlines are
-// baked into the frame image itself; these are only the regions we still
-// draw our own text/art into.
+// Non-configurable size/shape parts of each overlay region.
+// Positions (top/left) come from BrawlCardLayout so they can be tuned in
+// the admin panel without a redeploy.
 const LAYOUT = {
-  window: { top: '20%', left: '9%', right: '9%', bottom: '40%' },
-  power: { top: '10%', left: '4%', width: '30%', height: '7%' },
-  type: { top: '7.5%', left: '76%', width: '19%', height: '8.5%' },
-  // Name sits at bottom of the artwork window, above the baked tier label
-  name: { top: '56%', left: '3%', width: '94%', height: '7%' },
+  power: { width: '30%', height: '7%' },
+  type:  { width: '19%', height: '8.5%' },
+  name:  { left: '3%',  width: '94%', height: '7%' },
 };
 
 export function PokemonStatCard({ mon, selected, order, index, onClick, nickname, count, layout: layoutProp }: {
@@ -86,7 +81,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
         </div>
 
         <div className="absolute inset-0" style={{ transform: `scale(${layout.scale})`, transformOrigin: 'center' }}>
-          <div className="absolute" style={LAYOUT.window}>
+          <div className="absolute" style={{ top: `${layout.windowTop}%`, left: `${layout.windowLeft}%`, right: `${layout.windowRight}%`, bottom: `${layout.windowBottom}%` }}>
             <PokemonPortrait artworkUrl={mon.artwork_url} alt={mon.name} scale={portraitScale} offsetX={mon.portrait_offset_x} offsetY={mon.portrait_offset_y}
               className="w-full h-full" />
           </div>
@@ -105,17 +100,17 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
             transition={isLegendary ? { repeat: Infinity, duration: 2.2 } : { duration: 0.15 }}
           />
 
-          <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.power, zIndex: 3 }}>
+          <div className="absolute flex items-center justify-center" style={{ top: `${layout.powerTop}%`, left: `${layout.powerLeft}%`, ...LAYOUT.power, zIndex: 3 }}>
             <span className="font-black leading-none text-white" style={{ fontSize: layout.powerSize, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>{mon.overall_rating}</span>
           </div>
 
-          <div className="absolute flex items-center justify-center" style={{ ...LAYOUT.type, zIndex: 3 }}>
+          <div className="absolute flex items-center justify-center" style={{ top: `${layout.typeTop}%`, left: `${layout.typeLeft}%`, ...LAYOUT.type, zIndex: 3 }}>
             <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full uppercase font-extrabold leading-none tracking-wide text-white" style={{ background: `${typeColor(mon.primary_type)}e6` }}>
               {mon.primary_type.slice(0, 3)}
             </span>
           </div>
 
-          <div className="absolute flex items-center justify-center gap-1 px-2" style={{ ...LAYOUT.name, zIndex: 3 }}>
+          <div className="absolute flex items-center justify-center gap-1 px-2" style={{ top: `${layout.nameTop}%`, ...LAYOUT.name, zIndex: 3 }}>
             <span className="font-extrabold capitalize truncate text-white" style={{ fontSize: layout.nameSize, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
               {nickname || mon.name}
             </span>
@@ -130,7 +125,7 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
           <div className="absolute grid grid-cols-4" style={{ ...statsLayout, zIndex: 3 }}>
             {[mon.base_attack, mon.base_defense, mon.base_hp, mon.base_speed].map((val, i) => (
               <div key={i} className="flex items-center justify-center">
-                <div className="text-[11px] sm:text-sm font-black leading-none text-white">{val}</div>
+                <div className="font-black leading-none text-white" style={{ fontSize: layout.statsFontSize }}>{val}</div>
               </div>
             ))}
           </div>

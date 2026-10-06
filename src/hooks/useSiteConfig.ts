@@ -104,27 +104,41 @@ export function useLoadingScreenConfig() {
 // ── Brawl card layout ─────────────────────────────────────────────────────────
 
 export interface BrawlCardLayout {
-  /** scale(N) applied to the frame group — pushes border to card edges. Default 1.16 */
   scale: number;
-  /** Top % where the stat numbers start (labels are baked into the frame art). Default 83 */
   statsTop: number;
-  /** Height % of the stat number boxes. Default 7 */
   statsHeight: number;
-  /** grid columns for active team grid on lg+ screens. Default 4 */
+  statsFontSize: number;
   teamCols: number;
-  /** Pokemon name font size in px. Default 14 */
+  nameTop: number;
   nameSize: number;
-  /** Power number font size in px. Default 22 */
+  powerTop: number;
+  powerLeft: number;
   powerSize: number;
+  typeTop: number;
+  typeLeft: number;
+  windowTop: number;
+  windowLeft: number;
+  windowRight: number;
+  windowBottom: number;
 }
 
 export const DEFAULT_BRAWL_CARD_LAYOUT: BrawlCardLayout = {
   scale: 1.16,
   statsTop: 83,
   statsHeight: 7,
+  statsFontSize: 11,
   teamCols: 4,
+  nameTop: 56,
   nameSize: 14,
+  powerTop: 10,
+  powerLeft: 4,
   powerSize: 22,
+  typeTop: 7.5,
+  typeLeft: 76,
+  windowTop: 20,
+  windowLeft: 9,
+  windowRight: 9,
+  windowBottom: 40,
 };
 
 const BRAWL_LAYOUT_KEY = ['site_config', 'brawl_card_layout'];
