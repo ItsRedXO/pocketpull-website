@@ -21,6 +21,7 @@
 # 132-byte pointer text with a 200 and an image/png content-type). Assets the
 # running app actually serves at runtime need to be real git blobs, not LFS.
 public/brawl/**/*.png filter= diff= merge= -text
+public/brawl/**/*.webp filter= diff= merge= -text
 public/favicon.png filter= diff= merge= -text
 public/apple-touch-icon.png filter= diff= merge= -text
 public/hero-bg.webp filter= diff= merge= -text
