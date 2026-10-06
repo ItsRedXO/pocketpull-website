@@ -23,6 +23,7 @@
 public/brawl/**/*.png filter= diff= merge= -text
 public/hero-bg.webp filter= diff= merge= -text
 public/loading-bg.webp filter= diff= merge= -text
+public/inner-bg.webp filter= diff= merge= -text
 public/fonts/*.ttf filter= diff= merge= -text
 public/fonts/*.woff filter= diff= merge= -text
 public/fonts/*.woff2 filter= diff= merge= -text
