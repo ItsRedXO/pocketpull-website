@@ -21,6 +21,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
   const barHeight  = config.barHeight  ?? DEFAULT_LOADING_CONFIG.barHeight;
   const barRadius  = config.barRadius  ?? DEFAULT_LOADING_CONFIG.barRadius;
   const barWidth   = config.barWidth   ?? DEFAULT_LOADING_CONFIG.barWidth;
+  const barX       = config.barX       ?? DEFAULT_LOADING_CONFIG.barX;
   const barY       = config.barY       ?? DEFAULT_LOADING_CONFIG.barY;
   const barColor1  = config.barColor1  ?? DEFAULT_LOADING_CONFIG.barColor1;
   const barColor2  = config.barColor2  ?? DEFAULT_LOADING_CONFIG.barColor2;
@@ -95,7 +96,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
             className="absolute"
             style={{
               top: `calc(${barY}% - ${LOGO_OFFSET}px)`,
-              left: '50%',
+              left: `${barX}%`,
               transform: 'translateX(-50%)',
             }}
           >
@@ -106,7 +107,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
             />
           </motion.div>
 
-          {/* Bar group — barY controls its center */}
+          {/* Bar group — barX/barY control its center */}
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -114,7 +115,7 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
             className="absolute flex flex-col items-center"
             style={{
               top: `${barY}%`,
-              left: '50%',
+              left: `${barX}%`,
               transform: 'translate(-50%, -50%)',
               width: '420px',
               maxWidth: '90vw',

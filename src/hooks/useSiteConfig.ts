@@ -9,6 +9,7 @@ export interface LoadingScreenConfig {
   barColor2: string;
   barHeight: number;
   barRadius: number;
+  barX: number;
   barY: number;
   barWidth: number;
 }
@@ -24,8 +25,9 @@ export const DEFAULT_LOADING_CONFIG: LoadingScreenConfig = {
   barColor2: '#c084fc',
   barHeight: 22,
   barRadius: 0,
-  barY: 50,
-  barWidth: 100,
+  barX: 50,
+  barY: 65,
+  barWidth: 80,
 };
 
 const LOADING_KEY = ['site_config', 'loading_screen'];

@@ -41,8 +41,13 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
     const rect = previewRef.current.getBoundingClientRect();
 
     if (dragMode === 'position') {
-      const pct = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-      setDraft(d => ({ ...d, barY: Math.max(5, Math.min(95, pct)) }));
+      const xPct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+      const yPct = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+      setDraft(d => ({
+        ...d,
+        barX: Math.max(10, Math.min(90, xPct)),
+        barY: Math.max(5, Math.min(95, yPct)),
+      }));
     } else if (dragMode === 'width' && contentBlockRef.current) {
       const blockRect = contentBlockRef.current.getBoundingClientRect();
       const pct = Math.round(((e.clientX - blockRect.left) / blockRect.width) * 100);
@@ -137,8 +142,9 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
             <SliderRow label="Width" field="barWidth" min={20} max={100} unit="%" />
             <SliderRow label="Height" field="barHeight" min={8} max={48} />
             <SliderRow label="Corner Radius" field="barRadius" min={0} max={24} />
+            <SliderRow label="Horizontal Position" field="barX" min={10} max={90} unit="%" />
             <SliderRow label="Vertical Position" field="barY" min={5} max={95} unit="%" />
-            <p className="text-[9px] text-gray-600">Or use the preview: drag block to move, drag bar right-edge to resize width</p>
+            <p className="text-[9px] text-gray-600">Or drag freely in the preview — right edge of bar resizes width</p>
           </div>
 
           {/* Messages */}
@@ -185,7 +191,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Live Preview</span>
             </div>
             <span className="text-[9px] text-gray-600 uppercase tracking-wider">
-              {dragMode === 'position' ? '↕ repositioning...' : dragMode === 'width' ? '↔ resizing...' : 'Drag to edit'}
+              {dragMode === 'position' ? '✥ moving...' : dragMode === 'width' ? '↔ resizing...' : 'Drag to edit'}
             </span>
           </div>
 
@@ -198,7 +204,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               backgroundImage: "url('/loading-bg.webp')",
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              cursor: dragMode === 'position' ? 'ns-resize' : dragMode === 'width' ? 'ew-resize' : 'default',
+              cursor: dragMode === 'position' ? 'move' : dragMode === 'width' ? 'ew-resize' : 'default',
               userSelect: 'none',
             }}
             onMouseMove={onPreviewMouseMove}
@@ -223,7 +229,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                 width: '56px',
                 height: '56px',
                 top: `calc(${draft.barY}% - 90px)`,
-                left: '50%',
+                left: `${draft.barX}%`,
                 transform: 'translateX(-50%)',
                 filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
                 pointerEvents: 'none',
@@ -231,18 +237,18 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               }}
             />
 
-            {/* Bar group — drag to reposition vertically */}
+            {/* Bar group — drag freely to reposition */}
             <div
               ref={contentBlockRef}
               className="absolute flex flex-col items-center"
               style={{
                 top: `${draft.barY}%`,
-                left: '50%',
+                left: `${draft.barX}%`,
                 transform: 'translate(-50%, -50%)',
                 width: '70%',
                 gap: '6px',
                 zIndex: 10,
-                cursor: dragMode === 'position' ? 'ns-resize' : 'grab',
+                cursor: dragMode === 'position' ? 'move' : 'grab',
               }}
               onMouseDown={e => { e.preventDefault(); setDragMode('position'); }}
             >
@@ -251,7 +257,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                   className="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] uppercase tracking-widest whitespace-nowrap px-2 py-0.5 rounded pointer-events-none"
                   style={{ background: 'rgba(0,0,0,0.6)', color: 'rgba(255,255,255,0.4)' }}
                 >
-                  ↕ drag to move
+                  ✥ drag to move
                 </div>
               )}
 
