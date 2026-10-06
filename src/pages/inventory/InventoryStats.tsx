@@ -23,7 +23,7 @@ export const InventoryStats: React.FC<InventoryStatsProps> = ({
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       {statsList.map((stat) => (
-        <div key={stat.label} className="rounded-xl p-4 border border-white/5" style={{ background: 'rgba(13,14,20,0.9)' }}>
+        <div key={stat.label} className="rounded-xl p-4 border border-white/10" style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
           <p className="text-xl font-display" style={{ color: '#00c8ff' }}>{stat.value}</p>
           <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">{stat.label}</p>
         </div>

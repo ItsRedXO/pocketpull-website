@@ -131,11 +131,13 @@ export function PokeBrawlPage() {
           <IntroFlow onComplete={handleIntroComplete} />
         ) : (
           <div className="flex flex-col lg:flex-row gap-4 items-start">
-            <div className="flex lg:flex-col gap-2 w-full lg:w-48 shrink-0 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0" role="tablist">
+            <div className="flex lg:flex-col gap-2 w-full lg:w-48 shrink-0 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 p-2 rounded-2xl"
+              style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+              role="tablist">
               {SUB_TABS.map(t => (
                 <button key={t.id} disabled={t.disabled} onClick={() => !t.disabled && setSubTab(t.id)}
                   className={`relative flex flex-row lg:flex-col items-center justify-start lg:justify-center gap-2 lg:gap-1.5 px-3 py-2.5 lg:py-3 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap rounded-xl shrink-0 w-full ${
-                    t.disabled ? 'text-white/20 cursor-default' : subTab === t.id ? 'text-black' : 'text-white/50 hover:text-white hover:bg-white/5'
+                    t.disabled ? 'text-white/25 cursor-default' : subTab === t.id ? 'text-black' : 'text-white/80 hover:text-white hover:bg-white/10'
                   }`}>
                   {!t.disabled && subTab === t.id && (
                     <motion.span layoutId="brawl-subtab-pill" className="absolute inset-0 rounded-xl bg-gradient-to-r from-[#9b5cff] to-[#00c8ff]"
@@ -148,7 +150,8 @@ export function PokeBrawlPage() {
               ))}
             </div>
 
-            <div className="flex-1 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:p-6 relative overflow-hidden">
+            <div className="flex-1 w-full min-w-0 rounded-2xl border border-white/10 p-4 md:p-6 relative overflow-hidden"
+              style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#9b5cff]/50 to-transparent" />
               <AnimatePresence mode="wait">
                 <motion.div key={subTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>

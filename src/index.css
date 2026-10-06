@@ -109,6 +109,15 @@
     background-position: center center;
   }
 
+  /* Increase glass-card opacity on inner pages so panels stay readable over bright bg */
+  body.inner-page .glass-card {
+    background: rgba(8, 12, 28, 0.72);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  body.inner-page .glass-card:hover {
+    background: rgba(12, 18, 40, 0.82);
+  }
+
   /* iOS doesn't support background-attachment: fixed — fall back to scroll */
   @supports (-webkit-touch-callout: none) {
     body {

@@ -65,8 +65,8 @@ export function CenterPanel({
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="rounded-2xl border border-white/5 p-5 flex flex-col items-center gap-0"
-        style={{ background: 'rgba(13,14,20,0.95)' }}
+        className="rounded-2xl border border-white/10 p-5 flex flex-col items-center gap-0"
+        style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
       >
 
         {/* ── Circular Meter ── */}

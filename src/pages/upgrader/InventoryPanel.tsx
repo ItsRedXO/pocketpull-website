@@ -44,8 +44,8 @@ export function InventoryPanel({
 }: InventoryPanelProps) {
   return (
     <div
-      className="flex flex-col rounded-2xl border border-white/5 overflow-hidden h-fit"
-      style={{ background: 'rgba(13,14,20,0.95)' }}
+      className="flex flex-col rounded-2xl border border-white/10 overflow-hidden h-fit"
+      style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
     >
 
       {/* ── Header ── */}
