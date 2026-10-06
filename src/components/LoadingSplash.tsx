@@ -91,23 +91,11 @@ export const LoadingSplash: React.FC<LoadingSplashProps> = ({ ready = true }) =>
               transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
               className="relative flex items-center justify-center"
             >
-              {/* Logo circle */}
-              <div
-                style={{
-                  width: '200px',
-                  height: '200px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-                }}
-              >
-                <img
-                  src="/pocketpull-logo.png"
-                  alt="PocketPull"
-                  className="w-full h-full object-cover"
-                  style={{ display: 'block', borderRadius: '50%' }}
-                />
-              </div>
+              <img
+                src="/pocketpull-logo.png"
+                alt="PocketPull"
+                style={{ width: '200px', height: '200px', display: 'block', filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.5))' }}
+              />
             </motion.div>
 
             {/* Loading text + bar */}
