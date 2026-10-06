@@ -43,7 +43,7 @@ interface ShowcaseCard {
   name: string;
   set: string;
   rarity: string;
-  art: string; // emoji fallback
+  art: string;
   glowColor: string;
   glowColor2: string;
   rotate: number;
@@ -52,11 +52,17 @@ interface ShowcaseCard {
   floatAmount: number;
   entranceDelay: number;
   zIndex: number;
-  position: { top?: string; bottom?: string; left?: string; right?: string };
-  // Unsplash image URL for card art
+  // Absolute % positions within the full hero section
+  position: { left?: string; right?: string; top?: string; bottom?: string };
   imageUrl: string;
 }
 
+// Positions tuned to hover above the three grass indents in hero-bg.webp.
+// Background is rendered at cover scale (1280/1670 ≈ 0.766) with
+// backgroundPosition: center 80%, giving a visible y range of ~42–929px
+// in the original image. The three indents sit at original ~(570,790),
+// (780,810), (990,790) → element coords ~(34%,84%), (47%,86%), (59%,84%).
+// Cards are positioned so their bottoms are ~40px above each indent centre.
 const SHOWCASE_CARDS: ShowcaseCard[] = [
   {
     name: 'Umbreon VMAX',
@@ -68,27 +74,11 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     rotate: -7,
     floatDuration: 6.4,
     floatDelay: 0,
-    floatAmount: 18,
+    floatAmount: 16,
     entranceDelay: 0.5,
-    zIndex: 30,
-    position: { left: '0%', top: '2%' },
+    zIndex: 25,
+    position: { left: '32%', top: '44%' },
     imageUrl: 'https://images.pokemontcg.io/swsh7/215_hires.png',
-  },
-  {
-    name: 'Charizard',
-    set: 'Base Set · 1st Edition',
-    rarity: 'HOLO RARE',
-    art: '🔥',
-    glowColor: '#f97316',
-    glowColor2: '#dc2626',
-    rotate: 5,
-    floatDuration: 7.2,
-    floatDelay: 1.6,
-    floatAmount: 14,
-    entranceDelay: 0.7,
-    zIndex: 20,
-    position: { right: '0%', top: '8%' },
-    imageUrl: 'https://images.pokemontcg.io/base1/4_hires.png',
   },
   {
     name: "Giovanni's Mewtwo",
@@ -99,12 +89,28 @@ const SHOWCASE_CARDS: ShowcaseCard[] = [
     glowColor2: '#6b21a8',
     rotate: -3,
     floatDuration: 8.0,
-    floatDelay: 3.2,
+    floatDelay: 2.0,
     floatAmount: 12,
-    entranceDelay: 0.9,
-    zIndex: 10,
-    position: { left: '18%', bottom: '4%' },
+    entranceDelay: 0.7,
+    zIndex: 35,
+    position: { left: '43%', top: '47%' },
     imageUrl: 'https://images.pokemontcg.io/gym2/14_hires.png',
+  },
+  {
+    name: 'Charizard',
+    set: 'Base Set · 1st Edition',
+    rarity: 'HOLO RARE',
+    art: '🔥',
+    glowColor: '#f97316',
+    glowColor2: '#dc2626',
+    rotate: 5,
+    floatDuration: 7.2,
+    floatDelay: 3.6,
+    floatAmount: 14,
+    entranceDelay: 0.9,
+    zIndex: 20,
+    position: { left: '54%', top: '42%' },
+    imageUrl: 'https://images.pokemontcg.io/base1/4_hires.png',
   },
 ];
 
@@ -119,13 +125,13 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
       className="absolute"
       style={{ ...card.position, zIndex: card.zIndex }}
     >
-      {/* Ambient glow behind card */}
+      {/* Ambient glow */}
       <div
         className="absolute pointer-events-none"
         style={{
           inset: '-20px',
           borderRadius: '24px',
-          background: `radial-gradient(ellipse at 30% 50%, ${card.glowColor}40 0%, ${card.glowColor2}20 40%, transparent 70%)`,
+          background: `radial-gradient(ellipse at 30% 50%, ${card.glowColor}55 0%, ${card.glowColor2}25 40%, transparent 70%)`,
           filter: 'blur(16px)',
           zIndex: -1,
         }}
@@ -141,7 +147,6 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
           borderRadius: '14px',
           transform: `rotate(${card.rotate}deg)`,
           overflow: 'hidden',
-          position: 'relative',
           border: isGod
             ? '1.5px solid transparent'
             : `1.5px solid ${card.glowColor}66`,
@@ -152,12 +157,11 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
           backgroundClip: isGod ? 'padding-box, border-box' : undefined,
           background: isGod ? undefined : 'linear-gradient(160deg, #0d0f1c 0%, #090b14 100%)',
           boxShadow: isGod
-            ? `0 0 30px -6px ${card.glowColor}88, 0 0 60px -20px ${card.glowColor2}55, 0 24px 48px rgba(0,0,0,0.8)`
-            : `0 0 24px -6px ${card.glowColor}66, 0 0 48px -16px ${card.glowColor2}44, 0 24px 48px rgba(0,0,0,0.75)`,
+            ? `0 0 30px -6px ${card.glowColor}99, 0 0 60px -20px ${card.glowColor2}66, 0 28px 56px rgba(0,0,0,0.9)`
+            : `0 0 24px -6px ${card.glowColor}77, 0 0 48px -16px ${card.glowColor2}55, 0 28px 56px rgba(0,0,0,0.85)`,
         }}
         whileHover={{ scale: 1.06, y: -6, zIndex: 50 }}
       >
-        {/* Full card image — fills the entire card face */}
         <img
           src={card.imageUrl}
           alt={card.name}
@@ -165,14 +169,12 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
           className="w-full h-full object-cover"
           style={{ display: 'block', borderRadius: '12px' }}
           onError={(e) => {
-            // Fallback to emoji art if image fails
             const el = e.currentTarget as HTMLImageElement;
             el.style.display = 'none';
             const fallback = el.nextElementSibling as HTMLElement | null;
             if (fallback) fallback.style.display = 'flex';
           }}
         />
-        {/* Emoji fallback (hidden by default) */}
         <div
           className="absolute inset-0 items-center justify-center"
           style={{
@@ -185,16 +187,13 @@ function FloatingCard({ card }: { card: ShowcaseCard }) {
         >
           {card.art}
         </div>
-
-        {/* Subtle shimmer overlay over the card image */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             borderRadius: '12px',
-            background: `linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%, transparent 60%, ${card.glowColor}0d 100%)`,
+            background: `linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 40%, transparent 60%, ${card.glowColor}0d 100%)`,
           }}
         />
-        {/* Bottom glow line */}
         <div
           className="absolute bottom-0 left-0 right-0 h-0.5"
           style={{ background: `linear-gradient(90deg, transparent, ${card.glowColor}, transparent)`, borderRadius: '0 0 12px 12px' }}
@@ -216,41 +215,46 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section
-      className="relative overflow-hidden pt-6 pb-0"
-      style={{ backgroundColor: '#0a0b0f' }}
+      className="relative overflow-hidden"
+      style={{
+        minHeight: '680px',
+        backgroundImage: 'url(/hero-bg.webp)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center 80%',
+      }}
     >
-      {/* ── Background glows ─────────────────────────────────────────────── */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute" style={{ left: '-8%', top: '5%', width: '50%', height: '80%', background: 'radial-gradient(ellipse at 30% 50%, rgba(155,92,255,0.09) 0%, transparent 65%)' }} />
-        <div className="absolute" style={{ right: '-4%', top: '0', width: '48%', height: '60%', background: 'radial-gradient(ellipse at 70% 30%, rgba(0,200,255,0.07) 0%, transparent 60%)' }} />
-        <div className="absolute" style={{ right: '10%', bottom: '10%', width: '30%', height: '40%', background: 'radial-gradient(ellipse at center, rgba(255,215,0,0.04) 0%, transparent 70%)' }} />
-        <div
-          className="absolute inset-0 opacity-[0.022]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-      </div>
+      {/* Left-to-right gradient: keeps text readable, fades to transparent */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(100deg, rgba(8,12,20,0.97) 0%, rgba(8,12,20,0.92) 28%, rgba(8,12,20,0.65) 48%, rgba(8,12,20,0.18) 68%, transparent 100%)',
+        }}
+      />
+      {/* Bottom fade into page */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, #080c14 0%, transparent 100%)' }}
+      />
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-[52%_48%] gap-8 lg:gap-4 items-center">
-
-        {/* ── LEFT: Copy ──────────────────────────────────────────────────── */}
+      {/* ── Text content ──────────────────────────────────────────────────── */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-14 pb-10">
         <motion.div
           initial={{ opacity: 0, x: -48 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
           className="flex flex-col gap-6"
+          style={{ maxWidth: '460px' }}
         >
           {/* Eyebrow pill */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04]"
+            className="inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-full border border-white/15 bg-white/[0.06]"
           >
             <span className="w-2 h-2 rounded-full bg-red-500 animate-blink-dot" />
-            <span className="text-[11px] font-display text-white/80 uppercase tracking-widest">
+            <span className="text-[11px] font-display text-white/85 uppercase tracking-widest">
               LIVE — {livePlayers.toLocaleString()} Players Online
             </span>
           </motion.div>
@@ -265,8 +269,8 @@ export const HeroSection: React.FC = () => {
           >
             Open Rare Pokémon Packs.<br />
             <span
-              className="bg-clip-text text-transparent bg-gradient-to-r from-[#00c8ff] to-[#9b5cff]"
-              style={{ filter: 'drop-shadow(0 0 20px rgba(0,200,255,0.6)) drop-shadow(0 0 40px rgba(155,92,255,0.35))' }}
+              className="bg-clip-text text-transparent bg-gradient-to-r from-[#00d4ff] to-[#7c5fff]"
+              style={{ filter: 'drop-shadow(0 0 20px rgba(0,212,255,0.7)) drop-shadow(0 0 40px rgba(124,95,255,0.4))' }}
             >
               Chase the God Pull.
             </span>
@@ -277,7 +281,7 @@ export const HeroSection: React.FC = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.42, duration: 0.65 }}
-            className="text-gray-400 text-base md:text-[1.05rem] max-w-lg leading-relaxed"
+            className="text-gray-300/90 text-base md:text-[1.05rem] max-w-lg leading-relaxed"
           >
             Discover ultra-rare cards, compete in pack battles, and upgrade your way to legendary status. Every pack could change everything.
           </motion.p>
@@ -287,52 +291,30 @@ export const HeroSection: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.7 }}
-            className="grid grid-cols-3 gap-4 pt-5 border-t border-white/[0.06]"
+            className="grid grid-cols-3 gap-4 pt-5 border-t border-white/[0.1]"
           >
             {liveStats.map(({ label, value, prefix, suffix }) => (
               <div key={label} className="space-y-1">
-                <p className="font-display text-[1.6rem] md:text-[1.9rem] text-[#00c8ff] leading-none" style={{ textShadow: '0 0 16px rgba(0,200,255,0.5)' }}>
+                <p
+                  className="font-display text-[1.6rem] md:text-[1.9rem] text-[#00d4ff] leading-none"
+                  style={{ textShadow: '0 0 16px rgba(0,212,255,0.6)' }}
+                >
                   <AnimatedCounter value={value} prefix={prefix} suffix={suffix} preserveAnimation />
                 </p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-[0.18em]">{label}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-[0.18em]">{label}</p>
               </div>
             ))}
           </motion.div>
         </motion.div>
+      </div>
 
-        {/* ── RIGHT: Pokémon Card Showcase ─────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, x: 48 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.82, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="hidden lg:block"
-        >
-          {/* Cards area */}
-          <div className="relative" style={{ height: '340px' }}>
-            {/* Background orb */}
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: '10%', top: '10%', width: '75%', height: '70%',
-                background: 'radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, rgba(59,130,246,0.07) 45%, transparent 70%)',
-                filter: 'blur(24px)',
-              }}
-            />
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                right: '8%', bottom: '8%', width: '45%', height: '45%',
-                background: 'radial-gradient(ellipse, rgba(249,115,22,0.08) 0%, transparent 70%)',
-                filter: 'blur(18px)',
-              }}
-            />
-
-            {SHOWCASE_CARDS.map((card) => (
-              <FloatingCard key={card.name} card={card} />
-            ))}
+      {/* ── Floating cards – absolute over full section ────────────────────── */}
+      <div className="absolute inset-0 z-20 pointer-events-none hidden lg:block">
+        {SHOWCASE_CARDS.map((card) => (
+          <div key={card.name} className="pointer-events-auto">
+            <FloatingCard card={card} />
           </div>
-        </motion.div>
-
+        ))}
       </div>
     </section>
   );
