@@ -87,9 +87,9 @@ export function TeamTab() {
         </motion.button>
       </div>
 
-      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8 min-h-[6rem]`} style={{ gridTemplateColumns: `repeat(${tierLayouts.gold.teamCols}, minmax(0, 1fr))` }}>
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-8 min-h-[6rem]">
         <AnimatePresence>
-          {selected.length === 0 && <div className="col-span-2 sm:col-span-3 text-white/30 text-xs py-6 text-center border border-dashed border-white/10 rounded-xl" style={{ gridColumn: `1 / span ${tierLayouts.gold.teamCols}` }}>Tap Pokemon below to add them to your active team.</div>}
+          {selected.length === 0 && <div className="col-span-3 sm:col-span-4 lg:col-span-6 text-white/30 text-xs py-6 text-center border border-dashed border-white/10 rounded-xl">Tap Pokemon below to add them to your active team.</div>}
           {selected.map((id, i) => { const mon = roster.find(m => m.id === id); if (!mon) return null; return <PokemonCard key={id} mon={mon} selected order={i + 1} index={i} onClick={() => toggle(id)} layouts={tierLayouts} />; })}
         </AnimatePresence>
       </div>
