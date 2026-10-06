@@ -213,15 +213,34 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               style={{ top: `${draft.barY}%`, height: '1px', background: 'rgba(255,255,255,0.12)' }}
             />
 
-            {/* Content block — drag to reposition vertically */}
+            {/* Logo — mirrors live site: floats above the bar group */}
+            <img
+              src="/pocketpull-logo.png"
+              alt=""
+              draggable={false}
+              style={{
+                position: 'absolute',
+                width: '56px',
+                height: '56px',
+                top: `calc(${draft.barY}% - 90px)`,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))',
+                pointerEvents: 'none',
+                zIndex: 9,
+              }}
+            />
+
+            {/* Bar group — drag to reposition vertically */}
             <div
               ref={contentBlockRef}
-              className="absolute flex flex-col items-center gap-3"
+              className="absolute flex flex-col items-center"
               style={{
                 top: `${draft.barY}%`,
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 width: '70%',
+                gap: '6px',
                 zIndex: 10,
                 cursor: dragMode === 'position' ? 'ns-resize' : 'grab',
               }}
@@ -236,16 +255,9 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
                 </div>
               )}
 
-              <img
-                src="/pocketpull-logo.png"
-                alt="PocketPull"
-                draggable={false}
-                style={{ width: '60px', height: '60px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
-              />
-
               <p
                 className="font-display text-white uppercase text-center w-full"
-                style={{ fontSize: '0.55rem', letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                style={{ fontSize: '0.5rem', letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
               >
                 {draft.messages[0]}
               </p>
@@ -253,19 +265,20 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               {/* Bar + right-edge resize handle */}
               <div className="relative w-full flex items-center">
                 <div
-                  className="relative overflow-hidden"
                   style={{
+                    position: 'relative',
                     height: `${draft.barHeight}px`,
                     width: `${draft.barWidth}%`,
                     borderRadius: `${draft.barRadius}px`,
                     background: 'rgba(4,6,16,0.82)',
                     border: '2px solid rgba(255,255,255,0.45)',
                     boxShadow: '0 0 0 2px rgba(0,0,0,0.72)',
+                    overflow: 'hidden',
                     flexShrink: 0,
                   }}
                 >
                   <div style={{
-                    position: 'absolute', inset: 0,
+                    position: 'absolute', top: 0, left: 0, height: '100%',
                     width: `${previewProgress}%`,
                     borderRadius: `${draft.barRadius}px`,
                     background: `linear-gradient(90deg, ${draft.barColor1} 0%, ${draft.barColor2} 100%)`,
@@ -308,7 +321,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
 
               <p
                 className="font-display text-white tabular-nums"
-                style={{ fontSize: '0.55rem', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
+                style={{ fontSize: '0.5rem', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}
               >
                 {Math.round(previewProgress)}%
               </p>
