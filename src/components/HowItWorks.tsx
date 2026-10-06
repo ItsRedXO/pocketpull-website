@@ -68,7 +68,9 @@ export const HowItWorks: React.FC = () => {
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
               className="relative overflow-hidden rounded-xl p-6 cursor-default group"
               style={{
-                background: 'rgba(255,255,255,0.03)',
+                background: 'rgba(8,12,28,0.45)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
                 border: `1px solid ${step.color}25`,
               }}
             >

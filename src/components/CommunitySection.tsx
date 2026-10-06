@@ -301,7 +301,9 @@ export const CommunitySection: React.FC = () => {
                   whileHover={{ y: -5, transition: { duration: 0.2 } }}
                   className="relative overflow-hidden cursor-pointer rounded-xl p-4 flex flex-col items-center gap-2 text-center"
                   style={{
-                    background: 'rgba(255,255,255,0.03)',
+                    background: 'rgba(8,12,28,0.45)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
                     border: `1px solid ${card.glow}35`,
                     boxShadow: `0 0 20px -8px ${card.glow}55`,
                   }}

@@ -14,11 +14,11 @@ const PODIUM_ORDER = [1, 0, 2]; // map to data indices
 
 const PODIUM_STYLES = [
   // 2nd place (left)
-  { borderColor: '#c0c0c0', bg: 'rgba(192,192,192,0.07)', glow: '0 0 28px -8px rgba(192,192,192,0.4)', crown: '🥈', valueColor: '#c0c0c0', height: 'h-[220px]', label: '2nd' },
+  { borderColor: '#c0c0c0', bg: 'rgba(8,12,28,0.48)', glow: '0 0 28px -8px rgba(192,192,192,0.4)', crown: '🥈', valueColor: '#c0c0c0', height: 'h-[220px]', label: '2nd' },
   // 1st place (center — tallest)
-  { borderColor: '#ffd700', bg: 'rgba(255,215,0,0.08)',   glow: '0 0 40px -8px rgba(255,215,0,0.55)',  crown: '👑', valueColor: '#ffd700', height: 'h-[260px]', label: '1st' },
+  { borderColor: '#ffd700', bg: 'rgba(8,12,28,0.48)', glow: '0 0 40px -8px rgba(255,215,0,0.55)',  crown: '👑', valueColor: '#ffd700', height: 'h-[260px]', label: '1st' },
   // 3rd place (right)
-  { borderColor: '#cd7f32', bg: 'rgba(205,127,50,0.07)',  glow: '0 0 24px -8px rgba(205,127,50,0.35)', crown: '🥉', valueColor: '#cd7f32', height: 'h-[200px]', label: '3rd' },
+  { borderColor: '#cd7f32', bg: 'rgba(8,12,28,0.48)', glow: '0 0 24px -8px rgba(205,127,50,0.35)', crown: '🥉', valueColor: '#cd7f32', height: 'h-[200px]', label: '3rd' },
 ];
 
 export const Leaderboard: React.FC = () => {
@@ -130,6 +130,8 @@ export const Leaderboard: React.FC = () => {
                         className={`relative flex flex-col items-center justify-end ${style.height} rounded-2xl px-3 py-4 overflow-hidden text-center`}
                         style={{
                           background: style.bg,
+                          backdropFilter: 'blur(20px)',
+                          WebkitBackdropFilter: 'blur(20px)',
                           border: `1px solid ${style.borderColor}44`,
                           boxShadow: style.glow,
                         }}
@@ -181,7 +183,9 @@ export const Leaderboard: React.FC = () => {
                     transition={{ delay: i * 0.02 }}
                     className="flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/[0.04] group"
                     style={{
-                      background: 'rgba(255,255,255,0.025)',
+                      background: 'rgba(8,12,28,0.42)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
                       border: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >

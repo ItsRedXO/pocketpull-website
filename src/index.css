@@ -134,15 +134,15 @@
 
 @layer components {
   .glass-card {
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: rgba(8, 12, 28, 0.45);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
     transition: all 0.3s ease;
   }
   .glass-card:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(12, 18, 38, 0.58);
     border-color: rgba(255, 255, 255, 0.15);
   }
 
