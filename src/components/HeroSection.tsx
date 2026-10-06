@@ -306,8 +306,8 @@ export const HeroSection: React.FC = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden"
-      style={{ minHeight: '680px', touchAction: isEditMode ? 'none' : undefined }}
+      className="relative overflow-hidden min-h-[480px] sm:min-h-[560px] lg:min-h-[680px]"
+      style={{ touchAction: isEditMode ? 'none' : undefined }}
       onPointerMove={isEditMode ? handlePointerMove : undefined}
       onPointerUp={isEditMode ? handlePointerUp : undefined}
       onPointerLeave={isEditMode ? handlePointerUp : undefined}
@@ -327,12 +327,12 @@ export const HeroSection: React.FC = () => {
       />
 
       {/* ── Text content ──────────────────────────────────────────────────── */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-14 pb-10">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-8 md:pt-14 pb-8 md:pb-10">
         <motion.div
           initial={{ opacity: 0, x: -48 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.82, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col gap-6"
+          className="flex flex-col gap-4 md:gap-6"
           style={{ maxWidth: '420px' }}
         >
           {/* Eyebrow pill */}
@@ -354,7 +354,7 @@ export const HeroSection: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="font-display leading-[0.92] tracking-tight text-white"
-            style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4rem)' }}
+            style={{ fontSize: 'clamp(1.75rem, 7vw, 4rem)' }}
           >
             Open Rare Pokémon Packs.<br />
             <span
@@ -370,7 +370,7 @@ export const HeroSection: React.FC = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.42, duration: 0.65 }}
-            className="text-gray-300/90 text-base md:text-[1.05rem] max-w-lg leading-relaxed"
+            className="text-gray-300/90 text-sm md:text-[1.05rem] max-w-lg leading-relaxed"
           >
             Discover ultra-rare cards, compete in pack battles, and upgrade your way to legendary status. Every pack could change everything.
           </motion.p>
@@ -380,12 +380,12 @@ export const HeroSection: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.7 }}
-            className="grid grid-cols-3 gap-4 pt-5 border-t border-white/[0.1]"
+            className="grid grid-cols-3 gap-2 md:gap-4 pt-4 md:pt-5 border-t border-white/[0.1]"
           >
             {liveStats.map(({ label, value, prefix, suffix }) => (
               <div key={label} className="space-y-1">
                 <p
-                  className="font-display text-[1.6rem] md:text-[1.9rem] text-[#00d4ff] leading-none"
+                  className="font-display text-[1.3rem] md:text-[1.9rem] text-[#00d4ff] leading-none"
                   style={{ textShadow: '0 0 16px rgba(0,212,255,0.6)' }}
                 >
                   <AnimatedCounter value={value} prefix={prefix} suffix={suffix} preserveAnimation />

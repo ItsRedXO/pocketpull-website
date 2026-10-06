@@ -127,7 +127,7 @@ export const Leaderboard: React.FC = () => {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: podiumIdx * 0.12, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                        className={`relative flex flex-col items-center justify-end ${style.height} rounded-2xl px-3 py-4 overflow-hidden text-center`}
+                        className={`relative flex flex-col items-center justify-end ${style.height} rounded-2xl px-1.5 sm:px-3 py-3 sm:py-4 overflow-hidden text-center`}
                         style={{
                           background: style.bg,
                           backdropFilter: 'blur(20px)',
@@ -153,10 +153,10 @@ export const Leaderboard: React.FC = () => {
                           {player.avatar}
                         </div>
 
-                        <p className="font-display text-[13px] text-white leading-tight z-10 truncate w-full">{player.user}</p>
-                        <p className="text-[10px] text-white/30 truncate w-full z-10 mt-0.5">{player.sub}</p>
+                        <p className="font-display text-[11px] sm:text-[13px] text-white leading-tight z-10 truncate w-full">{player.user}</p>
+                        <p className="text-[9px] sm:text-[10px] text-white/30 truncate w-full z-10 mt-0.5">{player.sub}</p>
                         <p
-                          className="font-display text-xl mt-1 z-10"
+                          className="font-display text-lg sm:text-xl mt-1 z-10"
                           style={{ color: style.valueColor, textShadow: `0 0 10px ${style.borderColor}77` }}
                         >
                           {player.value}

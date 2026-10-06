@@ -10,8 +10,8 @@ const bottomNavTabs: { id: Page; label: string; icon: React.FC<{ size?: number; 
   { id: 'home', label: 'Packs', icon: Package },
   { id: 'upgrader', label: 'Upgrader', icon: Zap },
   { id: 'battle', label: 'Battles', icon: Swords },
-  { id: 'exchanger', label: 'Exchanger', icon: ArrowLeftRight },
-  { id: 'inventory', label: 'Collection', icon: Archive },
+  { id: 'exchanger', label: 'Trade', icon: ArrowLeftRight },
+  { id: 'inventory', label: 'Cards', icon: Archive },
   { id: 'brawl', label: 'Brawl', icon: Gamepad2 },
   { id: 'shop', label: 'Shop', icon: ShoppingBag },
 ];

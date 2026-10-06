@@ -308,7 +308,7 @@ export const LiveTicker: React.FC = React.memo(() => {
 
   return (
     <div
-      className="relative z-10"
+      className="relative z-10 ticker-container"
       style={{
         marginTop: '56px',
         height: `${SECTION_H}px`,
@@ -335,6 +335,9 @@ export const LiveTicker: React.FC = React.memo(() => {
         }
         .holo-sweep {
           animation: holo-sweep 4.5s ease-in-out infinite;
+        }
+        @media (max-width: 640px) {
+          .ticker-container { height: 150px !important; }
         }
       `}</style>
 
