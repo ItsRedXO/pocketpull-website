@@ -53,6 +53,13 @@ export default function App() {
   const recentPullsQuery = useRecentPulls();
   const homepageReady = !authLoading && (!user || (!statsLoading && !balanceLoading && !!stats)) && (packsQuery.isSuccess || packsQuery.isError) && (recentPullsQuery.isSuccess || recentPullsQuery.isError);
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [currentPage]);
+  useEffect(() => {
+    if (currentPage === 'home') {
+      document.body.classList.remove('inner-page');
+    } else {
+      document.body.classList.add('inner-page');
+    }
+  }, [currentPage]);
   const handlePageChange = useCallback((page: string) => {
     if (['home', 'upgrader', 'battle', 'exchanger', 'inventory', 'profile', 'vault', 'brawl', 'shop'].includes(page)) setCurrentPage(page as Page);
   }, []);

@@ -103,6 +103,12 @@
     overflow-x: hidden;
   }
 
+  /* Inner pages use the bright pixel art meadow/coast background */
+  body.inner-page {
+    background-image: url('/inner-bg.webp');
+    background-position: center center;
+  }
+
   /* iOS doesn't support background-attachment: fixed — fall back to scroll */
   @supports (-webkit-touch-callout: none) {
     body {
