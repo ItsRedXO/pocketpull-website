@@ -7,24 +7,14 @@ import { typeColor } from './typeColors';
 const EFFECTIVENESS_LABEL: Record<string, string> = { immune: 'No effect', 'not-very-effective': 'Not very effective', neutral: '', 'super-effective': 'Super effective!' };
 const EFFECTIVENESS_COLOR: Record<string, string> = { immune: '#8892a4', 'not-very-effective': '#a8a878', neutral: '#ffffff', 'super-effective': '#f8d030' };
 const BASE_TICK_MS = 300;
-// Roughly matches the server's MELEE_RANGE (9 arena units) -- the frontend
-// doesn't know a move's category, only its start/end position, so distance
-// stands in for "this landed as a point-blank swing" vs "this was thrown
-// across the field" when picking which attack visual to play.
 const MELEE_VISUAL_THRESHOLD = 12;
 
-// One flavor particle per attacking type -- what actually reads as "flamethrower
-// throws fire", "bubble/hydro pump throws water", etc. on the arena.
 const TYPE_PARTICLES: Record<string, string> = {
   normal: '💫', fire: '🔥', water: '💧', electric: '⚡', grass: '🍃', ice: '❄️',
   fighting: '👊', poison: '🧪', ground: '💨', flying: '🌪️', psychic: '🔮', bug: '🐛',
   rock: '🪨', ghost: '👻', dragon: '🐉', dark: '🌑', steel: '⚙️', fairy: '✨',
 };
 
-// Location-flavored arenas -- purely cosmetic (background, ambient particles,
-// obstacle coloring), never gameplay: no arena grants a buff or debuff. Picked
-// fresh per match so a multi-match tournament run doesn't sit in the same
-// backdrop the whole way through.
 interface ArenaTheme {
   key: string; background: string; vignette: string; obstacleFill: [string, string]; obstacleBorder: string;
   particle: string; particleCount: number; direction: 'up' | 'down';
@@ -40,8 +30,6 @@ const ARENA_THEMES: ArenaTheme[] = [
   { key: 'beach', background: 'radial-gradient(130% 110% at 50% 100%, rgba(255,214,140,0.24) 0%, rgba(42,33,17,0.88) 55%, rgba(18,14,8,0.96) 100%)', vignette: '#ffd68c', obstacleFill: ['#5c4a2a', '#3a2f1a'], obstacleBorder: 'rgba(255,220,160,0.4)', particle: '✨', particleCount: 6, direction: 'down' },
 ];
 
-/** Drifting theme particles behind the fight -- picked once per theme and
- * looped indefinitely, never interacting with gameplay. */
 function ArenaAmbience({ theme }: { theme: ArenaTheme }) {
   const particles = useMemo(() => Array.from({ length: theme.particleCount }, () => ({
     x: Math.random() * 100, delay: Math.random() * 5, duration: 7 + Math.random() * 6, size: 10 + Math.random() * 9, drift: (Math.random() - 0.5) * 30,
@@ -59,11 +47,6 @@ function ArenaAmbience({ theme }: { theme: ArenaTheme }) {
   );
 }
 
-/** Type-flavored particle burst + floating damage number at the point of impact.
- * Effectiveness scales the burst: bigger/brighter for a super-effective hit,
- * smaller and muted for a resisted one, and a plain block icon (no damage) when
- * the move can't touch the target at all -- so the type chart is something you
- * can *see* happen, not just a number in the corner readout. */
 function MoveBurst({ attack }: { attack: ArenaAttackEvent }) {
   const emoji = TYPE_PARTICLES[attack.moveType] || '💫';
   const big = attack.effectiveness === 'super-effective';
@@ -101,14 +84,20 @@ function MoveBurst({ attack }: { attack: ArenaAttackEvent }) {
         initial={{ opacity: 0, y: 0 }} animate={{ opacity: [0, 1, 0], y: -16 }} transition={{ duration: 0.7 }}>
         -{attack.damage}
       </motion.div>
+      {/* #4 — SUPER EFFECTIVE! text */}
+      {big && (
+        <motion.div className="absolute pointer-events-none font-black uppercase select-none"
+          style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, marginLeft: -42, marginTop: -22, fontSize: 11, color: '#f8d030', textShadow: '0 0 8px #f8d03088, 0 1px 2px rgba(0,0,0,0.9)', whiteSpace: 'nowrap', letterSpacing: '0.05em' }}
+          initial={{ opacity: 0, y: 0, scale: 0.6 }}
+          animate={{ opacity: [0, 1, 1, 0], y: -14, scale: [0.6, 1.15, 1] }}
+          transition={{ duration: 0.85 }}>
+          Super effective!
+        </motion.div>
+      )}
     </>
   );
 }
 
-/** Glowing dual-stroke beam for moves thrown from range. SVG-only (lines),
- * meant to be rendered inside the arena's <svg> layer -- see RangedProjectile
- * for the traveling orb that pairs with this, which has to live outside the
- * SVG since it's a plain HTML element. */
 function RangedBeam({ attack }: { attack: ArenaAttackEvent }) {
   const color = typeColor(attack.moveType);
   return (
@@ -123,10 +112,6 @@ function RangedBeam({ attack }: { attack: ArenaAttackEvent }) {
   );
 }
 
-/** The orb that actually travels the beam's path, for moves thrown from
- * range -- gives the hit a sense of motion instead of a static line
- * appearing and fading in place. Plain HTML (positioned via left/top %), so
- * it renders as a sibling of the arena's <svg>, not inside it. */
 function RangedProjectile({ attack, tickSeconds }: { attack: ArenaAttackEvent; tickSeconds: number }) {
   const color = typeColor(attack.moveType);
   const duration = Math.min(0.26, Math.max(0.12, tickSeconds * 0.7));
@@ -139,8 +124,6 @@ function RangedProjectile({ attack, tickSeconds }: { attack: ArenaAttackEvent; t
   );
 }
 
-/** Quick crossed-slash flash for point-blank attacks, in place of a beam that
- * would barely be visible over such a short distance. */
 function MeleeAttackVisual({ attack }: { attack: ArenaAttackEvent }) {
   const color = typeColor(attack.moveType);
   return (
@@ -154,8 +137,6 @@ function MeleeAttackVisual({ attack }: { attack: ArenaAttackEvent }) {
   );
 }
 
-/** Expanding shockwave ring at the point of impact -- bigger and brighter for
- * a super-effective hit -- layered under MoveBurst's particles for extra weight. */
 function ImpactRing({ attack }: { attack: ArenaAttackEvent }) {
   const color = typeColor(attack.moveType);
   const big = attack.effectiveness === 'super-effective';
@@ -168,10 +149,6 @@ function ImpactRing({ attack }: { attack: ArenaAttackEvent }) {
   );
 }
 
-/** Brief colored ring pulse on a Pokemon that just got hit -- gold for super
- * effective, dull olive for resisted -- so a type advantage reads instantly on
- * the fighter itself, not just in the burst or the corner text. Keyed by tick so
- * it replays every time this specific fighter takes a new hit. */
 function HitFlash({ effectiveness }: { effectiveness: Effectiveness }) {
   const color = EFFECTIVENESS_COLOR[effectiveness];
   return (
@@ -181,42 +158,204 @@ function HitFlash({ effectiveness }: { effectiveness: Effectiveness }) {
   );
 }
 
+// #1 — VFX routing by move's vfx key
+function getVfxCategory(vfx: string | undefined): string {
+  if (!vfx) return 'default';
+  if (['earthquake', 'mud-slap', 'rock-slide', 'rock-throw'].includes(vfx)) return 'ground';
+  if (['thunderbolt', 'spark', 'thunder'].includes(vfx)) return 'lightning';
+  if (['blizzard', 'ice-shard', 'powder-snow', 'ice-beam'].includes(vfx)) return 'ice';
+  if (['hyper-voice', 'psychic', 'confusion', 'moonblast', 'solar-beam', 'shadow-ball'].includes(vfx)) return 'rings';
+  if (['aerial-ace', 'gust', 'fairy-wind'].includes(vfx)) return 'wind';
+  return 'default';
+}
+
+function VfxOverlay({ attack }: { attack: ArenaAttackEvent }) {
+  const cat = getVfxCategory(attack.vfx);
+  const color = typeColor(attack.moveType);
+
+  if (cat === 'ground') {
+    return (
+      <>
+        {[-4, 0, 4].map((offset, i) => (
+          <motion.div key={i} className="absolute pointer-events-none rounded-full"
+            style={{ left: `${attack.toX}%`, top: `${attack.toY + offset}%`, height: 2, background: `linear-gradient(90deg, transparent, ${color}cc, transparent)` }}
+            initial={{ width: 0, marginLeft: 0, opacity: 0.9 }}
+            animate={{ width: '28%', marginLeft: '-14%', opacity: 0 }}
+            transition={{ duration: 0.42, delay: i * 0.06, ease: 'easeOut' }} />
+        ))}
+      </>
+    );
+  }
+
+  if (cat === 'lightning') {
+    return (
+      <motion.div className="absolute pointer-events-none select-none"
+        style={{ left: `${attack.toX}%`, top: `${attack.toY - 10}%`, marginLeft: -12, fontSize: 24, color: '#facc15', textShadow: '0 0 10px #facc15, 0 0 20px #facc15aa' }}
+        initial={{ opacity: 0, scaleY: 0.3, y: -16 }}
+        animate={{ opacity: [0, 1, 1, 0], scaleY: [0.3, 1.3, 1, 0.8], y: [0, 6, 0] }}
+        transition={{ duration: 0.32 }}>
+        ⚡
+      </motion.div>
+    );
+  }
+
+  if (cat === 'ice') {
+    return (
+      <>
+        {[0, 60, 120, 180, 240, 300].map((deg, i) => (
+          <motion.div key={i} className="absolute pointer-events-none select-none"
+            style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, marginLeft: -6, marginTop: -6, fontSize: 12 }}
+            initial={{ opacity: 0.9, x: 0, y: 0 }}
+            animate={{ opacity: 0, x: Math.cos((deg * Math.PI) / 180) * 18, y: Math.sin((deg * Math.PI) / 180) * 18 }}
+            transition={{ duration: 0.38, delay: i * 0.025 }}>
+            ❄️
+          </motion.div>
+        ))}
+      </>
+    );
+  }
+
+  if (cat === 'rings') {
+    return (
+      <>
+        {[0, 1, 2].map((i) => (
+          <motion.div key={i} className="absolute rounded-full pointer-events-none"
+            style={{ left: `${attack.toX}%`, top: `${attack.toY}%`, border: `1.5px solid ${color}` }}
+            initial={{ width: 4, height: 4, marginLeft: -2, marginTop: -2, opacity: 0.85 }}
+            animate={{ width: 58, height: 58, marginLeft: -29, marginTop: -29, opacity: 0 }}
+            transition={{ duration: 0.55, delay: i * 0.11, ease: 'easeOut' }} />
+        ))}
+      </>
+    );
+  }
+
+  if (cat === 'wind') {
+    return (
+      <>
+        {[0, 1, 2].map((i) => (
+          <motion.div key={i} className="absolute pointer-events-none"
+            style={{ left: `${attack.toX}%`, top: `${attack.toY - 3 + i * 3}%`, height: 2, background: `${color}90`, borderRadius: 4 }}
+            initial={{ width: 0, marginLeft: 0, opacity: 0.8 }}
+            animate={{ width: '16%', marginLeft: '-8%', opacity: 0 }}
+            transition={{ duration: 0.28, delay: i * 0.04, ease: 'easeOut' }} />
+        ))}
+      </>
+    );
+  }
+
+  return null;
+}
+
+// #2 — Burst of stars at faint position
+function FaintBurst({ x, y }: { x: number; y: number }) {
+  const particles = useMemo(() => Array.from({ length: 8 }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / 8;
+    const dist = 4 + Math.random() * 3;
+    return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, emoji: (['⭐', '💫', '✨'] as const)[i % 3] };
+  }), []);
+  return (
+    <>
+      {particles.map((p, i) => (
+        <motion.div key={i} className="absolute pointer-events-none select-none"
+          style={{ left: `${x}%`, top: `${y}%`, fontSize: 12, marginLeft: -6, marginTop: -6 }}
+          initial={{ opacity: 0.9, x: 0, y: 0 }}
+          animate={{ opacity: 0, x: `${p.dx}%`, y: `${p.dy}%` }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}>
+          {p.emoji}
+        </motion.div>
+      ))}
+      <motion.div className="absolute rounded-full pointer-events-none"
+        style={{ left: `${x}%`, top: `${y}%`, border: '2px solid #f87171' }}
+        initial={{ width: 4, height: 4, marginLeft: -2, marginTop: -2, opacity: 0.9 }}
+        animate={{ width: 48, height: 48, marginLeft: -24, marginTop: -24, opacity: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }} />
+    </>
+  );
+}
+
 function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.ceil(totalSeconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 const SPEED_OPTIONS = [1, 2, 5, 10, 16] as const;
 
-function PokemonIcon({ mon, tickSeconds, hitEffect, tick }: { mon: ArenaFrame['pokemon'][number]; tickSeconds: number; hitEffect?: Effectiveness; tick: number }) {
+// #3 idle bob + lunge, #2 animated grayscale, #5 HP pulse, #9 facing flip
+function PokemonIcon({
+  mon, tickSeconds, hitEffect, tick, isAttacking,
+}: {
+  mon: ArenaFrame['pokemon'][number];
+  tickSeconds: number;
+  hitEffect?: Effectiveness;
+  tick: number;
+  isAttacking: boolean;
+}) {
   const accent = mon.side === 'user' ? '#00c8ff' : '#f87171';
   const hpPct = Math.max(0, Math.min(100, (mon.hp / mon.maxHp) * 100));
   const hpColor = hpPct > 50 ? '#4ade80' : hpPct > 20 ? '#facc15' : '#f87171';
+  const lungeDir = mon.side === 'user' ? 1 : -1;
+  // #9 — mirror opponent to face left (toward user)
+  const facingScaleX = mon.side === 'user' ? 2.2 : -2.2;
+
   return (
     <motion.div
-      className="absolute flex flex-col items-center"
+      className="absolute"
       style={{ transform: 'translate(-50%, -50%)' }}
       animate={{ left: `${mon.x}%`, top: `${mon.y}%`, opacity: mon.fainted ? 0.2 : 1 }}
       transition={{ duration: tickSeconds, ease: 'linear' }}
     >
+      {/* #3 — idle bob wrapper */}
       <motion.div
-        className="relative w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
-        style={{ background: '#0009', border: `2px solid ${accent}`, filter: mon.fainted ? 'grayscale(1) brightness(0.5)' : undefined, boxShadow: mon.fainted ? 'none' : `0 0 10px ${accent}60` }}
-        animate={mon.fainted ? { scale: 0.7, rotate: mon.side === 'user' ? -30 : 30, y: 6 } : { scale: 1, rotate: 0, y: 0 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="flex flex-col items-center"
+        animate={!mon.fainted ? { y: [0, -2.5, 0] } : { y: 0 }}
+        transition={!mon.fainted ? { repeat: Infinity, duration: 1.4, ease: 'easeInOut' } : {}}
       >
-        {mon.artworkUrl ? <img src={mon.artworkUrl} alt={mon.name} className="w-full h-full object-contain scale-[2.2]" style={{ objectPosition: 'top' }} /> : null}
-        <AnimatePresence>
-          {!mon.fainted && hitEffect && hitEffect !== 'neutral' && <HitFlash key={tick} effectiveness={hitEffect} />}
-        </AnimatePresence>
-      </motion.div>
-      <div className="w-9 h-[4px] rounded-full bg-white/15 mt-0.5 overflow-hidden">
+        {/* faint tilt + lunge + #2 animated grayscale */}
         <motion.div
-          className="h-full rounded-full"
-          animate={{ width: `${hpPct}%`, background: hpColor }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-      <div className="text-[8px] font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: mon.fainted ? '#555' : accent }}>{mon.name}</div>
+          className="relative w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
+          style={{ background: '#0009', border: `2px solid ${accent}`, boxShadow: mon.fainted ? 'none' : `0 0 10px ${accent}60` }}
+          initial={{ filter: 'grayscale(0) brightness(1)', x: 0 }}
+          animate={
+            mon.fainted
+              ? { scale: 0.7, rotate: mon.side === 'user' ? -30 : 30, y: 6, filter: 'grayscale(1) brightness(0.5)', x: 0 }
+              : isAttacking
+              ? { scale: 1, rotate: 0, y: 0, filter: 'grayscale(0) brightness(1)', x: lungeDir * 6 }
+              : { scale: 1, rotate: 0, y: 0, filter: 'grayscale(0) brightness(1)', x: 0 }
+          }
+          transition={{ duration: isAttacking ? 0.1 : 0.4, ease: 'easeOut', filter: { duration: 0.4 } }}
+        >
+          {mon.artworkUrl ? (
+            <img
+              src={mon.artworkUrl}
+              alt={mon.name}
+              className="w-full h-full object-contain"
+              style={{ objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(2.2)` }}
+            />
+          ) : null}
+          <AnimatePresence>
+            {!mon.fainted && hitEffect && hitEffect !== 'neutral' && <HitFlash key={tick} effectiveness={hitEffect} />}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* HP bar — #5 low-health pulse below 20% */}
+        <div className="w-9 h-[4px] rounded-full bg-white/15 mt-0.5 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            animate={{
+              width: `${hpPct}%`,
+              background: hpColor,
+              opacity: hpPct <= 20 && !mon.fainted ? [1, 0.4, 1] : 1,
+            }}
+            transition={{
+              width: { duration: 0.3 },
+              background: { duration: 0.3 },
+              opacity: hpPct <= 20 && !mon.fainted
+                ? { repeat: Infinity, duration: 0.65, ease: 'easeInOut' }
+                : { duration: 0 },
+            }}
+          />
+        </div>
+        <div className="text-[8px] font-bold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: mon.fainted ? '#555' : accent }}>{mon.name}</div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -227,12 +366,23 @@ function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; ob
   const [arenaScope, animateArena] = useAnimate();
   const hasSuperHit = frame.attacks.some(a => a.effectiveness === 'super-effective');
   const prevTickRef = React.useRef(-1);
+
+  // Which Pokemon are attacking this tick (for lunge)
+  const attackerIds = useMemo(() => new Set(frame.attacks.map(a => a.attackerId)), [frame.attacks]);
+
+  // Positions of newly fainted Pokemon for burst
+  const faintedPositions = useMemo(
+    () => frame.faints.map(ft => frame.pokemon.find(p => p.name === ft.name)).filter(Boolean) as ArenaFrame['pokemon'],
+    [frame.faints, frame.pokemon],
+  );
+
   React.useEffect(() => {
     if (hasSuperHit && frame.tick !== prevTickRef.current) {
       prevTickRef.current = frame.tick;
       animateArena(arenaScope.current, { x: [0, -5, 5, -3, 3, -1, 1, 0], y: [0, -3, 2, -2, 3, -1, 1, 0] }, { duration: 0.35, ease: 'easeOut' });
     }
   }, [frame.tick, hasSuperHit]);
+
   return (
     <div ref={arenaScope} className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border" style={{ background: theme.background, borderColor: `${theme.vignette}30`, boxShadow: `inset 0 0 60px ${theme.vignette}18` }}>
       <ArenaAmbience theme={theme} />
@@ -261,9 +411,31 @@ function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; ob
       <AnimatePresence>
         {frame.attacks.map(a => <MoveBurst key={`vfx-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
       </AnimatePresence>
+      {/* #1 — move-specific VFX overlay */}
+      <AnimatePresence>
+        {frame.attacks.map(a => <VfxOverlay key={`vfxo-${frame.tick}-${a.attackerId}-${a.defenderId}`} attack={a} />)}
+      </AnimatePresence>
+      {/* #2 — KO screen flash */}
+      <AnimatePresence>
+        {frame.faints.length > 0 && (
+          <motion.div key={`ko-flash-${frame.tick}`}
+            className="absolute inset-0 z-30 pointer-events-none rounded-xl"
+            style={{ background: 'rgba(255,80,80,0.26)' }}
+            initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.5 }} />
+        )}
+      </AnimatePresence>
+      {/* #2 — faint burst at KO position */}
+      <AnimatePresence>
+        {faintedPositions.map(p => (
+          <FaintBurst key={`faint-burst-${frame.tick}-${p.name}`} x={p.x} y={p.y} />
+        ))}
+      </AnimatePresence>
       {frame.pokemon.map(mon => (
-        <PokemonIcon key={mon.id} mon={mon} tickSeconds={tickSeconds} tick={frame.tick}
-          hitEffect={frame.attacks.find(a => a.defenderId === mon.id)?.effectiveness} />
+        <PokemonIcon
+          key={mon.id} mon={mon} tickSeconds={tickSeconds} tick={frame.tick}
+          hitEffect={frame.attacks.find(a => a.defenderId === mon.id)?.effectiveness}
+          isAttacking={attackerIds.has(mon.id)}
+        />
       ))}
     </div>
   );
@@ -295,9 +467,6 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   const tickDelayMs = Math.max(16, BASE_TICK_MS / speed);
   const remainingSeconds = Math.max(0, (game.maxTicks - frameIndex) * BASE_TICK_MS / speed / 1000);
 
-  // Race score through the games played so far in this match -- includes the
-  // in-progress game the instant its frames finish, so the scoreboard ticks
-  // up live as each round concludes rather than only once the whole match ends.
   const gamesSettled = match.games.slice(0, gameIndex + (atGameEnd ? 1 : 0));
   const scoreUser = gamesSettled.filter(g => g.result === 'win').length;
   const scoreOpponent = gamesSettled.length - scoreUser;
@@ -321,6 +490,9 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
     else setFinished(true);
   };
 
+  // #7 — skip VS intro
+  const skipVsIntro = () => { setShowVsIntro(false); setPlaying(true); };
+
   return (
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 overflow-hidden" style={{ background: '#0d0e14' }}>
@@ -336,11 +508,22 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
               <span className="text-sm font-bold tabular-nums"><span className="text-[#00c8ff]">{scoreUser}</span><span className="text-white/25 mx-0.5">–</span><span className="text-[#f87171]">{scoreOpponent}</span></span>
               <span className="text-[9px] uppercase tracking-widest text-white/30">first to 3 wins</span>
             </div>
+            {/* #6 — KO counter bounce on increment */}
             <div className="flex items-center justify-center gap-4 mb-2">
               <span className="text-[10px] uppercase tracking-widest text-white/30">KOs</span>
-              <span className="text-sm font-bold text-[#00c8ff]">{currentFrame.koUser}</span>
+              <AnimatePresence mode="wait">
+                <motion.span key={`ku-${currentFrame.koUser}`} className="text-sm font-bold text-[#00c8ff]"
+                  initial={{ scale: 1.7, opacity: 0.7 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+                  {currentFrame.koUser}
+                </motion.span>
+              </AnimatePresence>
               <span className="text-white/20 text-sm">—</span>
-              <span className="text-sm font-bold text-[#f87171]">{currentFrame.koOpponent}</span>
+              <AnimatePresence mode="wait">
+                <motion.span key={`ko-${currentFrame.koOpponent}`} className="text-sm font-bold text-[#f87171]"
+                  initial={{ scale: 1.7, opacity: 0.7 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.22, ease: 'easeOut' }}>
+                  {currentFrame.koOpponent}
+                </motion.span>
+              </AnimatePresence>
               <span className="text-white/15 text-sm mx-1">|</span>
               <Clock size={11} className="text-white/30" />
               <span className="text-sm font-bold text-white/60 tabular-nums">{formatClock(remainingSeconds)}</span>
@@ -348,6 +531,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
 
             <div className="relative">
               <Arena frame={currentFrame} obstacles={game.obstacles} tickSeconds={tickDelayMs / 1000} theme={theme} />
+              {/* #7 — VS intro with skip button */}
               <AnimatePresence>
                 {showVsIntro && frames[0] && (
                   <motion.div
@@ -380,11 +564,18 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                         ))}
                       </div>
                     </div>
+                    <motion.button
+                      className="absolute bottom-3 right-3 text-[10px] text-white/40 hover:text-white/80 px-2.5 py-1 rounded border border-white/10 hover:border-white/30 transition-colors"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                      onClick={skipVsIntro}
+                    >
+                      Skip
+                    </motion.button>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* kill feed, top-right */}
+              {/* kill feed */}
               <div className="absolute top-3 right-3 flex flex-col gap-1 items-end max-w-[45%]">
                 <AnimatePresence>
                   {feed.slice(-4).map((f, i) => (
@@ -396,18 +587,28 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                 </AnimatePresence>
               </div>
 
-              {/* move info box, bottom-right */}
+              {/* #8 — move info box with slide animation */}
               <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 max-w-[128px] sm:max-w-[260px] rounded-lg border border-white/10 bg-gray-300/10 backdrop-blur-sm px-1.5 py-1 sm:px-3 sm:py-2">
-                {lastAttack ? (
-                  <>
-                    <div className="text-[9px] sm:text-[11px] text-white">used <span className="font-bold">{lastAttack.move}</span></div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
-                      <span className="text-[7px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(lastAttack.moveType)}30`, color: typeColor(lastAttack.moveType) }}>{lastAttack.moveType}</span>
-                      <span className="text-[8px] sm:text-[10px] text-white/50">{lastAttack.damage} dmg</span>
-                      {EFFECTIVENESS_LABEL[lastAttack.effectiveness] && <span className="text-[8px] sm:text-[10px] font-bold" style={{ color: EFFECTIVENESS_COLOR[lastAttack.effectiveness] }}>{EFFECTIVENESS_LABEL[lastAttack.effectiveness]}</span>}
-                    </div>
-                  </>
-                ) : <div className="text-[9px] sm:text-[11px] text-white/30">Battle starting…</div>}
+                <AnimatePresence mode="wait">
+                  {lastAttack ? (
+                    <motion.div key={`${lastAttack.attackerId}-${lastAttack.move}-${frameIndex}`}
+                      initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }}
+                      transition={{ duration: 0.18 }}>
+                      <div className="text-[9px] sm:text-[11px] text-white">used <span className="font-bold">{lastAttack.move}</span></div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                        <span className="text-[7px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded-full uppercase font-bold" style={{ background: `${typeColor(lastAttack.moveType)}30`, color: typeColor(lastAttack.moveType) }}>{lastAttack.moveType}</span>
+                        <span className="text-[8px] sm:text-[10px] text-white/50">{lastAttack.damage} dmg</span>
+                        {EFFECTIVENESS_LABEL[lastAttack.effectiveness] && <span className="text-[8px] sm:text-[10px] font-bold" style={{ color: EFFECTIVENESS_COLOR[lastAttack.effectiveness] }}>{EFFECTIVENESS_LABEL[lastAttack.effectiveness]}</span>}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="empty"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.18 }}>
+                      <div className="text-[9px] sm:text-[11px] text-white/30">Battle starting…</div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
