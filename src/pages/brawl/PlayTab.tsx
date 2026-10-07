@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Lock, Clock, Coins, Trophy, Swords, X, Check, Zap, Users } from 'lucide-react';
 import {
-  getBrawlConfig, getBrawlProfile, playBrawlBattle, getActiveTeamPreview, play3v3Battle,
+  getBrawlConfig, getBrawlProfile, playBrawlBattle, setup3v3Battle, play3v3Battle,
   type BrawlBattlePlayResult, type BrawlProfile, type TeamPreviewMon,
 } from '../../lib/brawlApi';
 import { BattleReplay } from './BattleReplay';
@@ -85,58 +85,56 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
   tierId: string; tierColor: string; onSelect: (mode: '6v6' | '3v3') => void; onClose: () => void;
 }) {
   return (
-    <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)' }}
+      onClick={onClose}
+    >
       <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.75)' }}
-        onClick={onClose}
+        initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        className="w-full max-w-sm rounded-2xl border border-white/10 p-6"
+        style={{ background: '#0d0e14' }}
+        onClick={e => e.stopPropagation()}
       >
-        <motion.div
-          initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-          className="w-full max-w-sm rounded-2xl border border-white/10 p-6"
-          style={{ background: '#0d0e14' }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-display text-base uppercase tracking-widest text-white">Select Battle Mode</h2>
-            <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={18} /></button>
-          </div>
-          <div className="space-y-3">
-            <motion.button
-              whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
-              onClick={() => onSelect('6v6')}
-              className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
-              style={{ borderColor: `${tierColor}40`, background: `${tierColor}12` }}
-            >
-              <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${tierColor}25` }}>
-                <Users size={16} style={{ color: tierColor }} />
-              </div>
-              <div>
-                <p className="font-display text-sm text-white uppercase tracking-wide">Standard 6v6</p>
-                <p className="text-[11px] text-white/40 mt-0.5">Full team battle. All 6 Pokemon fight together.</p>
-              </div>
-            </motion.button>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-base uppercase tracking-widest text-white">Select Battle Mode</h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={18} /></button>
+        </div>
+        <div className="space-y-3">
+          <motion.button
+            whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+            onClick={() => onSelect('6v6')}
+            className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
+            style={{ borderColor: `${tierColor}40`, background: `${tierColor}12` }}
+          >
+            <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${tierColor}25` }}>
+              <Users size={16} style={{ color: tierColor }} />
+            </div>
+            <div>
+              <p className="font-display text-sm text-white uppercase tracking-wide">Standard 6v6</p>
+              <p className="text-[11px] text-white/40 mt-0.5">Full team battle. All 6 Pokemon fight together.</p>
+            </div>
+          </motion.button>
 
-            <motion.button
-              whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
-              onClick={() => onSelect('3v3')}
-              className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
-              style={{ borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
-            >
-              <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(250,204,21,0.15)' }}>
-                <Zap size={16} className="text-[#facc15]" />
-              </div>
-              <div>
-                <p className="font-display text-sm text-white uppercase tracking-wide">3v3 Draft <span className="text-[#facc15] text-[10px] ml-1 normal-case tracking-normal font-sans">NEW</span></p>
-                <p className="text-[11px] text-white/40 mt-0.5">Pick 3 for Game 1, rest auto-fight Game 2. Tiebreaker if tied.</p>
-              </div>
-            </motion.button>
-          </div>
-        </motion.div>
+          <motion.button
+            whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+            onClick={() => onSelect('3v3')}
+            className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
+            style={{ borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
+          >
+            <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(250,204,21,0.15)' }}>
+              <Zap size={16} className="text-[#facc15]" />
+            </div>
+            <div>
+              <p className="font-display text-sm text-white uppercase tracking-wide">3v3 Draft <span className="text-[#facc15] text-[10px] ml-1 normal-case tracking-normal font-sans">NEW</span></p>
+              <p className="text-[11px] text-white/40 mt-0.5">Standard 3v3 draft format.</p>
+            </div>
+          </motion.button>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -144,8 +142,46 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
 
 const PICK_TIME = 15;
 
-function TeamPickPhase({ team, tierId, onConfirm, onClose }: {
-  team: TeamPreviewMon[]; tierId: string; onConfirm: (pickedIds: number[]) => void; onClose: () => void;
+function PokemonCard({ mon, pickOrder, onClick, disabled }: {
+  mon: TeamPreviewMon; pickOrder: number; onClick?: () => void; disabled?: boolean;
+}) {
+  const isPicked = pickOrder >= 0;
+  return (
+    <motion.div
+      whileHover={!disabled && onClick ? { scale: 1.06 } : undefined}
+      whileTap={!disabled && onClick ? { scale: 0.94 } : undefined}
+      onClick={onClick}
+      className="relative flex flex-col items-center gap-0.5 cursor-pointer select-none"
+      style={{ cursor: disabled ? 'default' : onClick ? 'pointer' : 'default' }}
+    >
+      <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center"
+        style={{
+          border: `2px solid ${isPicked ? 'rgba(0,200,255,0.8)' : 'rgba(255,255,255,0.12)'}`,
+          background: isPicked ? 'rgba(0,200,255,0.12)' : 'rgba(255,255,255,0.04)',
+          transition: 'border-color 0.15s, background 0.15s',
+        }}>
+        {mon.artworkUrl
+          ? <img src={mon.artworkUrl} alt={mon.name} className="w-10 h-10 sm:w-12 sm:h-12 object-contain" style={{ imageRendering: 'pixelated' }} />
+          : <div className="w-8 h-8 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />}
+        {isPicked && (
+          <motion.div
+            initial={{ scale: 0 }} animate={{ scale: 1 }}
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
+            style={{ background: '#00c8ff', color: '#000' }}
+          >
+            {pickOrder + 1}
+          </motion.div>
+        )}
+      </div>
+      <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight text-white/80 leading-tight text-center max-w-[52px] sm:max-w-[60px] truncate">{mon.name}</span>
+      <span className="text-[7px] sm:text-[8px] text-white/30">{mon.primaryType}</span>
+    </motion.div>
+  );
+}
+
+function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, tierId, onConfirm, onClose }: {
+  userTeam: TeamPreviewMon[]; opponentTeam: TeamPreviewMon[]; opponentSpeciesIds: number[];
+  tierId: string; onConfirm: (pickedIds: number[], opponentIds: number[]) => void; onClose: () => void;
 }) {
   const [picked, setPicked] = useState<number[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(PICK_TIME);
@@ -154,11 +190,10 @@ function TeamPickPhase({ team, tierId, onConfirm, onClose }: {
   const confirm = (ids: number[]) => {
     if (confirmedRef.current) return;
     confirmedRef.current = true;
-    // Auto-fill: if fewer than 3 picked, fill from unpicked in order
-    const remaining = team.map(m => m.speciesId).filter(id => !ids.includes(id));
+    const remaining = userTeam.map(m => m.speciesId).filter(id => !ids.includes(id));
     const needed = 3 - ids.length;
     const finalPick = [...ids, ...remaining.slice(0, needed)];
-    onConfirm(finalPick);
+    onConfirm(finalPick, opponentSpeciesIds);
   };
 
   useEffect(() => {
@@ -176,85 +211,106 @@ function TeamPickPhase({ team, tierId, onConfirm, onClose }: {
   };
 
   const timerPct = (secondsLeft / PICK_TIME) * 100;
-  const timerColor = secondsLeft > 8 ? '#00c8ff' : secondsLeft > 4 ? '#facc15' : '#f97316';
+  const timerColor = secondsLeft > 8 ? '#00c8ff' : secondsLeft > 4 ? '#facc15' : '#f87171';
 
   return (
-    <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3"
+      style={{ background: 'rgba(10,11,18,0.97)' }}
+    >
       <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.85)' }}
+        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+        className="w-full max-w-2xl rounded-2xl border border-white/10 flex flex-col"
+        style={{ background: '#0d0e14', maxHeight: 'calc(100dvh - 24px)' }}
       >
-        <motion.div
-          initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-          className="w-full max-w-sm rounded-2xl border border-white/10 flex flex-col"
-          style={{ background: '#0d0e14', maxHeight: 'calc(100dvh - 32px)' }}
-        >
-          {/* Header */}
-          <div className="px-5 pt-5 pb-3 shrink-0">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-display text-sm uppercase tracking-widest text-white">Pick Your Team</h2>
-              <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={16} /></button>
-            </div>
-            <p className="text-[11px] text-white/40">Choose up to 3 Pokemon for Game 1. Auto-fills on timer.</p>
-            {/* Timer bar */}
-            <div className="mt-3 relative h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <motion.div
-                className="absolute left-0 top-0 h-full rounded-full"
-                style={{ width: `${timerPct}%`, background: timerColor }}
-                animate={{ width: `${timerPct}%` }}
-                transition={{ duration: 0.9, ease: 'linear' }}
-              />
-            </div>
-            <p className="text-right text-[10px] mt-1 font-mono" style={{ color: timerColor }}>{secondsLeft}s</p>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-sm uppercase tracking-widest text-white">Team Preview</span>
+            <span className="text-[10px] text-white/30 font-sans normal-case tracking-normal">— pick 3 to send first</span>
           </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={16} /></button>
+        </div>
 
-          {/* Pokemon grid */}
-          <div className="overflow-y-auto px-4 pb-4 grid grid-cols-3 gap-2 flex-1">
-            {team.map((mon, idx) => {
-              const isPicked = picked.includes(mon.speciesId);
-              const pickOrder = picked.indexOf(mon.speciesId);
-              return (
-                <motion.button
+        {/* Teams */}
+        <div className="flex items-start gap-2 px-3 py-4 overflow-y-auto flex-1 min-h-0">
+          {/* User team (clickable) */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#00c8ff] text-center mb-3">Your Team</p>
+            <div className="grid grid-cols-3 gap-2 justify-items-center">
+              {userTeam.map(mon => (
+                <PokemonCard
                   key={mon.speciesId}
-                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  mon={mon}
+                  pickOrder={picked.indexOf(mon.speciesId)}
                   onClick={() => toggle(mon.speciesId)}
-                  className="relative rounded-xl border p-2 flex flex-col items-center gap-1 transition-colors"
-                  style={{
-                    borderColor: isPicked ? 'rgba(0,200,255,0.6)' : 'rgba(255,255,255,0.08)',
-                    background: isPicked ? 'rgba(0,200,255,0.1)' : 'rgba(255,255,255,0.02)',
-                  }}
-                >
-                  {isPicked && (
-                    <motion.div
-                      initial={{ scale: 0 }} animate={{ scale: 1 }}
-                      className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
-                      style={{ background: '#00c8ff', color: '#000' }}
-                    >
-                      {pickOrder + 1}
-                    </motion.div>
-                  )}
-                  {mon.artworkUrl
-                    ? <img src={mon.artworkUrl} alt={mon.name} className="w-12 h-12 object-contain" style={{ imageRendering: 'pixelated' }} />
-                    : <div className="w-12 h-12 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />}
-                  <span className="text-[9px] font-bold text-white/80 uppercase tracking-tight leading-tight text-center">{mon.name}</span>
-                  <span className="text-[8px] text-white/30">{mon.primaryType}</span>
-                </motion.button>
-              );
-            })}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* Footer */}
-          <div className="px-4 pb-4 pt-2 shrink-0 flex items-center gap-3">
+          {/* VS + timer column */}
+          <div className="flex flex-col items-center justify-start pt-6 shrink-0 gap-3 px-1">
+            <motion.div
+              className="font-display text-2xl sm:text-3xl text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]"
+              animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+            >
+              VS
+            </motion.div>
+            {/* Timer */}
+            <div className="flex flex-col items-center gap-1">
+              <div className="relative w-1 h-20 sm:h-24 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <motion.div
+                  className="absolute bottom-0 left-0 w-full rounded-full"
+                  style={{ height: `${timerPct}%`, background: timerColor }}
+                  animate={{ height: `${timerPct}%` }}
+                  transition={{ duration: 0.9, ease: 'linear' }}
+                />
+              </div>
+              <motion.span
+                key={secondsLeft}
+                initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+                className="text-[11px] font-mono font-bold"
+                style={{ color: timerColor }}
+              >
+                {secondsLeft}s
+              </motion.span>
+            </div>
+          </div>
+
+          {/* Opponent team (display only) */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#f87171] text-center mb-3">Opponent</p>
+            <div className="grid grid-cols-3 gap-2 justify-items-center">
+              {opponentTeam.map(mon => (
+                <PokemonCard key={mon.speciesId} mon={mon} pickOrder={-1} disabled />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pb-4 pt-2 shrink-0 border-t border-white/5">
+          {/* Timer bar */}
+          <div className="relative h-1 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <motion.div
+              className="absolute left-0 top-0 h-full rounded-full"
+              style={{ width: `${timerPct}%`, background: timerColor }}
+              animate={{ width: `${timerPct}%` }}
+              transition={{ duration: 0.9, ease: 'linear' }}
+            />
+          </div>
+          <div className="flex items-center gap-3">
             <p className="flex-1 text-[11px] text-white/40">
-              {picked.length === 0 ? 'Tap to pick' : picked.length < 3 ? `${picked.length}/3 picked` : '3/3 — ready!'}
+              {picked.length === 0 ? 'Tap your Pokemon to pick' : picked.length < 3 ? `${picked.length}/3 selected` : '3/3 — ready to battle!'}
             </p>
             <motion.button
               whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
               onClick={() => confirm(picked)}
               disabled={picked.length === 0}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
+              className="flex items-center gap-1.5 px-5 h-9 rounded-lg text-xs font-bold uppercase tracking-wider"
               style={picked.length === 0
                 ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }
                 : { background: 'linear-gradient(90deg, #00c8ff, #9b5cff)', color: '#000' }}
@@ -262,9 +318,9 @@ function TeamPickPhase({ team, tierId, onConfirm, onClose }: {
               <Check size={13} /> Lock In
             </motion.button>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -281,8 +337,9 @@ export function PlayTab() {
   // Mode select state
   const [modeSelectTier, setModeSelectTier] = useState<string | null>(null);
   // Team pick state
-  const [teamPickTier, setTeamPickTier] = useState<string | null>(null);
-  const [teamPickData, setTeamPickData] = useState<TeamPreviewMon[] | null>(null);
+  type PickSetup = { tierId: string; userTeam: TeamPreviewMon[]; opponentTeam: TeamPreviewMon[]; opponentSpeciesIds: number[] };
+  const [pickSetup, setPickSetup] = useState<PickSetup | null>(null);
+  const [loadingSetup, setLoadingSetup] = useState(false);
 
   const handleBattleClick = (tierId: string) => {
     setError(null);
@@ -295,13 +352,16 @@ export function PlayTab() {
     if (mode === '6v6') {
       await run6v6(tierId);
     } else {
-      // Load team for pick phase
+      setLoadingSetup(true);
+      setPlayingTier(tierId);
       try {
-        const { team } = await getActiveTeamPreview();
-        setTeamPickData(team);
-        setTeamPickTier(tierId);
+        const setup = await setup3v3Battle(tierId);
+        setPickSetup({ tierId, ...setup });
       } catch (e: any) {
-        setError(e.message || 'Failed to load team');
+        setError(e.message || 'Failed to load team preview');
+        setPlayingTier(null);
+      } finally {
+        setLoadingSetup(false);
       }
     }
   };
@@ -317,13 +377,12 @@ export function PlayTab() {
     }
   };
 
-  const handleTeamPick = async (pickedIds: number[]) => {
-    const tierId = teamPickTier!;
-    setTeamPickTier(null);
-    setTeamPickData(null);
-    setPlayingTier(tierId);
+  const handleTeamPick = async (pickedIds: number[], opponentIds: number[]) => {
+    const tierId = pickSetup!.tierId;
+    setPickSetup(null);
+    // playingTier is already set
     try {
-      const res = await play3v3Battle(tierId, pickedIds);
+      const res = await play3v3Battle(tierId, pickedIds, opponentIds);
       setResult(res);
     } catch (e: any) {
       setError(e.message || 'Battle failed to start');
@@ -349,6 +408,7 @@ export function PlayTab() {
         <Trophy size={16} className="text-[#9b5cff]" /><h3 className="font-display text-sm uppercase tracking-widest text-white/70">Battle Tiers</h3>
       </div>
       {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
+      {loadingSetup && <p className="text-white/40 text-xs mb-3">Loading team preview…</p>}
       <div className="relative">
         <div className="absolute left-5 top-5 bottom-5 w-px" style={{ background: 'linear-gradient(180deg, rgba(136,146,164,0.3), rgba(250,204,21,0.3))' }} />
         <div className="space-y-3">
@@ -362,23 +422,29 @@ export function PlayTab() {
         </div>
       </div>
 
-      {modeSelectTier && (
-        <ModeSelectModal
-          tierId={modeSelectTier}
-          tierColor={modeSelectColor}
-          onSelect={handleModeSelect}
-          onClose={() => setModeSelectTier(null)}
-        />
-      )}
+      <AnimatePresence>
+        {modeSelectTier && (
+          <ModeSelectModal
+            tierId={modeSelectTier}
+            tierColor={modeSelectColor}
+            onSelect={handleModeSelect}
+            onClose={() => setModeSelectTier(null)}
+          />
+        )}
+      </AnimatePresence>
 
-      {teamPickTier && teamPickData && (
-        <TeamPickPhase
-          team={teamPickData}
-          tierId={teamPickTier}
-          onConfirm={handleTeamPick}
-          onClose={() => { setTeamPickTier(null); setTeamPickData(null); }}
-        />
-      )}
+      <AnimatePresence>
+        {pickSetup && (
+          <TeamPickPhase
+            userTeam={pickSetup.userTeam}
+            opponentTeam={pickSetup.opponentTeam}
+            opponentSpeciesIds={pickSetup.opponentSpeciesIds}
+            tierId={pickSetup.tierId}
+            onConfirm={handleTeamPick}
+            onClose={() => { setPickSetup(null); setPlayingTier(null); }}
+          />
+        )}
+      </AnimatePresence>
 
       {result && (
         <BattleReplay matches={result.matches} tierLabel={config.battleTiers[result.tier]?.label || result.tier} status={result.status} reward={result.reward} onClose={handleCloseReplay} />

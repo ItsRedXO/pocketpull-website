@@ -536,7 +536,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                 {showVsIntro && frames[0] && (
                   <motion.div
                     className="absolute inset-0 z-40 flex items-center justify-center rounded-xl overflow-hidden"
-                    style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+                    style={{ background: 'rgba(10,11,18,0.97)' }}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.04 }}
                     transition={{ duration: 0.25 }}
                   >

@@ -285,9 +285,44 @@ app.get('/brawl/active-team-preview', async c => {
   return c.json({ team });
 });
 
+app.get('/brawl/battle/3v3/setup', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const tier = c.req.query('tier');
+  const config = BATTLE_TIERS[tier as BattleTierId];
+  if (!config) return c.json({ error: 'Invalid battle tier' }, 400);
+
+  const activeTeamRows = await getActiveTeamSpecies(userId);
+  if (activeTeamRows.length !== 6) return c.json({ error: 'Set a full 6-Pokemon active team before battling' }, 400);
+
+  const userTeam = activeTeamRows.map(row => ({
+    speciesId: row.id, name: row.name, primaryType: row.primary_type,
+    secondaryType: row.secondary_type ?? null, artworkUrl: row.artwork_url ?? null,
+    overallRating: row.overall_rating, starLevel: row.star_level ?? 0,
+  }));
+
+  let candidatePool = await getOpponentCandidatesInRange(config.opponentOverallMin, config.opponentOverallMax);
+  if (candidatePool.length < 6) candidatePool = await getOpponentCandidatesInRange(Math.max(1, config.opponentOverallMin - 15), config.opponentOverallMax + 15);
+  const playerTypeProfile: PlayerTypeProfile[] = activeTeamRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null }));
+
+  // Pick 6 opponents upfront (3 for game1, 3 for game2) so the pick screen can show the full opposing team
+  const drafted = pickOpponentTeam(
+    candidatePool.map(r => ({ id: r.id, primaryType: r.primary_type, secondaryType: r.secondary_type, overall: r.overall_rating })),
+    6, playerTypeProfile, config.strategyLevel,
+  );
+  const opponentSpeciesIds = drafted.map(d => d.id);
+  const opponentRows = await getSpeciesByIds(opponentSpeciesIds);
+  const opponentTeam = opponentRows.map(row => ({
+    speciesId: row.id, name: row.name, primaryType: (row as any).primary_type,
+    secondaryType: (row as any).secondary_type ?? null, artworkUrl: (row as any).artwork_url ?? null,
+    overallRating: (row as any).overall_rating ?? 0, starLevel: 0,
+  }));
+
+  return c.json({ userTeam, opponentTeam, opponentSpeciesIds });
+});
+
 app.post('/brawl/battle/3v3', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;
-  const { tier, pickSpeciesIds } = await c.req.json().catch(() => ({}));
+  const { tier, pickSpeciesIds, opponentSpeciesIds: providedOpponentIds } = await c.req.json().catch(() => ({}));
   const config = BATTLE_TIERS[tier as BattleTierId];
   if (!config) return c.json({ error: 'Invalid battle tier' }, 400);
   if (!Array.isArray(pickSpeciesIds) || pickSpeciesIds.length < 1 || pickSpeciesIds.length > 3) {
@@ -345,22 +380,22 @@ app.post('/brawl/battle/3v3', async c => {
 
   let candidatePool = await getOpponentCandidatesInRange(config.opponentOverallMin, config.opponentOverallMax);
   if (candidatePool.length < 6) candidatePool = await getOpponentCandidatesInRange(Math.max(1, config.opponentOverallMin - 15), config.opponentOverallMax + 15);
+  const candidatesForPick = candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating }));
 
   for (let i = 0; i < config.matches; i++) {
-    // Opponent for game1: random 3
-    const drafted1 = pickOpponentTeam(
-      candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating })),
-      3, game1UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel,
-    );
-    const opp1Rows = await getSpeciesByIds(drafted1.map(d => d.id));
+    // Use pre-selected opponents from setup phase if provided, otherwise pick randomly
+    let opp1Ids: number[];
+    let opp2Ids: number[];
+    if (Array.isArray(providedOpponentIds) && providedOpponentIds.length === 6) {
+      opp1Ids = (providedOpponentIds as number[]).slice(0, 3);
+      opp2Ids = (providedOpponentIds as number[]).slice(3, 6);
+    } else {
+      opp1Ids = pickOpponentTeam(candidatesForPick, 3, game1UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel).map(d => d.id);
+      opp2Ids = pickOpponentTeam(candidatesForPick, 3, game2UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel).map(d => d.id);
+    }
+    const opp1Rows = await getSpeciesByIds(opp1Ids);
     const opp1Team = opp1Rows.map(speciesRowToBattleSpecies);
-
-    // Opponent for game2: the other 3 (different draft)
-    const drafted2 = pickOpponentTeam(
-      candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating })),
-      3, game2UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel,
-    );
-    const opp2Rows = await getSpeciesByIds(drafted2.map(d => d.id));
+    const opp2Rows = await getSpeciesByIds(opp2Ids);
     const opp2Team = opp2Rows.map(speciesRowToBattleSpecies);
 
     const games: Array<{ result: 'win' | 'loss'; frames: unknown; obstacles: unknown; maxTicks: number }> = [];

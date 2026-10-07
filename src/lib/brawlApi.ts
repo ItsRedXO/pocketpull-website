@@ -127,9 +127,11 @@ export interface TeamPreviewMon {
   speciesId: number; name: string; primaryType: PokeType; secondaryType: PokeType | null;
   artworkUrl: string | null; overallRating: number; starLevel: number;
 }
+export interface Battle3v3Setup { userTeam: TeamPreviewMon[]; opponentTeam: TeamPreviewMon[]; opponentSpeciesIds: number[]; }
 export const getActiveTeamPreview = () => get<{ team: TeamPreviewMon[] }>('/brawl/active-team-preview');
-export const play3v3Battle = (tier: string, pickSpeciesIds: number[]) =>
-  post<BrawlBattlePlayResult>('/brawl/battle/3v3', { tier, pickSpeciesIds });
+export const setup3v3Battle = (tier: string) => get<Battle3v3Setup>(`/brawl/battle/3v3/setup?tier=${encodeURIComponent(tier)}`);
+export const play3v3Battle = (tier: string, pickSpeciesIds: number[], opponentSpeciesIds?: number[]) =>
+  post<BrawlBattlePlayResult>('/brawl/battle/3v3', { tier, pickSpeciesIds, opponentSpeciesIds });
 
 export type ChallengeType = 'win_matches' | 'win_tournament' | 'evolve_pokemon' | 'open_safari' | 'win_mono_type';
 export type ChallengeReward =
