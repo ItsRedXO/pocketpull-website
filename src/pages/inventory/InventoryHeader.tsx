@@ -29,12 +29,12 @@ export const InventoryHeader: React.FC<InventoryHeaderProps> = ({
 }) => {
   return (
     <>
-      <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
+      <div className="flex items-start justify-between mb-8 gap-4 flex-wrap rounded-2xl px-6 py-5" style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div>
           <h1 className="text-4xl font-display uppercase" style={{ background: 'linear-gradient(135deg, #00c8ff, #9b5cff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             My Collection
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-400 text-sm mt-1">
             {totalCards} cards · Est. value:{' '}
             <span className="text-[#fbbf24] font-display font-bold">${totalValue.toFixed(2)}</span>
             {lockedCount > 0 && (

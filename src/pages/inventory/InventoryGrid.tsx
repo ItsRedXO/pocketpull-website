@@ -38,19 +38,19 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({
 
   if (groupedCount === 0) {
     return (
-      <div className="text-center py-24">
+      <div className="text-center py-16 rounded-2xl" style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="text-6xl mb-4">📦</div>
         <h2 className="text-2xl font-display text-white uppercase mb-2">No Cards Yet</h2>
-        <p className="text-gray-500 text-sm">Open packs to start building your collection!</p>
+        <p className="text-gray-400 text-sm">Open packs to start building your collection!</p>
       </div>
     );
   }
 
   if (filtered.length === 0) {
     return (
-      <div className="text-center py-20 text-gray-500">
-        <Package size={40} className="mx-auto mb-3 opacity-30" />
-        <p className="font-display text-lg uppercase">No cards match your search</p>
+      <div className="text-center py-16 rounded-2xl" style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <Package size={40} className="mx-auto mb-3 opacity-30 text-gray-400" />
+        <p className="font-display text-lg uppercase text-gray-300">No cards match your search</p>
       </div>
     );
   }

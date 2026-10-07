@@ -18,7 +18,7 @@ export const InventoryFilters: React.FC<InventoryFiltersProps> = ({
   const rarities = ['all', 'common', 'uncommon', 'rare', 'ultra', 'secret', 'god', 'rainbow'];
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 mb-8">
+    <div className="flex flex-col sm:flex-row gap-4 mb-8 rounded-2xl px-5 py-4" style={{ background: 'rgba(8,12,28,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="relative flex-1">
         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
         <input
