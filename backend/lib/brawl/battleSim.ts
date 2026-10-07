@@ -146,11 +146,12 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function toFighter(species: BattleSpecies, side: Side, index: number): Fighter {
+function toFighter(species: BattleSpecies, side: Side, index: number, teamSize = 6): Fighter {
   const maxHp = Math.max(20, Math.round(species.baseHp * HP_SCALE));
   return {
     ...species, id: `${side}-${index}`, side,
-    x: side === 'user' ? 12 : 88, y: 8 + index * 16.4,
+    x: side === 'user' ? 12 : 88,
+    y: 8 + index * (84 / Math.max(teamSize - 1, 1)),
     hp: maxHp, maxHp, fainted: false, moves: buildMoveset(species.primaryType, species.secondaryType),
     cooldown: 0, targetId: null, routeCorner: null, stuckTicks: 0,
   };
@@ -347,8 +348,9 @@ function shuffled<T>(items: T[]): T[] {
  */
 export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: BattleSpecies[]): BattleOutcome {
   const obstacles = generateObstacles();
-  const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i));
-  const opponentTeam = opponentSpecies.map((s, i) => toFighter(s, 'opponent', i));
+  const teamSize = Math.max(userSpecies.length, opponentSpecies.length);
+  const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i, teamSize));
+  const opponentTeam = opponentSpecies.map((s, i) => toFighter(s, 'opponent', i, teamSize));
   const all = [...userTeam, ...opponentTeam];
   const byId = new Map(all.map(f => [f.id, f]));
   let koUser = 0, koOpponent = 0;

@@ -123,6 +123,14 @@ export interface BrawlBattlePlayResult {
 }
 export const playBrawlBattle = (tier: string) => post<BrawlBattlePlayResult>('/brawl/battle/play', { tier });
 
+export interface TeamPreviewMon {
+  speciesId: number; name: string; primaryType: PokeType; secondaryType: PokeType | null;
+  artworkUrl: string | null; overallRating: number; starLevel: number;
+}
+export const getActiveTeamPreview = () => get<{ team: TeamPreviewMon[] }>('/brawl/active-team-preview');
+export const play3v3Battle = (tier: string, pickSpeciesIds: number[]) =>
+  post<BrawlBattlePlayResult>('/brawl/battle/3v3', { tier, pickSpeciesIds });
+
 export type ChallengeType = 'win_matches' | 'win_tournament' | 'evolve_pokemon' | 'open_safari' | 'win_mono_type';
 export type ChallengeReward =
   | { kind: 'pokedollars'; amount: number }

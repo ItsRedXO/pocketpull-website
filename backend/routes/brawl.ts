@@ -270,6 +270,162 @@ app.post('/brawl/safari/pull', async c => {
   return c.json({ success: true, pulled, instanceIds, balance });
 });
 
+app.get('/brawl/active-team-preview', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const rows = await getActiveTeamSpecies(userId);
+  const team = rows.map(row => ({
+    speciesId: row.id,
+    name: row.name,
+    primaryType: row.primary_type,
+    secondaryType: row.secondary_type ?? null,
+    artworkUrl: row.artwork_url ?? null,
+    overallRating: row.overall_rating,
+    starLevel: row.star_level ?? 0,
+  }));
+  return c.json({ team });
+});
+
+app.post('/brawl/battle/3v3', async c => {
+  const userId = await auth(c); if (typeof userId !== 'string') return userId;
+  const { tier, pickSpeciesIds } = await c.req.json().catch(() => ({}));
+  const config = BATTLE_TIERS[tier as BattleTierId];
+  if (!config) return c.json({ error: 'Invalid battle tier' }, 400);
+  if (!Array.isArray(pickSpeciesIds) || pickSpeciesIds.length < 1 || pickSpeciesIds.length > 3) {
+    return c.json({ error: 'pickSpeciesIds must be an array of 1-3 species IDs' }, 400);
+  }
+
+  const profile = await getOrCreateProfile(userId);
+  if (!tierUnlocked(profile, config.id)) return c.json({ error: `${config.label} is still locked` }, 403);
+
+  if (config.cooldownMs > 0) {
+    const last = await lastRunForTier(userId, config.id);
+    if (last) {
+      const endsAt = new Date(last.created_at).getTime() + config.cooldownMs;
+      if (endsAt > Date.now()) return c.json({ error: `${config.label} is on cooldown`, cooldownEndsAt: new Date(endsAt).toISOString() }, 429);
+    }
+  }
+
+  const dailyCount = await countRunsToday(userId);
+  if (dailyCount >= DAILY_BATTLE_CAP) return c.json({ error: `Daily battle limit reached (${DAILY_BATTLE_CAP}/day). Resets at midnight PT.` }, 429);
+
+  // Get full active team (6), then split into picked vs. remaining
+  const activeTeamRows = await getActiveTeamSpecies(userId);
+  if (activeTeamRows.length !== 6) return c.json({ error: 'Set a full 6-Pokemon active team before battling' }, 400);
+
+  const pickedRows = activeTeamRows.filter(r => (pickSpeciesIds as number[]).includes(r.id));
+  const remainingRows = activeTeamRows.filter(r => !(pickSpeciesIds as number[]).includes(r.id));
+  // Auto-fill if fewer than 3 were picked (timer expired mid-pick)
+  const needed = 3 - pickedRows.length;
+  const autoFilled = remainingRows.slice(0, needed);
+  const game1UserRows = [...pickedRows, ...autoFilled];
+  const game2UserRows = activeTeamRows.filter(r => !game1UserRows.map(x => x.id).includes(r.id));
+
+  const game1UserTeam = game1UserRows.map(row => applyStarBonus(speciesRowToBattleSpecies(row), row.star_level));
+  const game2UserTeam = game2UserRows.map(row => applyStarBonus(speciesRowToBattleSpecies(row), row.star_level));
+  const tbUserTeam = game1UserTeam; // tiebreaker reuses game 1 picks
+
+  if (config.entryCost > 0) {
+    try {
+      await applyBrawlWalletTransaction(userId, 'tier_entry', -config.entryCost, `entry:3v3:${config.id}:${userId}:${Date.now()}`, { tier: config.id });
+    } catch (e: any) {
+      if (e.message === 'INSUFFICIENT_POKEDOLLARS') return c.json({ error: `Not enough pokedollars to enter ${config.label} (costs ${config.entryCost})` }, 400);
+      throw e;
+    }
+  }
+
+  const run = await createRun(userId, config.id, config.entryCost, config.matches);
+  const matches: Array<{
+    index: number; result: 'win' | 'loss'; opponentSpeciesIds: number[]; scoreUser: number; scoreOpponent: number;
+    games: Array<{ result: 'win' | 'loss'; frames: unknown; obstacles: unknown; maxTicks: number }>;
+  }> = [];
+  let matchesWon = 0;
+  let ratingDelta = 0;
+  const tierRatingDelta = TIER_RATING_DELTA[config.id];
+  const teamMonoType: PokeType | null = game1UserRows.every(r => r.primary_type === game1UserRows[0].primary_type) ? (game1UserRows[0].primary_type as PokeType) : null;
+
+  let candidatePool = await getOpponentCandidatesInRange(config.opponentOverallMin, config.opponentOverallMax);
+  if (candidatePool.length < 6) candidatePool = await getOpponentCandidatesInRange(Math.max(1, config.opponentOverallMin - 15), config.opponentOverallMax + 15);
+
+  for (let i = 0; i < config.matches; i++) {
+    // Opponent for game1: random 3
+    const drafted1 = pickOpponentTeam(
+      candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating })),
+      3, game1UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel,
+    );
+    const opp1Rows = await getSpeciesByIds(drafted1.map(d => d.id));
+    const opp1Team = opp1Rows.map(speciesRowToBattleSpecies);
+
+    // Opponent for game2: the other 3 (different draft)
+    const drafted2 = pickOpponentTeam(
+      candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating })),
+      3, game2UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel,
+    );
+    const opp2Rows = await getSpeciesByIds(drafted2.map(d => d.id));
+    const opp2Team = opp2Rows.map(speciesRowToBattleSpecies);
+
+    const games: Array<{ result: 'win' | 'loss'; frames: unknown; obstacles: unknown; maxTicks: number }> = [];
+    let scoreUser = 0, scoreOpponent = 0;
+
+    // Game 1: user picks vs AI random 3
+    const g1 = simulateBattle(game1UserTeam, opp1Team);
+    const g1Result: 'win' | 'loss' = g1.winner === 'user' ? 'win' : 'loss';
+    if (g1Result === 'win') { scoreUser++; await advanceChallenge(userId, 'win_matches'); if (teamMonoType) await advanceChallenge(userId, 'win_mono_type', { teamType: teamMonoType }); }
+    else scoreOpponent++;
+    games.push({ result: g1Result, frames: g1.frames, obstacles: g1.obstacles, maxTicks: g1.maxTicks });
+
+    // Game 2: remaining 3 auto-fight
+    const g2 = simulateBattle(game2UserTeam, opp2Team);
+    const g2Result: 'win' | 'loss' = g2.winner === 'user' ? 'win' : 'loss';
+    if (g2Result === 'win') { scoreUser++; await advanceChallenge(userId, 'win_matches'); }
+    else scoreOpponent++;
+    games.push({ result: g2Result, frames: g2.frames, obstacles: g2.obstacles, maxTicks: g2.maxTicks });
+
+    // Tiebreaker if tied 1-1
+    if (scoreUser === 1 && scoreOpponent === 1) {
+      const drafted3 = pickOpponentTeam(
+        candidatePool.map(row => ({ id: row.id, primaryType: row.primary_type, secondaryType: row.secondary_type, overall: row.overall_rating })),
+        3, game1UserRows.map(r => ({ primaryType: r.primary_type as PokeType, secondaryType: r.secondary_type as PokeType | null })), config.strategyLevel,
+      );
+      const opp3Rows = await getSpeciesByIds(drafted3.map(d => d.id));
+      const opp3Team = opp3Rows.map(speciesRowToBattleSpecies);
+      const g3 = simulateBattle(tbUserTeam, opp3Team);
+      const g3Result: 'win' | 'loss' = g3.winner === 'user' ? 'win' : 'loss';
+      if (g3Result === 'win') { scoreUser++; await advanceChallenge(userId, 'win_matches'); if (teamMonoType) await advanceChallenge(userId, 'win_mono_type', { teamType: teamMonoType }); }
+      else scoreOpponent++;
+      games.push({ result: g3Result, frames: g3.frames, obstacles: g3.obstacles, maxTicks: g3.maxTicks });
+    }
+
+    const opponentSpeciesIds = [...drafted1.map(d => d.id), ...drafted2.map(d => d.id)];
+    const result: 'win' | 'loss' = scoreUser > scoreOpponent ? 'win' : 'loss';
+    await addMatch(run.id, i, { opponentSpeciesIds }, result, { games, scoreUser, scoreOpponent });
+    matches.push({ index: i, result, opponentSpeciesIds, scoreUser, scoreOpponent, games });
+    ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
+    if (result === 'loss') break;
+    matchesWon++;
+  }
+
+  const status: 'won' | 'eliminated' = matchesWon === config.matches ? 'won' : 'eliminated';
+  let reward = 0;
+  if (config.totalReward != null) {
+    reward = status === 'won' ? config.totalReward : (matchesWon === 0 ? (config.lossConsolation || 0) : 0);
+  } else {
+    reward = status === 'won' ? (config.winReward || 0) : (config.lossReward || 0);
+  }
+  if (reward > 0) await applyBrawlWalletTransaction(userId, 'tier_reward', reward, `reward:3v3:${run.id}`, { tier: config.id });
+  await completeRun(run.id, status, matchesWon, reward);
+  if (status === 'won' && config.id !== 'local_battle') await advanceChallenge(userId, 'win_tournament');
+
+  const matchesPlayed = matches.length;
+  const counterUpdates: Partial<Record<keyof BrawlProfile, number>> = { wins: matchesWon, losses: matchesPlayed - matchesWon };
+  if (config.id === 'local_battle') counterUpdates.local_battles_played = 1;
+  else if (status === 'won') (counterUpdates as any)[config.winCounterField] = 1;
+  await incrementProfileCounters(userId, counterUpdates);
+  const rating = await applyRatingChange(userId, ratingDelta);
+
+  const balance = await getWalletBalance(userId);
+  return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, rating, gemsEarned: 0 });
+});
+
 app.post('/brawl/battle/play', async c => {
   const userId = await auth(c); if (typeof userId !== 'string') return userId;
   const { tier } = await c.req.json().catch(() => ({}));

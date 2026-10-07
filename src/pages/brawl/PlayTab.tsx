@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lock, Clock, Coins, Trophy, Swords } from 'lucide-react';
-import { getBrawlConfig, getBrawlProfile, playBrawlBattle, type BrawlBattlePlayResult, type BrawlProfile } from '../../lib/brawlApi';
+import { Lock, Clock, Coins, Trophy, Swords, X, Check, Zap, Users } from 'lucide-react';
+import {
+  getBrawlConfig, getBrawlProfile, playBrawlBattle, getActiveTeamPreview, play3v3Battle,
+  type BrawlBattlePlayResult, type BrawlProfile, type TeamPreviewMon,
+} from '../../lib/brawlApi';
 import { BattleReplay } from './BattleReplay';
 
 const TIER_COLORS = ['#8892a4', '#6890f0', '#9b5cff', '#f97316', '#facc15'];
 
-// Only the tournament tiers (not the single-match Local Battle) track a
-// meaningful "wins" count players climb toward -- these are also exactly the
-// counters that unlock the next tier up, so surfacing them doubles as
-// progress toward the next lock.
 const WIN_COUNTER_FIELD: Partial<Record<string, keyof BrawlProfile>> = {
   local_tournament: 'local_tournament_wins',
   state_tournament: 'state_tournament_wins',
@@ -80,6 +79,197 @@ function TierRow({ index, color, config, status, wins, onPlay, playing }: { inde
   );
 }
 
+// ─── Mode Select Modal ─────────────────────────────────────────────────────
+
+function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
+  tierId: string; tierColor: string; onSelect: (mode: '6v6' | '3v3') => void; onClose: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.75)' }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+          className="w-full max-w-sm rounded-2xl border border-white/10 p-6"
+          style={{ background: '#0d0e14' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-base uppercase tracking-widest text-white">Select Battle Mode</h2>
+            <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={18} /></button>
+          </div>
+          <div className="space-y-3">
+            <motion.button
+              whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+              onClick={() => onSelect('6v6')}
+              className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
+              style={{ borderColor: `${tierColor}40`, background: `${tierColor}12` }}
+            >
+              <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${tierColor}25` }}>
+                <Users size={16} style={{ color: tierColor }} />
+              </div>
+              <div>
+                <p className="font-display text-sm text-white uppercase tracking-wide">Standard 6v6</p>
+                <p className="text-[11px] text-white/40 mt-0.5">Full team battle. All 6 Pokemon fight together.</p>
+              </div>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+              onClick={() => onSelect('3v3')}
+              className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
+              style={{ borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
+            >
+              <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(250,204,21,0.15)' }}>
+                <Zap size={16} className="text-[#facc15]" />
+              </div>
+              <div>
+                <p className="font-display text-sm text-white uppercase tracking-wide">3v3 Draft <span className="text-[#facc15] text-[10px] ml-1 normal-case tracking-normal font-sans">NEW</span></p>
+                <p className="text-[11px] text-white/40 mt-0.5">Pick 3 for Game 1, rest auto-fight Game 2. Tiebreaker if tied.</p>
+              </div>
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Team Pick Phase ───────────────────────────────────────────────────────
+
+const PICK_TIME = 15;
+
+function TeamPickPhase({ team, tierId, onConfirm, onClose }: {
+  team: TeamPreviewMon[]; tierId: string; onConfirm: (pickedIds: number[]) => void; onClose: () => void;
+}) {
+  const [picked, setPicked] = useState<number[]>([]);
+  const [secondsLeft, setSecondsLeft] = useState(PICK_TIME);
+  const confirmedRef = useRef(false);
+
+  const confirm = (ids: number[]) => {
+    if (confirmedRef.current) return;
+    confirmedRef.current = true;
+    // Auto-fill: if fewer than 3 picked, fill from unpicked in order
+    const remaining = team.map(m => m.speciesId).filter(id => !ids.includes(id));
+    const needed = 3 - ids.length;
+    const finalPick = [...ids, ...remaining.slice(0, needed)];
+    onConfirm(finalPick);
+  };
+
+  useEffect(() => {
+    if (secondsLeft <= 0) { confirm(picked); return; }
+    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft]);
+
+  const toggle = (id: number) => {
+    setPicked(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= 3) return prev;
+      return [...prev, id];
+    });
+  };
+
+  const timerPct = (secondsLeft / PICK_TIME) * 100;
+  const timerColor = secondsLeft > 8 ? '#00c8ff' : secondsLeft > 4 ? '#facc15' : '#f97316';
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.85)' }}
+      >
+        <motion.div
+          initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+          className="w-full max-w-sm rounded-2xl border border-white/10 flex flex-col"
+          style={{ background: '#0d0e14', maxHeight: 'calc(100dvh - 32px)' }}
+        >
+          {/* Header */}
+          <div className="px-5 pt-5 pb-3 shrink-0">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-display text-sm uppercase tracking-widest text-white">Pick Your Team</h2>
+              <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={16} /></button>
+            </div>
+            <p className="text-[11px] text-white/40">Choose up to 3 Pokemon for Game 1. Auto-fills on timer.</p>
+            {/* Timer bar */}
+            <div className="mt-3 relative h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <motion.div
+                className="absolute left-0 top-0 h-full rounded-full"
+                style={{ width: `${timerPct}%`, background: timerColor }}
+                animate={{ width: `${timerPct}%` }}
+                transition={{ duration: 0.9, ease: 'linear' }}
+              />
+            </div>
+            <p className="text-right text-[10px] mt-1 font-mono" style={{ color: timerColor }}>{secondsLeft}s</p>
+          </div>
+
+          {/* Pokemon grid */}
+          <div className="overflow-y-auto px-4 pb-4 grid grid-cols-3 gap-2 flex-1">
+            {team.map((mon, idx) => {
+              const isPicked = picked.includes(mon.speciesId);
+              const pickOrder = picked.indexOf(mon.speciesId);
+              return (
+                <motion.button
+                  key={mon.speciesId}
+                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                  onClick={() => toggle(mon.speciesId)}
+                  className="relative rounded-xl border p-2 flex flex-col items-center gap-1 transition-colors"
+                  style={{
+                    borderColor: isPicked ? 'rgba(0,200,255,0.6)' : 'rgba(255,255,255,0.08)',
+                    background: isPicked ? 'rgba(0,200,255,0.1)' : 'rgba(255,255,255,0.02)',
+                  }}
+                >
+                  {isPicked && (
+                    <motion.div
+                      initial={{ scale: 0 }} animate={{ scale: 1 }}
+                      className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold"
+                      style={{ background: '#00c8ff', color: '#000' }}
+                    >
+                      {pickOrder + 1}
+                    </motion.div>
+                  )}
+                  {mon.artworkUrl
+                    ? <img src={mon.artworkUrl} alt={mon.name} className="w-12 h-12 object-contain" style={{ imageRendering: 'pixelated' }} />
+                    : <div className="w-12 h-12 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />}
+                  <span className="text-[9px] font-bold text-white/80 uppercase tracking-tight leading-tight text-center">{mon.name}</span>
+                  <span className="text-[8px] text-white/30">{mon.primaryType}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 pb-4 pt-2 shrink-0 flex items-center gap-3">
+            <p className="flex-1 text-[11px] text-white/40">
+              {picked.length === 0 ? 'Tap to pick' : picked.length < 3 ? `${picked.length}/3 picked` : '3/3 — ready!'}
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+              onClick={() => confirm(picked)}
+              disabled={picked.length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
+              style={picked.length === 0
+                ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }
+                : { background: 'linear-gradient(90deg, #00c8ff, #9b5cff)', color: '#000' }}
+            >
+              <Check size={13} /> Lock In
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Main PlayTab ──────────────────────────────────────────────────────────
+
 export function PlayTab() {
   const qc = useQueryClient();
   const { data: config } = useQuery({ queryKey: ['brawl-config'], queryFn: getBrawlConfig, staleTime: 60_000 });
@@ -88,11 +278,52 @@ export function PlayTab() {
   const [result, setResult] = useState<BrawlBattlePlayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePlay = async (tierId: string) => {
+  // Mode select state
+  const [modeSelectTier, setModeSelectTier] = useState<string | null>(null);
+  // Team pick state
+  const [teamPickTier, setTeamPickTier] = useState<string | null>(null);
+  const [teamPickData, setTeamPickData] = useState<TeamPreviewMon[] | null>(null);
+
+  const handleBattleClick = (tierId: string) => {
     setError(null);
+    setModeSelectTier(tierId);
+  };
+
+  const handleModeSelect = async (mode: '6v6' | '3v3') => {
+    const tierId = modeSelectTier!;
+    setModeSelectTier(null);
+    if (mode === '6v6') {
+      await run6v6(tierId);
+    } else {
+      // Load team for pick phase
+      try {
+        const { team } = await getActiveTeamPreview();
+        setTeamPickData(team);
+        setTeamPickTier(tierId);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load team');
+      }
+    }
+  };
+
+  const run6v6 = async (tierId: string) => {
     setPlayingTier(tierId);
     try {
       const res = await playBrawlBattle(tierId);
+      setResult(res);
+    } catch (e: any) {
+      setError(e.message || 'Battle failed to start');
+      setPlayingTier(null);
+    }
+  };
+
+  const handleTeamPick = async (pickedIds: number[]) => {
+    const tierId = teamPickTier!;
+    setTeamPickTier(null);
+    setTeamPickData(null);
+    setPlayingTier(tierId);
+    try {
+      const res = await play3v3Battle(tierId, pickedIds);
       setResult(res);
     } catch (e: any) {
       setError(e.message || 'Battle failed to start');
@@ -110,6 +341,7 @@ export function PlayTab() {
   if (!config || !profile) return <div className="text-white/40 text-sm py-16 text-center">Loading tiers…</div>;
 
   const order = ['local_battle', 'local_tournament', 'state_tournament', 'regional_tournament', 'elite_four'];
+  const modeSelectColor = modeSelectTier ? TIER_COLORS[order.indexOf(modeSelectTier)] : '#6890f0';
 
   return (
     <div>
@@ -124,11 +356,29 @@ export function PlayTab() {
             const winField = WIN_COUNTER_FIELD[id];
             const wins = winField ? Number(profile.profile[winField] || 0) : null;
             return (
-              <TierRow key={id} index={i + 1} color={TIER_COLORS[i]} config={config.battleTiers[id]} status={profile.tierStatus[id]} wins={wins} playing={playingTier === id} onPlay={() => handlePlay(id)} />
+              <TierRow key={id} index={i + 1} color={TIER_COLORS[i]} config={config.battleTiers[id]} status={profile.tierStatus[id]} wins={wins} playing={playingTier === id} onPlay={() => handleBattleClick(id)} />
             );
           })}
         </div>
       </div>
+
+      {modeSelectTier && (
+        <ModeSelectModal
+          tierId={modeSelectTier}
+          tierColor={modeSelectColor}
+          onSelect={handleModeSelect}
+          onClose={() => setModeSelectTier(null)}
+        />
+      )}
+
+      {teamPickTier && teamPickData && (
+        <TeamPickPhase
+          team={teamPickData}
+          tierId={teamPickTier}
+          onConfirm={handleTeamPick}
+          onClose={() => { setTeamPickTier(null); setTeamPickData(null); }}
+        />
+      )}
 
       {result && (
         <BattleReplay matches={result.matches} tierLabel={config.battleTiers[result.tier]?.label || result.tier} status={result.status} reward={result.reward} onClose={handleCloseReplay} />
