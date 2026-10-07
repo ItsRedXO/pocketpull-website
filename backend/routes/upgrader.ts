@@ -14,6 +14,20 @@ import { calculateUpgraderGems, awardGemsInClient } from '../lib/gems';
 const app = new Hono();
 const MAX_CHANCE_CHART: Record<number, number> = {1.2:70,1.5:55,2.0:35,3.0:35,4.0:35,5.0:15,6.0:15,7.0:15,8.0:8,9.0:8,10.0:8};
 
+function getConsolationRange(totalUpgradeValue: number): { min: number; max: number } {
+  if (totalUpgradeValue <= 1)   return { min: 0.02, max: 0.07 };
+  if (totalUpgradeValue <= 3)   return { min: 0.10, max: 0.25 };
+  if (totalUpgradeValue <= 10)  return { min: 0.30, max: 0.75 };
+  if (totalUpgradeValue <= 30)  return { min: 0.75, max: 1.50 };
+  if (totalUpgradeValue <= 60)  return { min: 1.00, max: 2.00 };
+  if (totalUpgradeValue <= 100) return { min: 1.50, max: 3.00 };
+  if (totalUpgradeValue <= 150) return { min: 4.00, max: 8.00 };
+  if (totalUpgradeValue <= 200) return { min: 8.00, max: 15.00 };
+  if (totalUpgradeValue <= 350) return { min: 15.00, max: 30.00 };
+  if (totalUpgradeValue <= 500) return { min: 25.00, max: 50.00 };
+  return { min: 40.00, max: 75.00 };
+}
+
 class UpgraderError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
@@ -138,17 +152,32 @@ app.post('/upgrader/spin', async (c) => {
 
       let consolationCard:any = null;
       if (!isWin) {
+        const { min: consolMin, max: consolMax } = getConsolationRange(totalUpgradeValue);
         const consolationResult = await client.query(
           `SELECT id,card_name,name,rarity,estimated_value,value,card_image_url,image_url
            FROM pack_cards
-           WHERE COALESCE(estimated_value,value,0) BETWEEN 0.02 AND 0.07
+           WHERE COALESCE(estimated_value,value,0) BETWEEN $1 AND $2
            ORDER BY id
            LIMIT 500`,
+          [consolMin, consolMax],
         );
-        if (consolationResult.rowCount) {
+        let pool: any[] = consolationResult.rows;
+        if (!pool.length) {
+          const midpoint = (consolMin + consolMax) / 2;
+          const fallbackResult = await client.query(
+            `SELECT id,card_name,name,rarity,estimated_value,value,card_image_url,image_url
+             FROM pack_cards
+             WHERE COALESCE(estimated_value,value,0) > 0
+             ORDER BY ABS(COALESCE(estimated_value,value,0) - $1)
+             LIMIT 500`,
+            [midpoint],
+          );
+          pool = fallbackResult.rows;
+        }
+        if (pool.length) {
           const consolationRoll = await computeRoll(serverSeed, `${clientSeed}:consolation`, nonce);
-          const index = Math.floor((consolationRoll / 100) * consolationResult.rows.length) % consolationResult.rows.length;
-          consolationCard = consolationResult.rows[index];
+          const index = Math.floor((consolationRoll / 100) * pool.length) % pool.length;
+          consolationCard = pool[index];
           if (targetCardIds.includes(String(consolationCard.id))) throw new Error('Consolation prize conflict. Please try again.');
         }
       }
