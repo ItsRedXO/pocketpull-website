@@ -528,8 +528,8 @@ export const MysteryPackReveal: React.FC<Props> = ({ pack, cards, originalTotal,
         </div>
       </div>
 
-      {/* Animation panel */}
-      {!isVaulted && phase !== 'result' && (
+      {/* Animation panel — keep visible during any in-flight animation even if isVaulted */}
+      {phase !== 'result' && (phase !== 'idle' || !isVaulted) && (
         <div className="relative overflow-hidden rounded-2xl border border-[#ffd700]/20 bg-[#090a12] px-4 pb-8 pt-10 text-center" style={{ minHeight: 440 }}>
           <div className="relative z-10">
 
