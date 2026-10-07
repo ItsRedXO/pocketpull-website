@@ -88,14 +88,13 @@
 
   html {
     scroll-behavior: smooth;
+    /* Fallback solid color shown if the webp image fails to load */
+    background-color: hsl(var(--background));
   }
 
   body {
-    background-color: hsl(var(--background));
-    background-image: url('/hero-bg.webp');
-    background-size: cover;
-    background-attachment: fixed;
-    background-position: center 70%;
+    /* Transparent so the ::before pseudo-element background shows through */
+    background-color: transparent;
     color: hsl(var(--foreground));
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -103,8 +102,24 @@
     overflow-x: hidden;
   }
 
+  /* Fixed background via positioned pseudo-element.
+     background-attachment:fixed is broken on iOS Safari and Android Chrome mobile.
+     position:fixed on a ::before element achieves the same visual and works everywhere. */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    background-image: url('/hero-bg.webp');
+    background-size: cover;
+    background-position: center 70%;
+  }
+
   /* Inner pages use the bright pixel art meadow/coast background */
-  body.inner-page {
+  body.inner-page::before {
     background-image: url('/inner-bg.webp');
     background-position: center center;
   }
@@ -116,21 +131,6 @@
   }
   body.inner-page .glass-card:hover {
     background: rgba(12, 18, 40, 0.82);
-  }
-
-  /* iOS doesn't support background-attachment: fixed — fall back to scroll */
-  @supports (-webkit-touch-callout: none) {
-    body {
-      background-attachment: scroll;
-    }
-  }
-
-  /* Android Chrome silently breaks background-attachment:fixed + background-size:cover.
-     Target all touch-only devices (phones/tablets) with the pointer media query. */
-  @media (hover: none) and (pointer: coarse) {
-    body {
-      background-attachment: scroll;
-    }
   }
 
   h1, h2, h3, h4, h5, .font-display {
