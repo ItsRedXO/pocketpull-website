@@ -39,7 +39,6 @@ function timeAgo(ts: number): string {
 function makeFeedFromCards(cards: any[], count = 30): PullEntry[] {
   if (!cards.length) return [];
   const out: PullEntry[] = [];
-  let t = Date.now();
   // Fisher-Yates shuffle so each page load shows a different card order
   const pool = [...cards];
   for (let i = pool.length - 1; i > 0; i--) {
@@ -48,14 +47,12 @@ function makeFeedFromCards(cards: any[], count = 30): PullEntry[] {
   }
   for (let i = 0; i < count; i++) {
     const card = pool[i % pool.length];
-    // Spread them out in time
-    t -= Math.floor(Math.random() * 45000 + 10000);
     out.push({
       id: `init-${card.id}-${i}-${Math.random().toString(36).slice(2, 7)}`,
       card: card.cardName,
       rarity: (card.rarity as Rarity) || 'common',
       image: card.cardImageUrl || '',
-      pulledAt: t
+      pulledAt: Date.now() - Math.floor(Math.random() * 30000),
     });
   }
   return out;
@@ -84,7 +81,7 @@ function blendInitialFeed(cards: any[], realPulls: any[], count = 30): PullEntry
   const real = realPulls
     .filter(p => { const key = p.cardName; if (seen.has(key)) return false; seen.add(key); return true; })
     .slice(0, 10)
-    .map(realPullToEntry);
+    .map(p => ({ ...realPullToEntry(p), pulledAt: Date.now() - Math.floor(Math.random() * 30000) }));
   const merged = simulated.slice();
   const step = Math.max(1, Math.floor(count / real.length));
   real.forEach((entry, i) => {
