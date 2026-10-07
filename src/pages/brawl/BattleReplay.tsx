@@ -293,13 +293,13 @@ function PokemonIcon({
   const hpPct = Math.max(0, Math.min(100, (mon.hp / mon.maxHp) * 100));
   const hpColor = hpPct > 50 ? '#4ade80' : hpPct > 20 ? '#facc15' : '#f87171';
   const lungeDir = mon.side === 'user' ? 1 : -1;
-  // #9 — mirror opponent to face left (toward user)
-  const facingScaleX = mon.side === 'user' ? 2.2 : -2.2;
+  // #9 — mirror opponent to face left (toward user); scale 1.5 shows more sprite within the circle
+  const facingScaleX = mon.side === 'user' ? 1.5 : -1.5;
 
   return (
     <motion.div
       className="absolute"
-      style={{ transform: 'translate(-50%, -50%)' }}
+      style={{ transform: 'translate(-50%, -50%)', zIndex: Math.round(mon.y * 10) }}
       animate={{ left: `${mon.x}%`, top: `${mon.y}%`, opacity: mon.fainted ? 0.2 : 1 }}
       transition={{ duration: tickSeconds, ease: 'linear' }}
     >
@@ -328,7 +328,7 @@ function PokemonIcon({
               src={mon.artworkUrl}
               alt={mon.name}
               className="w-full h-full object-contain"
-              style={{ objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(2.2)` }}
+              style={{ objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(1.5)` }}
             />
           ) : null}
           <AnimatePresence>
@@ -379,7 +379,7 @@ function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; ob
   React.useEffect(() => {
     if (hasSuperHit && frame.tick !== prevTickRef.current) {
       prevTickRef.current = frame.tick;
-      animateArena(arenaScope.current, { x: [0, -5, 5, -3, 3, -1, 1, 0], y: [0, -3, 2, -2, 3, -1, 1, 0] }, { duration: 0.35, ease: 'easeOut' });
+      animateArena(arenaScope.current, { x: [0, -2.5, 2.5, -1.5, 1.5, 0], y: [0, -1.5, 1, -1, 0] }, { duration: 0.26, ease: 'easeOut' });
     }
   }, [frame.tick, hasSuperHit]);
 
@@ -495,14 +495,14 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
 
   return (
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
-      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 overflow-hidden" style={{ background: '#0d0e14' }}>
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col" style={{ background: '#0d0e14', maxHeight: 'calc(100dvh - 24px)' }}>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 shrink-0">
           <div className="text-xs font-bold uppercase tracking-widest text-white/60">{tierLabel} — Trainer {matchIndex + 1}/{matches.length}</div>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X size={16} /></button>
+          <button onClick={onClose} className="text-white/40 hover:text-white p-1"><X size={16} /></button>
         </div>
 
         {!finished ? (
-          <div className="relative p-4">
+          <div className="relative p-4 overflow-y-auto">
             <div className="flex items-center justify-center gap-3 mb-1.5 flex-wrap">
               <span className="text-[10px] uppercase tracking-widest text-white/30">Round {gameIndex + 1}/{match.games.length}</span>
               <span className="text-sm font-bold tabular-nums"><span className="text-[#00c8ff]">{scoreUser}</span><span className="text-white/25 mx-0.5">–</span><span className="text-[#f87171]">{scoreOpponent}</span></span>
@@ -540,26 +540,28 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.04 }}
                     transition={{ duration: 0.25 }}
                   >
-                    <div className="flex items-center gap-8">
-                      <div className="text-center space-y-1">
+                    <div className="flex items-center gap-4 px-2 w-full">
+                      {/* user team — 2-col grid so 6 pokemon never overflow */}
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 flex-1 justify-items-center">
                         {frames[0].pokemon.filter(p => p.side === 'user').map(p => (
                           <div key={p.id} className="flex flex-col items-center gap-0.5">
-                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-14 h-14 object-contain" style={{ objectPosition: 'top', transform: 'scale(1.4)', transformOrigin: 'top center' }} />}
-                            <span className="text-[10px] font-bold text-[#00c8ff] uppercase tracking-wider">{p.name}</span>
+                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-9 h-9 object-contain" style={{ objectPosition: 'top' }} />}
+                            <span className="text-[8px] font-bold text-[#00c8ff] uppercase tracking-tight leading-none">{p.name}</span>
                           </div>
                         ))}
                       </div>
                       <motion.div
-                        className="font-display text-5xl text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.6)]"
+                        className="font-display text-4xl text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] shrink-0"
                         initial={{ scale: 0 }} animate={{ scale: [0, 1.4, 1] }} transition={{ delay: 0.2, duration: 0.45 }}
                       >
                         VS
                       </motion.div>
-                      <div className="text-center space-y-1">
+                      {/* opponent team */}
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 flex-1 justify-items-center">
                         {frames[0].pokemon.filter(p => p.side !== 'user').map(p => (
                           <div key={p.id} className="flex flex-col items-center gap-0.5">
-                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-14 h-14 object-contain" style={{ objectPosition: 'top', transform: 'scale(1.4)', transformOrigin: 'top center' }} />}
-                            <span className="text-[10px] font-bold text-[#f87171] uppercase tracking-wider">{p.name}</span>
+                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-9 h-9 object-contain" style={{ objectPosition: 'top' }} />}
+                            <span className="text-[8px] font-bold text-[#f87171] uppercase tracking-tight leading-none">{p.name}</span>
                           </div>
                         ))}
                       </div>
@@ -627,9 +629,9 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                 </div>
               </div>
               {!atGameEnd ? (
-                <button onClick={handleSkip} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0"><FastForward size={13} /></button>
+                <button onClick={handleSkip} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0"><FastForward size={13} /></button>
               ) : (
-                <button onClick={handleNextRound} className="px-3 h-8 rounded-full bg-[#00c8ff] text-black text-[11px] font-bold uppercase shrink-0">
+                <button onClick={handleNextRound} className="px-4 h-10 min-w-[110px] rounded-full bg-[#00c8ff] text-black text-[12px] font-bold uppercase shrink-0 active:scale-95 transition-transform">
                   {!isLastGameOfMatch ? 'Next Round' : matchIndex < matches.length - 1 ? 'Next Trainer' : 'See Result'}
                 </button>
               )}
