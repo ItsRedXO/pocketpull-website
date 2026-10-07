@@ -26,13 +26,11 @@ const RARITY_CFG: Record<Rarity, {
   god:      { label: 'GOD PULL',    shortLabel: '★ GOD',   border: 'rgba(255,0,150,0.65)',   glow: 'rgba(155,92,255,0.4)',   text: '#ff55cc' },
 };
 
-// ─── Time-ago ────────────────────────────────────────────────────────────────
-function timeAgo(ts: number): string {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 5)  return 'just now';
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
+// ─── Elapsed counter ─────────────────────────────────────────────────────────
+function elapsedLabel(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 1) return 'now';
+  return `${s}s ago`;
 }
 
 // ─── Feed generator ──────────────────────────────────────────────────────
@@ -52,7 +50,7 @@ function makeFeedFromCards(cards: any[], count = 30): PullEntry[] {
       card: card.cardName,
       rarity: (card.rarity as Rarity) || 'common',
       image: card.cardImageUrl || '',
-      pulledAt: Date.now() - Math.floor(Math.random() * 30000),
+      pulledAt: Date.now(),
     });
   }
   return out;
@@ -81,7 +79,7 @@ function blendInitialFeed(cards: any[], realPulls: any[], count = 30): PullEntry
   const real = realPulls
     .filter(p => { const key = p.cardName; if (seen.has(key)) return false; seen.add(key); return true; })
     .slice(0, 10)
-    .map(p => ({ ...realPullToEntry(p), pulledAt: Date.now() - Math.floor(Math.random() * 30000) }));
+    .map(p => ({ ...realPullToEntry(p), pulledAt: Date.now() }));
   const merged = simulated.slice();
   const step = Math.max(1, Math.floor(count / real.length));
   real.forEach((entry, i) => {
@@ -98,7 +96,7 @@ const SECTION_H    = 192;   // px
 const FEED_SIZE    = 30;    // Stable number of items
 
 // ─── Single tile ─────────────────────────────────────────────────────────────
-const PullTile: React.FC<{ entry: PullEntry; isNew?: boolean }> = React.memo(({ entry, isNew = false }) => {
+const PullTile: React.FC<{ entry: PullEntry; now: number; isNew?: boolean }> = React.memo(({ entry, now, isNew = false }) => {
   const cfg  = RARITY_CFG[entry.rarity];
   const isGod = entry.rarity === 'god';
 
@@ -191,7 +189,7 @@ const PullTile: React.FC<{ entry: PullEntry; isNew?: boolean }> = React.memo(({ 
         className="text-center mt-0.5"
         style={{ fontSize: '9px', color: '#4b5563' }}
       >
-        {timeAgo(entry.pulledAt)}
+        {elapsedLabel(now - entry.pulledAt)}
       </p>
     </motion.div>
   );
@@ -203,6 +201,12 @@ export const LiveTicker: React.FC = React.memo(() => {
   const { data: realPulls = [] } = useRecentPulls(FEED_SIZE);
   const [feed, setFeed] = useState<PullEntry[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
   const trackRef  = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<any[]>([]);
   const realPullsRef = useRef<any[]>([]);
@@ -375,7 +379,8 @@ export const LiveTicker: React.FC = React.memo(() => {
             <PullTile
               key={`c${Math.floor(i / FEED_SIZE)}-s${i % FEED_SIZE}`}
               entry={entry}
-              isNew={i < FEED_SIZE && entry.pulledAt > Date.now() - 15000}
+              now={now}
+              isNew={i < FEED_SIZE && entry.pulledAt > now - 15000}
             />
           ))}
         </div>
