@@ -125,6 +125,14 @@
     }
   }
 
+  /* Android Chrome silently breaks background-attachment:fixed + background-size:cover.
+     Target all touch-only devices (phones/tablets) with the pointer media query. */
+  @media (hover: none) and (pointer: coarse) {
+    body {
+      background-attachment: scroll;
+    }
+  }
+
   h1, h2, h3, h4, h5, .font-display {
     font-family: 'Karmatic Arcade', monospace;
     font-weight: normal;
