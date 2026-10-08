@@ -5,11 +5,7 @@ import {
 } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
-
-function adminHeaders(): Record<string, string> {
-  const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
-  return adminSecret ? { 'X-Admin-Secret': adminSecret } : {};
-}
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 interface OutboundEmail {
   id: string;
@@ -123,14 +119,18 @@ function ComposeModal({ onClose, onSent, showToast }: { onClose: () => void; onS
 
   useEffect(() => {
     if (mode !== 'broadcast' || subCount !== null || subCountError) return;
-    fetch(`${BACKEND_BASE}/admin/emails/subscribers`, { headers: adminHeaders() })
-      .then(async r => {
+    (async () => {
+      try {
+        const headers = await getAdminAuthHeaders();
+        const r = await fetch(`${BACKEND_BASE}/admin/emails/subscribers`, { headers });
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d?.error || `Failed to load (${r.status})`);
         if (typeof d?.subscribed === 'number') setSubCount(d.subscribed);
         else throw new Error('Unexpected response from server');
-      })
-      .catch((e: any) => setSubCountError(e?.message || 'Could not load subscriber count'));
+      } catch (e: any) {
+        setSubCountError(e?.message || 'Could not load subscriber count');
+      }
+    })();
   }, [mode, subCount, subCountError]);
 
   const send = async () => {
@@ -153,9 +153,10 @@ function ComposeModal({ onClose, onSent, showToast }: { onClose: () => void; onS
         ? { subject: subject.trim(), message }
         : { to: to.trim(), subject: subject.trim(), message };
 
+      const authHeaders = await getAdminAuthHeaders();
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...adminHeaders() },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -261,7 +262,7 @@ function SubscribersView({ showToast }: { showToast?: (msg: string, ok?: boolean
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${BACKEND_BASE}/admin/emails/subscribers`, { headers: adminHeaders() });
+      const res = await fetch(`${BACKEND_BASE}/admin/emails/subscribers`, { headers: await getAdminAuthHeaders() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `Failed to load (${res.status})`);
       setSubscribers(Array.isArray(data.subscribers) ? data.subscribers : []);
@@ -277,7 +278,7 @@ function SubscribersView({ showToast }: { showToast?: (msg: string, ok?: boolean
     try {
       const res = await fetch(`${BACKEND_BASE}/admin/emails/subscribers/${userId}/resubscribe`, {
         method: 'POST',
-        headers: adminHeaders(),
+        headers: await getAdminAuthHeaders(),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Failed to resubscribe');
