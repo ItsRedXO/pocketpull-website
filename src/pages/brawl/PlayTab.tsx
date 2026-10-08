@@ -142,67 +142,36 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
 
 const PICK_TIME = 15;
 
-function PokemonCard({ mon, pickOrder, onClick, disabled }: {
-  mon: TeamPreviewMon; pickOrder: number; onClick?: () => void; disabled?: boolean;
-}) {
-  const isPicked = pickOrder >= 0;
-  return (
-    <motion.div
-      whileHover={!disabled && onClick ? { scale: 1.06 } : undefined}
-      whileTap={!disabled && onClick ? { scale: 0.94 } : undefined}
-      onClick={onClick}
-      className="relative flex flex-col items-center gap-0.5 cursor-pointer select-none"
-      style={{ cursor: disabled ? 'default' : onClick ? 'pointer' : 'default' }}
-    >
-      <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center"
-        style={{
-          border: `2px solid ${isPicked ? 'rgba(0,200,255,0.8)' : 'rgba(255,255,255,0.12)'}`,
-          background: isPicked ? 'rgba(0,200,255,0.12)' : 'rgba(255,255,255,0.04)',
-          transition: 'border-color 0.15s, background 0.15s',
-        }}>
-        {mon.artworkUrl
-          ? <img src={mon.artworkUrl} alt={mon.name} className="w-10 h-10 sm:w-12 sm:h-12 object-contain" style={{ imageRendering: 'pixelated' }} />
-          : <div className="w-8 h-8 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />}
-        {isPicked && (
-          <motion.div
-            initial={{ scale: 0 }} animate={{ scale: 1 }}
-            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
-            style={{ background: '#00c8ff', color: '#000' }}
-          >
-            {pickOrder + 1}
-          </motion.div>
-        )}
-      </div>
-      <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-tight text-white/80 leading-tight text-center max-w-[52px] sm:max-w-[60px] truncate">{mon.name}</span>
-      <span className="text-[7px] sm:text-[8px] text-white/30">{mon.primaryType}</span>
-    </motion.div>
-  );
-}
-
-function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, tierId, onConfirm, onClose }: {
+function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, onClose }: {
   userTeam: TeamPreviewMon[]; opponentTeam: TeamPreviewMon[]; opponentSpeciesIds: number[];
   tierId: string; onConfirm: (pickedIds: number[], opponentIds: number[]) => void; onClose: () => void;
 }) {
   const [picked, setPicked] = useState<number[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(PICK_TIME);
+  const [revealing, setRevealing] = useState(false);
   const confirmedRef = useRef(false);
+  const pickedRef = useRef<number[]>([]);
+  useEffect(() => { pickedRef.current = picked; }, [picked]);
 
-  const confirm = (ids: number[]) => {
+  const startReveal = (ids: number[]) => {
     if (confirmedRef.current) return;
     confirmedRef.current = true;
     const remaining = userTeam.map(m => m.speciesId).filter(id => !ids.includes(id));
     const needed = 3 - ids.length;
     const finalPick = [...ids, ...remaining.slice(0, needed)];
-    onConfirm(finalPick, opponentSpeciesIds);
+    setRevealing(true);
+    setTimeout(() => onConfirm(finalPick, opponentSpeciesIds), 1800);
   };
 
   useEffect(() => {
-    if (secondsLeft <= 0) { confirm(picked); return; }
+    if (revealing) return;
+    if (secondsLeft <= 0) { startReveal(pickedRef.current); return; }
     const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [secondsLeft]);
+  }, [secondsLeft, revealing]);
 
   const toggle = (id: number) => {
+    if (revealing) return;
     setPicked(prev => {
       if (prev.includes(id)) return prev.filter(x => x !== id);
       if (prev.length >= 3) return prev;
@@ -213,111 +182,191 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, tierId, onC
   const timerPct = (secondsLeft / PICK_TIME) * 100;
   const timerColor = secondsLeft > 8 ? '#00c8ff' : secondsLeft > 4 ? '#facc15' : '#f87171';
 
+  // First 3 of opponentSpeciesIds = game 1 picks, revealed when locking in
+  const game1Opponents = opponentSpeciesIds.slice(0, 3)
+    .map(id => opponentTeam.find(m => m.speciesId === id))
+    .filter(Boolean) as TeamPreviewMon[];
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3"
       style={{ background: 'rgba(10,11,18,0.97)' }}
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-        className="w-full max-w-2xl rounded-2xl border border-white/10 flex flex-col"
+        className="w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col"
         style={{ background: '#0d0e14', maxHeight: 'calc(100dvh - 24px)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="font-display text-sm uppercase tracking-widest text-white">Team Preview</span>
-            <span className="text-[10px] text-white/30 font-sans normal-case tracking-normal">— pick 3 to send first</span>
+            <span className="font-display text-xs uppercase tracking-widest text-white/80">3v3 Draft</span>
+            <span className="text-[9px] text-white/30 tracking-wider">— Team Preview</span>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={16} /></button>
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] text-white/30 uppercase tracking-widest hidden sm:block">Pick 3 to send first</span>
+            <motion.span
+              key={secondsLeft}
+              initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+              className="text-sm font-mono font-bold tabular-nums"
+              style={{ color: timerColor }}
+            >{secondsLeft}s</motion.span>
+            <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-0.5"><X size={15} /></button>
+          </div>
         </div>
 
-        {/* Teams */}
-        <div className="flex items-start gap-2 px-3 py-4 overflow-y-auto flex-1 min-h-0">
-          {/* User team (clickable) */}
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#00c8ff] text-center mb-3">Your Team</p>
-            <div className="grid grid-cols-3 gap-2 justify-items-center">
-              {userTeam.map(mon => (
-                <PokemonCard
-                  key={mon.speciesId}
-                  mon={mon}
-                  pickOrder={picked.indexOf(mon.speciesId)}
-                  onClick={() => toggle(mon.speciesId)}
-                />
-              ))}
-            </div>
-          </div>
+        {/* Timer bar */}
+        <div className="relative h-0.5 shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }}>
+          <motion.div
+            className="absolute left-0 top-0 h-full"
+            style={{ background: timerColor }}
+            animate={{ width: `${timerPct}%` }}
+            transition={{ duration: 0.9, ease: 'linear' }}
+          />
+        </div>
 
-          {/* VS + timer column */}
-          <div className="flex flex-col items-center justify-start pt-6 shrink-0 gap-3 px-1">
-            <motion.div
-              className="font-display text-2xl sm:text-3xl text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]"
-              animate={{ scale: [1, 1.08, 1] }} transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-            >
-              VS
-            </motion.div>
-            {/* Timer */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="relative w-1 h-20 sm:h-24 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+        {/* Main VS layout — same flex structure as BattleReplay VS intro */}
+        <div className="relative flex-1 overflow-hidden flex items-center gap-2 sm:gap-4 px-2 sm:px-3"
+          style={{ background: 'radial-gradient(130% 110% at 50% 50%, rgba(104,144,240,0.12) 0%, rgba(13,14,20,0.98) 65%)', minHeight: 260 }}>
+
+          {/* Subtle center divider */}
+          <div className="absolute inset-y-6 left-1/2 w-px pointer-events-none" style={{ background: 'rgba(255,255,255,0.06)' }} />
+
+          {/* ── USER PORTRAIT GRID (2-col, same as VS intro) — clickable ── */}
+          <div className="grid grid-cols-2 gap-x-1.5 gap-y-2 flex-1 justify-items-center content-center py-3">
+            {userTeam.map(mon => {
+              const pickOrder = picked.indexOf(mon.speciesId);
+              const isPicked = pickOrder >= 0;
+              return (
                 <motion.div
-                  className="absolute bottom-0 left-0 w-full rounded-full"
-                  style={{ height: `${timerPct}%`, background: timerColor }}
-                  animate={{ height: `${timerPct}%` }}
-                  transition={{ duration: 0.9, ease: 'linear' }}
-                />
-              </div>
-              <motion.span
-                key={secondsLeft}
-                initial={{ scale: 1.3 }} animate={{ scale: 1 }}
-                className="text-[11px] font-mono font-bold"
-                style={{ color: timerColor }}
-              >
-                {secondsLeft}s
-              </motion.span>
-            </div>
+                  key={mon.speciesId}
+                  whileHover={!revealing ? { scale: 1.08 } : undefined}
+                  whileTap={!revealing ? { scale: 0.92 } : undefined}
+                  onClick={() => toggle(mon.speciesId)}
+                  className="relative flex flex-col items-center gap-0.5 cursor-pointer select-none"
+                >
+                  <div className="relative w-9 h-9 rounded-md flex items-center justify-center"
+                    style={{
+                      border: `2px solid ${isPicked ? '#00c8ff' : 'rgba(0,200,255,0.3)'}`,
+                      background: isPicked ? 'rgba(0,200,255,0.15)' : 'rgba(255,255,255,0.04)',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}>
+                    {mon.artworkUrl
+                      ? <img src={mon.artworkUrl} alt={mon.name} className="w-7 h-7 object-contain" style={{ imageRendering: 'pixelated', objectPosition: 'top' }} />
+                      : <div className="w-6 h-6 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />}
+                    {isPicked && (
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center font-black"
+                        style={{ background: '#00c8ff', color: '#000', fontSize: 7 }}>
+                        {pickOrder + 1}
+                      </motion.div>
+                    )}
+                  </div>
+                  <span className="text-[7px] font-bold text-[#00c8ff] uppercase tracking-tight leading-none truncate max-w-[40px] text-center">{mon.name}</span>
+                </motion.div>
+              );
+            })}
           </div>
 
-          {/* Opponent team (display only) */}
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#f87171] text-center mb-3">Opponent</p>
-            <div className="grid grid-cols-3 gap-2 justify-items-center">
-              {opponentTeam.map(mon => (
-                <PokemonCard key={mon.speciesId} mon={mon} pickOrder={-1} disabled />
-              ))}
-            </div>
+          {/* ── PICK SLOTS (3) — fills as user picks, positioned near VS ── */}
+          <div className="flex flex-col gap-2 shrink-0">
+            {[0, 1, 2].map(i => {
+              const pickedId = picked[i];
+              const mon = pickedId ? userTeam.find(m => m.speciesId === pickedId) : undefined;
+              return (
+                <div key={i} className="w-10 h-10 rounded-md flex items-center justify-center"
+                  style={{
+                    border: `2px ${mon ? 'solid' : 'dashed'} ${mon ? '#00c8ff' : 'rgba(0,200,255,0.22)'}`,
+                    background: mon ? 'rgba(0,200,255,0.1)' : 'rgba(255,255,255,0.02)',
+                  }}>
+                  <AnimatePresence mode="wait">
+                    {mon ? (
+                      <motion.div key={mon.speciesId} initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 22 }}>
+                        {mon.artworkUrl
+                          ? <img src={mon.artworkUrl} alt={mon.name} className="w-8 h-8 object-contain" style={{ imageRendering: 'pixelated' }} />
+                          : <div className="w-7 h-7 rounded" style={{ background: 'rgba(0,200,255,0.2)' }} />}
+                      </motion.div>
+                    ) : (
+                      <motion.span key="empty" className="font-black" style={{ fontSize: 10, color: 'rgba(255,255,255,0.12)' }}>{i + 1}</motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── VS ── */}
+          <motion.div
+            className="font-display text-3xl sm:text-4xl text-white shrink-0"
+            style={{ textShadow: '0 0 24px rgba(255,255,255,0.55)' }}
+            initial={{ scale: 0 }} animate={{ scale: [0, 1.35, 1] }} transition={{ delay: 0.15, duration: 0.4 }}
+          >VS</motion.div>
+
+          {/* ── MYSTERY SQUARES (3) — face-down, flip to reveal on lock-in ── */}
+          <div className="flex flex-col gap-2 shrink-0">
+            {[0, 1, 2].map(i => {
+              const revealMon = game1Opponents[i];
+              return (
+                <div key={i} className="w-10 h-10 shrink-0" style={{ perspective: 240 }}>
+                  <motion.div
+                    animate={{ rotateY: revealing ? 180 : 0 }}
+                    transition={{ duration: 0.42, delay: revealing ? i * 0.16 : 0, ease: 'easeInOut' }}
+                    style={{ transformStyle: 'preserve-3d', width: '100%', height: '100%', position: 'relative' }}
+                  >
+                    {/* Front: mystery ? */}
+                    <div className="absolute inset-0 rounded-md flex items-center justify-center"
+                      style={{ border: '2px dashed rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.04)', backfaceVisibility: 'hidden' }}>
+                      <span className="font-black" style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)' }}>?</span>
+                    </div>
+                    {/* Back: revealed Pokemon */}
+                    <div className="absolute inset-0 rounded-md flex items-center justify-center"
+                      style={{ border: '2px solid rgba(248,113,113,0.65)', background: 'rgba(248,113,113,0.1)', backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                      {revealMon?.artworkUrl
+                        ? <img src={revealMon.artworkUrl} alt={revealMon.name} className="w-8 h-8 object-contain" style={{ imageRendering: 'pixelated' }} />
+                        : <div className="w-7 h-7 rounded" style={{ background: 'rgba(248,113,113,0.15)' }} />}
+                    </div>
+                  </motion.div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── OPPONENT PORTRAIT GRID (2-col, same as VS intro) — display only ── */}
+          <div className="grid grid-cols-2 gap-x-1.5 gap-y-2 flex-1 justify-items-center content-center py-3">
+            {opponentTeam.map(mon => (
+              <div key={mon.speciesId} className="flex flex-col items-center gap-0.5">
+                <div className="w-9 h-9 rounded-md flex items-center justify-center"
+                  style={{ border: '2px solid rgba(248,113,113,0.4)', background: 'rgba(248,113,113,0.06)' }}>
+                  {mon.artworkUrl
+                    ? <img src={mon.artworkUrl} alt={mon.name} className="w-7 h-7 object-contain" style={{ imageRendering: 'pixelated', objectPosition: 'top' }} />
+                    : <div className="w-6 h-6 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />}
+                </div>
+                <span className="text-[7px] font-bold text-[#f87171] uppercase tracking-tight leading-none truncate max-w-[40px] text-center">{mon.name}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-4 pb-4 pt-2 shrink-0 border-t border-white/5">
-          {/* Timer bar */}
-          <div className="relative h-1 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(255,255,255,0.07)' }}>
-            <motion.div
-              className="absolute left-0 top-0 h-full rounded-full"
-              style={{ width: `${timerPct}%`, background: timerColor }}
-              animate={{ width: `${timerPct}%` }}
-              transition={{ duration: 0.9, ease: 'linear' }}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <p className="flex-1 text-[11px] text-white/40">
-              {picked.length === 0 ? 'Tap your Pokemon to pick' : picked.length < 3 ? `${picked.length}/3 selected` : '3/3 — ready to battle!'}
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-              onClick={() => confirm(picked)}
-              disabled={picked.length === 0}
-              className="flex items-center gap-1.5 px-5 h-9 rounded-lg text-xs font-bold uppercase tracking-wider"
-              style={picked.length === 0
-                ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }
-                : { background: 'linear-gradient(90deg, #00c8ff, #9b5cff)', color: '#000' }}
-            >
-              <Check size={13} /> Lock In
-            </motion.button>
-          </div>
+        <div className="flex items-center gap-3 px-4 py-3 border-t border-white/5 shrink-0">
+          <p className="flex-1 text-[11px] text-white/40">
+            {revealing ? 'Revealing picks…' : picked.length === 0 ? 'Tap your Pokemon to pick them' : `${picked.length}/3 selected`}
+          </p>
+          <motion.button
+            whileHover={!revealing && picked.length > 0 ? { scale: 1.04 } : undefined}
+            whileTap={!revealing && picked.length > 0 ? { scale: 0.96 } : undefined}
+            onClick={() => startReveal(pickedRef.current)}
+            disabled={picked.length === 0 || revealing}
+            className="flex items-center gap-1.5 px-5 h-9 rounded-lg text-xs font-bold uppercase tracking-wider shrink-0"
+            style={picked.length === 0 || revealing
+              ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }
+              : { background: 'linear-gradient(90deg, #00c8ff, #9b5cff)', color: '#000' }}
+          >
+            <Check size={13} /> Lock In
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>

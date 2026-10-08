@@ -311,11 +311,14 @@ app.get('/brawl/battle/3v3/setup', async c => {
   );
   const opponentSpeciesIds = drafted.map(d => d.id);
   const opponentRows = await getSpeciesByIds(opponentSpeciesIds);
-  const opponentTeam = opponentRows.map(row => ({
-    speciesId: row.id, name: row.name, primaryType: (row as any).primary_type,
-    secondaryType: (row as any).secondary_type ?? null, artworkUrl: (row as any).artwork_url ?? null,
-    overallRating: (row as any).overall_rating ?? 0, starLevel: 0,
-  }));
+  const opponentTeam = opponentRows.map(row => {
+    const bs = speciesRowToBattleSpecies(row);
+    return {
+      speciesId: bs.speciesId, name: bs.name, primaryType: bs.primaryType,
+      secondaryType: bs.secondaryType ?? null, artworkUrl: bs.artworkUrl ?? null,
+      overallRating: (row as any).overall_rating ?? 0, starLevel: 0,
+    };
+  });
 
   return c.json({ userTeam, opponentTeam, opponentSpeciesIds });
 });
@@ -430,10 +433,10 @@ app.post('/brawl/battle/3v3', async c => {
       games.push({ result: g3Result, frames: g3.frames, obstacles: g3.obstacles, maxTicks: g3.maxTicks });
     }
 
-    const opponentSpeciesIds = [...drafted1.map(d => d.id), ...drafted2.map(d => d.id)];
+    const matchOppIds = [...opp1Ids, ...opp2Ids];
     const result: 'win' | 'loss' = scoreUser > scoreOpponent ? 'win' : 'loss';
-    await addMatch(run.id, i, { opponentSpeciesIds }, result, { games, scoreUser, scoreOpponent });
-    matches.push({ index: i, result, opponentSpeciesIds, scoreUser, scoreOpponent, games });
+    await addMatch(run.id, i, { opponentSpeciesIds: matchOppIds }, result, { games, scoreUser, scoreOpponent });
+    matches.push({ index: i, result, opponentSpeciesIds: matchOppIds, scoreUser, scoreOpponent, games });
     ratingDelta += result === 'win' ? tierRatingDelta.win : tierRatingDelta.loss;
     if (result === 'loss') break;
     matchesWon++;
