@@ -466,7 +466,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
         {isLoading ? (
           <div className="flex items-center justify-center py-10"><Loader2 size={20} className="animate-spin text-white/30" /></div>
         ) : codes.length === 0 ? (
-          <div className="text-white/30 text-xs py-10 text-center">No promo codes yet â€” create one above.</div>
+          <div className=”text-white/30 text-xs py-10 text-center”>No promo codes yet — create one above.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[12px]">

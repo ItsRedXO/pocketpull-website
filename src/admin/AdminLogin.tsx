@@ -45,7 +45,7 @@ export const AdminLogin: React.FC<Props> = ({ onLogin, error }) => {
             <Shield size={28} className="text-[#9b5cff]" />
           </div>
           <h1 className="text-2xl font-sans font-bold text-white tracking-wide uppercase">Admin Portal</h1>
-          <p className="text-[12px] text-white/30 mt-1 uppercase tracking-[0.2em]">PocketPull TCG â€” Restricted Access</p>
+          <p className=”text-[12px] text-white/30 mt-1 uppercase tracking-[0.2em]”>PocketPull TCG — Restricted Access</p>
         </div>
 
         {/* Form */}
@@ -118,7 +118,7 @@ export const AdminLogin: React.FC<Props> = ({ onLogin, error }) => {
         </form>
 
         <p className="text-center text-[11px] text-white/15 mt-6">
-          ðŸ”’ Secure admin access only
+          🔒 Secure admin access only
         </p>
       </motion.div>
     </div>

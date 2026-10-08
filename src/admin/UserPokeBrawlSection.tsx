@@ -398,7 +398,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
                     </div>
                     <div className="text-[9px] font-bold text-white mt-1 truncate w-full text-center">{entry.item.name}</div>
                     <span className="text-[7px] px-1 py-0.5 rounded-full uppercase font-bold mt-0.5 capitalize" style={{ background: entry.item.rarity === 'rare' ? 'rgba(250,204,21,0.2)' : entry.item.rarity === 'uncommon' ? 'rgba(74,222,128,0.2)' : 'rgba(136,146,164,0.2)', color: entry.item.rarity === 'rare' ? '#facc15' : entry.item.rarity === 'uncommon' ? '#4ade80' : '#8892a4' }}>{entry.item.rarity}</span>
-                    <div className="text-[8px] text-[#00c8ff] font-bold mt-0.5">Ã—{entry.quantity}</div>
+                    <div className="text-[8px] text-[#00c8ff] font-bold mt-0.5">×{entry.quantity}</div>
                   </div>
                 ))}
               </div>
