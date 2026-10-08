@@ -41,7 +41,7 @@ const emptyForm = {
 
 // â"€â"€ Deal Settings â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function DealsSection({ showToast }: Props) {
-  const { data, isLoading, refetch } = useQuery({ queryKey: ['admin-deal-settings'], queryFn: fetchDealSettings, staleTime: 0 });
+  const { data, isLoading, error, refetch } = useQuery({ queryKey: ['admin-deal-settings'], queryFn: fetchDealSettings, staleTime: 0 });
   const [draft, setDraft] = useState<DealSettings | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -66,7 +66,8 @@ function DealsSection({ showToast }: Props) {
     } finally { setSaving(false); }
   };
 
-  if (isLoading || !draft) return <div className="text-white/30 text-xs py-8 text-center">Loading deal settings...</div>;
+  if (isLoading) return <div className="text-white/30 text-xs py-8 text-center">Loading deal settings...</div>;
+  if (error || !draft) return <div className="text-red-400 text-xs py-8 text-center">{(error as Error)?.message || 'Failed to load deal settings'}</div>;
 
   return (
     <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(13,14,20,0.9)' }}>

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Search, RefreshCw, Filter, X, ChevronLeft, ChevronRight, Shield, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 interface LogEntry {
   id: string;
@@ -28,22 +28,9 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
   admin: { label: 'Admin', color: '#f87171' },
 };
 
-function authHeaders() {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  try {
-    const secret = localStorage.getItem('pocketpull_admin_pass');
-    if (secret) headers['X-Admin-Secret'] = secret;
-  } catch {}
-  return headers;
-}
-
 async function authHeadersWithToken() {
-  const headers = authHeaders();
-  try {
-    const token = await blink.auth.getValidToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-  } catch {}
-  return headers;
+  const h = await getAdminAuthHeaders();
+  return { 'Content-Type': 'application/json', ...h };
 }
 
 function formatDate(value: string) {

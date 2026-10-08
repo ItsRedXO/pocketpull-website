@@ -1,19 +1,12 @@
 import React, { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
-import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
-
-function headers() {
-  const out: Record<string, string> = { 'Content-Type': 'application/json' };
-  try { const secret = localStorage.getItem('pocketpull_admin_pass'); if (secret) out['X-Admin-Secret'] = secret; } catch {}
-  return out;
-}
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 async function getStats() {
-  const h = headers();
-  try { const token = await blink.auth.getValidToken(); if (token) h.Authorization = `Bearer ${token}`; } catch {}
-  const response = await fetch(`${BACKEND_BASE}/admin/stats`, { headers: h });
+  const h = await getAdminAuthHeaders();
+  const response = await fetch(`${BACKEND_BASE}/admin/stats`, { headers: { 'Content-Type': 'application/json', ...h } });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload?.error || `Stats request failed (${response.status})`);
   return payload;
