@@ -386,7 +386,7 @@ function Arena({ frame, obstacles, tickSeconds, theme }: { frame: ArenaFrame; ob
   }, [frame.tick, hasSuperHit]);
 
   return (
-    <div ref={arenaScope} className="relative w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border" style={{ background: theme.background, borderColor: `${theme.vignette}30`, boxShadow: `inset 0 0 60px ${theme.vignette}18` }}>
+    <div ref={arenaScope} className="relative isolate w-full h-[340px] sm:h-[400px] rounded-xl overflow-hidden border" style={{ background: theme.background, borderColor: `${theme.vignette}30`, boxShadow: `inset 0 0 60px ${theme.vignette}18` }}>
       <ArenaAmbience theme={theme} />
       <div className="absolute inset-y-0 left-1/2 w-px" style={{ background: `${theme.vignette}25` }} />
       {obstacles.map((o, i) => (
