@@ -22,11 +22,11 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
 }) => {
   return (
     <div
-      className="flex gap-1 mb-6 rounded-xl p-1 backdrop-blur-sm"
+      className="flex gap-1 mb-6 rounded-xl p-1 backdrop-blur-md"
       style={{
-        background: 'rgba(255,255,255,0.07)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 16px rgba(0,0,0,0.25)',
+        background: 'rgba(5,8,20,0.72)',
+        border: '1px solid rgba(255,255,255,0.18)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 6px 24px rgba(0,0,0,0.5)',
       }}
     >
       {tabs.map(({ id, label, icon: Icon }) => (
