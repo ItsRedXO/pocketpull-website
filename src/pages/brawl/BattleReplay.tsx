@@ -311,8 +311,7 @@ function PokemonIcon({
       >
         {/* faint tilt + lunge + #2 animated grayscale */}
         <motion.div
-          className="relative w-11 h-11 rounded-full overflow-hidden flex items-center justify-center"
-          style={{ background: '#0009', border: `2px solid ${accent}`, boxShadow: mon.fainted ? 'none' : `0 0 10px ${accent}60` }}
+          className="relative w-12 h-12 flex items-center justify-center"
           initial={{ filter: 'grayscale(0) brightness(1)', x: 0 }}
           animate={
             mon.fainted
@@ -327,9 +326,9 @@ function PokemonIcon({
             <img
               src={mon.spriteUrl || mon.artworkUrl!}
               alt={mon.name}
-              className="w-full h-full object-contain"
+              className="w-12 h-12 object-contain"
               style={mon.spriteUrl
-                ? { imageRendering: 'pixelated', transform: `scaleX(${mon.side === 'user' ? 1 : -1}) scale(1.8)` }
+                ? { imageRendering: 'pixelated', transform: `scaleX(${mon.side === 'user' ? 1 : -1}) scale(2.2)` }
                 : { objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(1.5)` }
               }
             />
@@ -548,7 +547,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                       <div className="grid grid-cols-2 gap-x-2 gap-y-1 flex-1 justify-items-center">
                         {frames[0].pokemon.filter(p => p.side === 'user').map(p => (
                           <div key={p.id} className="flex flex-col items-center gap-0.5">
-                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-9 h-9 object-contain" style={{ objectPosition: 'top' }} />}
+                            {(p.spriteUrl || p.artworkUrl) && <img src={p.spriteUrl || p.artworkUrl!} alt={p.name} className="w-9 h-9 object-contain" style={p.spriteUrl ? { imageRendering: 'pixelated' } : { objectPosition: 'top' }} />}
                             <span className="text-[8px] font-bold text-[#00c8ff] uppercase tracking-tight leading-none">{p.name}</span>
                           </div>
                         ))}
@@ -563,7 +562,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                       <div className="grid grid-cols-2 gap-x-2 gap-y-1 flex-1 justify-items-center">
                         {frames[0].pokemon.filter(p => p.side !== 'user').map(p => (
                           <div key={p.id} className="flex flex-col items-center gap-0.5">
-                            {p.artworkUrl && <img src={p.artworkUrl} alt={p.name} className="w-9 h-9 object-contain" style={{ objectPosition: 'top' }} />}
+                            {(p.spriteUrl || p.artworkUrl) && <img src={p.spriteUrl || p.artworkUrl!} alt={p.name} className="w-9 h-9 object-contain" style={p.spriteUrl ? { imageRendering: 'pixelated', transform: 'scaleX(-1)' } : { objectPosition: 'top' }} />}
                             <span className="text-[8px] font-bold text-[#f87171] uppercase tracking-tight leading-none">{p.name}</span>
                           </div>
                         ))}
