@@ -272,10 +272,13 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
               const isPicked = pickOrder >= 0;
               const y = colY(i, userTeam.length);
               return (
-                <motion.div
+                <div
                   key={mon.speciesId}
-                  className="absolute cursor-pointer select-none"
+                  className="absolute"
                   style={{ left: '12%', top: `${y}%`, transform: 'translate(-50%, -50%)', zIndex: Math.round(y * 10) }}
+                >
+                <motion.div
+                  className="cursor-pointer select-none"
                   whileHover={!revealing ? { scale: 1.08 } : undefined}
                   whileTap={!revealing ? { scale: 0.92 } : undefined}
                   onClick={() => toggle(mon.speciesId)}
@@ -306,6 +309,7 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
                     </div>
                   </div>
                 </motion.div>
+                </div>
               );
             })}
 
