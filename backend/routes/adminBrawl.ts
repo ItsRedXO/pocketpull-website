@@ -16,6 +16,7 @@ import {
 import {
   adminListChallengeTemplates, adminCreateChallengeTemplate, adminUpdateChallengeTemplate, adminDeleteChallengeTemplate,
 } from '../repositories/brawlChallenges';
+import { writeLog } from './logs';
 
 const app = new Hono();
 
@@ -32,6 +33,11 @@ async function requireAdmin(c: any): Promise<string> {
   return userId;
 }
 async function admin(c: any) { try { return await requireAdmin(c); } catch { return c.json({ error: 'Admin access required' }, 403); } }
+
+async function getUsername(userId: string): Promise<string> {
+  const rows = await query<{ username: string | null }>('SELECT username FROM users WHERE id=$1 LIMIT 1', [userId]);
+  return rows[0]?.username || 'Unknown';
+}
 
 app.get('/admin/brawl/species', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
@@ -90,6 +96,7 @@ app.patch('/admin/brawl/species/:id', async c => {
 
   const updated = await updateSpecies(id, fields);
   if (!updated) return c.json({ error: 'Species not found' }, 404);
+  await writeLog(null, { type: 'admin_brawl', userId: adminId, username: 'Admin', action: 'Admin Edited Pokemon Species', details: { speciesId: id, speciesName: updated.name, fields, adminId }, result: 'success' });
   return c.json({ success: true, species: updated });
 });
 
@@ -124,6 +131,8 @@ app.patch('/admin/brawl/users/:userId/profile', async c => {
   if (body.has_completed_intro !== undefined) fields.has_completed_intro = body.has_completed_intro ? 1 : 0;
   if (body.league !== undefined) fields.league = String(body.league);
   const profile = await adminSetProfileFields(userId, fields);
+  const username = await getUsername(userId);
+  await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Updated Brawl Profile', details: { fields, adminId }, result: 'success' });
   return c.json({ success: true, profile });
 });
 
@@ -135,6 +144,17 @@ app.post('/admin/brawl/users/:userId/wallet', async c => {
   if (!Number.isFinite(delta) || delta === 0) return c.json({ error: 'amount must be a non-zero number' }, 400);
   try {
     const result = await applyBrawlWalletTransaction(userId, 'admin_adjustment', Math.round(delta), `admin:${adminId}:${Date.now()}`, { adminId, reason: reason || null });
+    const username = await getUsername(userId);
+    await writeLog(null, {
+      type: 'admin_brawl',
+      userId,
+      username,
+      action: 'Admin Adjusted Pokedollars',
+      details: { delta: Math.round(delta), reason: reason || null, balanceAfter: result.balanceAfter, adminId },
+      valueIn: delta > 0 ? Math.round(delta) : 0,
+      valueOut: delta < 0 ? Math.abs(Math.round(delta)) : 0,
+      result: 'success',
+    });
     return c.json({ success: true, balance: result.balanceAfter });
   } catch (e: any) {
     if (e.message === 'INSUFFICIENT_POKEDOLLARS') return c.json({ error: 'That would take the balance below 0' }, 400);
@@ -149,29 +169,38 @@ app.post('/admin/brawl/users/:userId/instances', async c => {
   const id = Number(speciesId);
   if (!Number.isInteger(id)) return c.json({ error: 'speciesId is required' }, 400);
   const species = await listAllSpecies();
-  if (!species.some(s => s.id === id)) return c.json({ error: 'Unknown species id' }, 404);
+  const found = species.find(s => s.id === id);
+  if (!found) return c.json({ error: 'Unknown species id' }, 404);
   const [instanceId] = await insertInstances(userId, [id], 'admin');
+  const username = await getUsername(userId);
+  await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Added Pokemon', details: { speciesId: id, speciesName: found.name, instanceId, adminId }, result: 'success' });
   return c.json({ success: true, instanceId, roster: await listInstancesForUser(userId) });
 });
 
 app.delete('/admin/brawl/users/:userId/instances/:instanceId', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   const userId = c.req.param('userId');
-  const deleted = await adminDeleteInstance(userId, c.req.param('instanceId'));
+  const instanceId = c.req.param('instanceId');
+  const deleted = await adminDeleteInstance(userId, instanceId);
   if (!deleted) return c.json({ error: 'Pokemon not found on this trainer' }, 404);
+  const username = await getUsername(userId);
+  await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Removed Pokemon', details: { instanceId, adminId }, result: 'success' });
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
 });
 
 app.patch('/admin/brawl/users/:userId/instances/:instanceId/star', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   const userId = c.req.param('userId');
+  const instanceId = c.req.param('instanceId');
   const { starLevel } = await c.req.json().catch(() => ({}));
   const level = Number(starLevel);
   if (!Number.isInteger(level) || level < 0 || level > MAX_STAR_LEVEL) {
     return c.json({ error: `starLevel must be an integer between 0 and ${MAX_STAR_LEVEL}` }, 400);
   }
-  const updated = await adminSetInstanceStarLevel(userId, c.req.param('instanceId'), level);
+  const updated = await adminSetInstanceStarLevel(userId, instanceId, level);
   if (!updated) return c.json({ error: 'Pokemon not found on this trainer' }, 404);
+  const username = await getUsername(userId);
+  await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Set Pokemon Star Level', details: { instanceId, starLevel: level, adminId }, result: 'success' });
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
 });
 
@@ -180,7 +209,13 @@ app.put('/admin/brawl/users/:userId/team', async c => {
   const userId = c.req.param('userId');
   const { instanceIds } = await c.req.json().catch(() => ({}));
   if (!Array.isArray(instanceIds) || instanceIds.length < 1 || instanceIds.length > 6) return c.json({ error: 'Select 1-6 Pokemon for the active team' }, 400);
-  try { await setTeam(userId, instanceIds); } catch (e: any) { return c.json({ error: e.message === 'INVALID_TEAM_SELECTION' ? 'One or more selected Pokemon are not owned by this trainer' : 'Failed to update team' }, 400); }
+  try {
+    await setTeam(userId, instanceIds);
+  } catch (e: any) {
+    return c.json({ error: e.message === 'INVALID_TEAM_SELECTION' ? 'One or more selected Pokemon are not owned by this trainer' : 'Failed to update team' }, 400);
+  }
+  const username = await getUsername(userId);
+  await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Set Team', details: { instanceIds, adminId }, result: 'success' });
   return c.json({ success: true, roster: await listInstancesForUser(userId) });
 });
 
@@ -200,6 +235,8 @@ app.post('/admin/brawl/users/:userId/items', async c => {
   const finalQty = Number.isFinite(qty) && qty > 0 ? Math.round(qty) : 1;
   try {
     const inventory = await adminAddInventory(userId, itemKey, finalQty);
+    const username = await getUsername(userId);
+    await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Added Item to User', details: { itemKey, quantity: finalQty, adminId }, result: 'success' });
     return c.json({ success: true, inventory });
   } catch (e: any) {
     if (e.message === 'UNKNOWN_ITEM') return c.json({ error: 'Unknown item key' }, 404);
@@ -210,7 +247,10 @@ app.post('/admin/brawl/users/:userId/items', async c => {
 app.delete('/admin/brawl/users/:userId/items/:itemKey', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   const userId = c.req.param('userId');
-  const inventory = await adminRemoveInventoryItem(userId, c.req.param('itemKey'));
+  const itemKey = c.req.param('itemKey');
+  const inventory = await adminRemoveInventoryItem(userId, itemKey);
+  const username = await getUsername(userId);
+  await writeLog(null, { type: 'admin_brawl', userId, username, action: 'Admin Removed Item from User', details: { itemKey, adminId }, result: 'success' });
   return c.json({ success: true, inventory });
 });
 
@@ -241,6 +281,7 @@ app.post('/admin/brawl/items', async c => {
       key, name: body.name, description: body.description, rarity: body.rarity, kind: body.kind,
       price: Math.round(price), sprite_url: body.spriteUrl ?? body.sprite_url ?? null, active: !!body.active,
     });
+    await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Created Brawl Item', details: { key, name: body.name, rarity: body.rarity, price: Math.round(price), adminId }, result: 'success' });
     return c.json({ success: true, item });
   } catch (e: any) {
     if (String(e.message || '').includes('duplicate key')) return c.json({ error: 'An item with that key already exists' }, 409);
@@ -250,6 +291,7 @@ app.post('/admin/brawl/items', async c => {
 
 app.patch('/admin/brawl/items/:key', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const key = c.req.param('key');
   const body = await c.req.json().catch(() => ({}));
   const fields: Record<string, unknown> = {};
   if (body.name !== undefined) fields.name = body.name;
@@ -269,15 +311,18 @@ app.patch('/admin/brawl/items/:key', async c => {
   }
   if (body.spriteUrl !== undefined || body.sprite_url !== undefined) fields.sprite_url = body.spriteUrl ?? body.sprite_url ?? null;
   if (body.active !== undefined) fields.active = !!body.active;
-  const item = await adminUpdateItem(c.req.param('key'), fields);
+  const item = await adminUpdateItem(key, fields);
   if (!item) return c.json({ error: 'Item not found' }, 404);
+  await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Updated Brawl Item', details: { key, fields, adminId }, result: 'success' });
   return c.json({ success: true, item });
 });
 
 app.delete('/admin/brawl/items/:key', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const key = c.req.param('key');
   try {
-    await adminDeleteItem(c.req.param('key'));
+    await adminDeleteItem(key);
+    await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Deleted Brawl Item', details: { key, adminId }, result: 'success' });
     return c.json({ success: true });
   } catch (e: any) {
     if (e.code === '23503' || String(e.message || '').includes('foreign key')) return c.json({ error: 'Players already own this item -- deactivate it instead of deleting' }, 409);
@@ -302,18 +347,21 @@ app.put('/admin/brawl/items/shop/:slate', async c => {
     const messages: Record<string, string> = { UNKNOWN_ITEM: 'One or more item keys are unknown', ITEM_NOT_ACTIVE: 'Every item placed in the shop must be active' };
     return c.json({ error: messages[e.message] || 'Failed to update shop' }, 400);
   }
+  await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Set Shop Slate', details: { slate, itemKeys, adminId }, result: 'success' });
   return c.json(await adminGetShopStatus());
 });
 
 app.post('/admin/brawl/items/shop/next/regenerate', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   await adminRegenerateNextShop();
+  await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Regenerated Next Shop', details: { adminId }, result: 'success' });
   return c.json(await adminGetShopStatus());
 });
 
 app.post('/admin/brawl/items/shop/rotate-now', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
   await adminRotateShopNow();
+  await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Rotated Shop Now', details: { adminId }, result: 'success' });
   return c.json(await adminGetShopStatus());
 });
 
@@ -399,6 +447,7 @@ app.post('/admin/brawl/challenges', async c => {
   if (error) return c.json({ error }, 400);
   try {
     const template = await adminCreateChallengeTemplate(fields);
+    await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Created Challenge Template', details: { key: fields.key, label: fields.label, type: fields.type, adminId }, result: 'success' });
     return c.json({ success: true, template });
   } catch (e: any) {
     if (String(e.message || '').includes('duplicate key')) return c.json({ error: 'A challenge with that key already exists' }, 409);
@@ -408,17 +457,21 @@ app.post('/admin/brawl/challenges', async c => {
 
 app.patch('/admin/brawl/challenges/:key', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
+  const key = c.req.param('key');
   const body = await c.req.json().catch(() => ({}));
   const { error, fields } = validateChallengeBody(body, false);
   if (error) return c.json({ error }, 400);
-  const template = await adminUpdateChallengeTemplate(c.req.param('key'), fields);
+  const template = await adminUpdateChallengeTemplate(key, fields);
   if (!template) return c.json({ error: 'Challenge template not found' }, 404);
+  await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Updated Challenge Template', details: { key, fields, adminId }, result: 'success' });
   return c.json({ success: true, template });
 });
 
 app.delete('/admin/brawl/challenges/:key', async c => {
   const adminId = await admin(c); if (typeof adminId !== 'string') return adminId;
-  await adminDeleteChallengeTemplate(c.req.param('key'));
+  const key = c.req.param('key');
+  await adminDeleteChallengeTemplate(key);
+  await writeLog(null, { type: 'admin_brawl_catalog', userId: adminId, username: 'Admin', action: 'Admin Deleted Challenge Template', details: { key, adminId }, result: 'success' });
   return c.json({ success: true });
 });
 

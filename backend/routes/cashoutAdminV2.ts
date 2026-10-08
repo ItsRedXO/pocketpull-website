@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
-import { resolveUserId, uid } from '../lib/auth';
+import { resolveUserId, uid, getBlinkDb } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
 import { sendEmailWithLog } from '../lib/emailLogging';
 import { isAdminSecretCandidate } from '../lib/adminAuthorization';
 import { canReturnCashout } from '../lib/cashoutAdminPolicy';
+import { writeLog } from './logs';
 
 const app = new Hono();
 
@@ -17,11 +18,11 @@ interface CashoutCard {
   inventory_id?: string;
 }
 
-async function requireAdmin(c: any): Promise<void> {
+async function requireAdmin(c: any): Promise<string> {
   const secret = c.req.header('X-Admin-Secret');
   if (isAdminSecretCandidate(secret)) {
     const rows = await query<{ id: string }>('SELECT id FROM admin_credentials WHERE admin_pass=$1 LIMIT 1', [secret]);
-    if (rows[0]?.id) return;
+    if (rows[0]?.id) return rows[0].id;
   }
 
   const userId = await resolveUserId(c);
@@ -29,6 +30,7 @@ async function requireAdmin(c: any): Promise<void> {
   const rows = await query<{ role: string; is_admin: number }>('SELECT role,is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
   const user = rows[0];
   if (user?.role !== 'admin' && user?.role !== 'owner' && Number(user?.is_admin || 0) !== 1) throw new Error('FORBIDDEN');
+  return userId;
 }
 
 function parseCards(value: unknown): CashoutCard[] {
@@ -77,7 +79,7 @@ function emailFor(req: any): string | null {
 
 app.post('/admin/cashout/partial-fulfill', async c => {
   try {
-    await requireAdmin(c);
+    const adminId = await requireAdmin(c);
     const body = await c.req.json().catch(() => ({}));
     const cashoutId = String(body.cashoutId || '');
     const requested = parseIndices(body.fulfilledIndices);
@@ -184,6 +186,14 @@ app.post('/admin/cashout/partial-fulfill', async c => {
       }
     }
 
+    await writeLog(null, {
+      type: 'admin_cashout',
+      userId: result.req.user_id,
+      username: result.req.username || 'Unknown',
+      action: 'Admin Partial Fulfilled Cashout',
+      details: { cashoutId, confirmationNumber: result.req.confirmation_number, shippedCards: result.shippedCards.length, returnedCards: result.returnedCards.length, totalValue: result.shippedValue, status: result.newStatus, adminId },
+      result: 'success',
+    });
     return c.json({
       success: true,
       status: result.newStatus,
@@ -201,7 +211,7 @@ app.post('/admin/cashout/partial-fulfill', async c => {
 
 app.post('/admin/cashout/return', async c => {
   try {
-    await requireAdmin(c);
+    const adminId = await requireAdmin(c);
     const body = await c.req.json().catch(() => ({}));
     const cashoutId = String(body.cashoutId || '');
     if (!cashoutId) return c.json({ error: 'cashoutId required' }, 400);
@@ -233,6 +243,14 @@ app.post('/admin/cashout/return', async c => {
     if (result.kind === 'not_returnable') return c.json({ error: `Cashout cannot be returned after it reaches ${result.status}` }, 409);
     if (result.kind === 'missing_inventory') return c.json({ error: `Could not locate the original inventory row for ${result.card}. No changes were committed.` }, 409);
 
+    await writeLog(null, {
+      type: 'admin_cashout',
+      userId: result.req.user_id,
+      username: result.req.username || 'Unknown',
+      action: 'Admin Returned Cashout to Inventory',
+      details: { cashoutId, confirmationNumber: result.req.confirmation_number, restoredCards: result.restoredCount, adminId },
+      result: 'success',
+    });
     return c.json({ success: true, status: 'returned', restoredCards: result.restoredCount });
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500;

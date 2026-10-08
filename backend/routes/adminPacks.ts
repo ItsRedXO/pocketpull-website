@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth, uid } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
+import { writeLog } from './logs';
 
 const app = new Hono();
 const PACK_COLUMNS = new Set(['id','name','price','is_active','quantity_limit','current_quantity','expires_at','data','cooldown_hours','pack_type','image_url']);
@@ -110,8 +111,21 @@ async function savePack(body: any, adminUserId: string) {
 }
 
 app.post('/admin/packs', async c => {
-  try { const adminUserId = await requireAdmin(c); const result = await savePack(await c.req.json(), adminUserId); return c.json({ success: true, ...result }); }
-  catch (error: any) { const message = error?.message || 'Pack save failed.'; const status = message === 'UNAUTHORIZED' ? 401 : message === 'FORBIDDEN' ? 403 : 400; return c.json({ success: false, error: message }, status); }
+  try {
+    const adminUserId = await requireAdmin(c);
+    const body = await c.req.json();
+    const result = await savePack(body, adminUserId);
+    const isUpdate = !!(body?.pack?.id);
+    await writeLog(null, {
+      type: 'admin_pack',
+      userId: adminUserId,
+      username: 'Admin',
+      action: isUpdate ? 'Admin Updated Pack' : 'Admin Created Pack',
+      details: { packId: result.pack?.id, packName: result.pack?.name, cardCount: result.cards?.length ?? 0, adminId: adminUserId },
+      result: 'success',
+    });
+    return c.json({ success: true, ...result });
+  } catch (error: any) { const message = error?.message || 'Pack save failed.'; const status = message === 'UNAUTHORIZED' ? 401 : message === 'FORBIDDEN' ? 403 : 400; return c.json({ success: false, error: message }, status); }
 });
 
 app.delete('/admin/packs/:id', async c => {
@@ -135,6 +149,14 @@ app.delete('/admin/packs/:id', async c => {
       await client.query('DELETE FROM pack_odds_versions WHERE pack_id=$1', [packId]);
       await client.query('DELETE FROM packs_catalog WHERE id=$1', [packId]);
       return { deleted: true, archived: false, name: pack.name };
+    });
+    await writeLog(null, {
+      type: 'admin_pack',
+      userId: adminUserId,
+      username: 'Admin',
+      action: result.deleted ? 'Admin Deleted Pack' : 'Admin Archived Pack',
+      details: { packId, packName: result.name, archived: result.archived, deleted: result.deleted, adminId: adminUserId },
+      result: 'success',
     });
     return c.json({ success: true, ...result });
   } catch (error: any) { const message = error?.message || 'Pack delete failed.'; const status = message === 'UNAUTHORIZED' ? 401 : message === 'FORBIDDEN' ? 403 : 400; return c.json({ success: false, error: message }, status); }

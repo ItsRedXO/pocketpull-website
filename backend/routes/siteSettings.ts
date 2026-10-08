@@ -3,20 +3,22 @@ import { resolveUserId } from '../lib/auth';
 import { query } from '../lib/postgres';
 import { isAdminSecretCandidate } from '../lib/adminAuthorization';
 import { getSiteSettings, updateSiteSettings, type SiteSettingsUpdateInput } from '../repositories/siteSettings';
+import { writeLog } from './logs';
 
 const app = new Hono();
 
-async function requireAdmin(c: any) {
+async function requireAdmin(c: any): Promise<string> {
   const secret = c.req.header('X-Admin-Secret');
   if (isAdminSecretCandidate(secret)) {
-    const rows = await query('SELECT id FROM admin_credentials WHERE admin_pass=$1 LIMIT 1', [secret]);
-    if (rows[0]) return;
+    const rows = await query<{ id: string }>('SELECT id FROM admin_credentials WHERE admin_pass=$1 LIMIT 1', [secret]);
+    if (rows[0]?.id) return rows[0].id;
   }
   const userId = await resolveUserId(c);
   if (!userId) throw new Error('UNAUTHORIZED');
   const rows = await query<{ role: string; is_admin: number }>('SELECT role,is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
   const user = rows[0];
   if (user?.role !== 'admin' && user?.role !== 'owner' && Number(user?.is_admin || 0) !== 1) throw new Error('FORBIDDEN');
+  return userId;
 }
 
 // Public: the homepage/hero counters read the current ranges to compute what
@@ -28,8 +30,9 @@ app.get('/site-settings', async c => {
 const RANGE_FIELDS = ['packsOpenedMin', 'packsOpenedMax', 'cardsWonMin', 'cardsWonMax', 'livePlayersMin', 'livePlayersMax'] as const;
 
 app.patch('/admin/site-settings', async c => {
+  let adminId: string;
   try {
-    await requireAdmin(c);
+    adminId = await requireAdmin(c);
   } catch (error: any) {
     const status = error?.message === 'UNAUTHORIZED' ? 401 : error?.message === 'FORBIDDEN' ? 403 : 500;
     return c.json({ error: error?.message || 'Admin access required' }, status);
@@ -77,6 +80,7 @@ app.patch('/admin/site-settings', async c => {
   }
 
   const settings = await updateSiteSettings(updateInput);
+  await writeLog(null, { type: 'admin_site_settings', userId: adminId!, username: 'Admin', action: 'Admin Updated Site Settings', details: { fields, overrides: { packsOpenedTodayOverride: updateInput.packsOpenedTodayOverride, cardsWonTodayOverride: updateInput.cardsWonTodayOverride }, adminId: adminId! }, result: 'success' });
   return c.json({ success: true, settings });
 });
 
