@@ -1,15 +1,9 @@
-import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 import type { SiteSimulationSettings } from '../hooks/useSiteSimulationSettings';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 async function adminHeaders(): Promise<Record<string, string>> {
-  const token = await blink.auth.getValidToken();
-  const secret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(secret ? { 'X-Admin-Secret': secret } : {}),
-  };
+  return { 'Content-Type': 'application/json', ...await getAdminAuthHeaders() };
 }
 
 export const fetchSiteSettings = async (): Promise<SiteSimulationSettings> => {
