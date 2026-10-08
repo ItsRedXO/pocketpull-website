@@ -70,10 +70,10 @@ export const MOCK_STARTER_ROSTER: BrawlInstance[] = [
 // ── Fake pack open result ─────────────────────────────────────────────────
 export const MOCK_PACK_OPEN_RESULT = {
   card: {
-    name: 'Charizard ex',
-    rarity: 'ultra',
-    value: 18.50,
-    imageUrl: null as string | null,
+    name: 'Umbreon VMAX',
+    rarity: 'god',
+    value: 2500,
+    imageUrl: 'https://storage.googleapis.com/blink-core-storage/projects/pocketpull-premium-site-b2nnhe2n/cards/1780195998568_22_jpg/fe93fe6d-10e4-4d4f-a92e-d90153069b9f.jpg' as string | null,
   },
   inventoryId: 'guest-inv-demo',
   newBalance: 100,
@@ -112,12 +112,12 @@ export function getMockBrawlProfileResponse(): BrawlProfileResponse {
 const USER_POSITIONS   = [{ x: 18, y: 20 }, { x: 22, y: 38 }, { x: 16, y: 56 }, { x: 20, y: 70 }, { x: 24, y: 82 }, { x: 18, y: 90 }];
 const OPP_POSITIONS    = [{ x: 82, y: 20 }, { x: 78, y: 38 }, { x: 84, y: 56 }, { x: 80, y: 70 }, { x: 76, y: 82 }, { x: 82, y: 90 }];
 const OPP_SPECIES      = [
-  { id: 143, name: 'snorlax',   type: 'normal'   as const, art: ART(143) },
-  { id: 59,  name: 'arcanine',  type: 'fire'     as const, art: ART(59)  },
-  { id: 130, name: 'gyarados',  type: 'water'    as const, art: ART(130) },
-  { id: 149, name: 'dragonite', type: 'dragon'   as const, art: ART(149) },
-  { id: 135, name: 'jolteon',   type: 'electric' as const, art: ART(135) },
-  { id: 131, name: 'lapras',    type: 'water'    as const, art: ART(130) },
+  { id: 143, name: 'snorlax',   type: 'normal'   as const, art: ART(143), sprite: SPRITE(143) },
+  { id: 59,  name: 'arcanine',  type: 'fire'     as const, art: ART(59),  sprite: SPRITE(59)  },
+  { id: 130, name: 'gyarados',  type: 'water'    as const, art: ART(130), sprite: SPRITE(130) },
+  { id: 149, name: 'dragonite', type: 'dragon'   as const, art: ART(149), sprite: SPRITE(149) },
+  { id: 135, name: 'jolteon',   type: 'electric' as const, art: ART(135), sprite: SPRITE(135) },
+  { id: 131, name: 'lapras',    type: 'water'    as const, art: ART(131), sprite: SPRITE(131) },
 ];
 
 function buildInitialPokemon(maxHp: number[]): ArenaPokemonState[] {
@@ -136,7 +136,7 @@ function buildInitialPokemon(maxHp: number[]): ArenaPokemonState[] {
       id: `o-${i}`, side: 'opponent', speciesId: p.id, name: p.name,
       x: OPP_POSITIONS[i].x, y: OPP_POSITIONS[i].y,
       hp: maxHp[6 + i], maxHp: maxHp[6 + i], fainted: false,
-      artworkUrl: p.art, spriteUrl: null,
+      artworkUrl: p.art, spriteUrl: p.sprite,
       primaryType: p.type, secondaryType: null,
     });
   });
@@ -152,9 +152,11 @@ function generateBattleFrames(userWins: boolean): { frames: ArenaFrame[]; maxTic
   const TICKS = 18;
 
   for (let tick = 0; tick < TICKS; tick++) {
-    const pokemon = buildInitialPokemon(maxHps).map((p, i) => ({
-      ...p, hp: Math.max(0, hps[i]), fainted: fainted[i],
-    }));
+    const pokemon = buildInitialPokemon(maxHps).map((p, i) => {
+      const jx = (Math.sin(tick * 1.7 + i * 2.3) * 2.5);
+      const jy = (Math.cos(tick * 1.3 + i * 1.9) * 2.0);
+      return { ...p, hp: Math.max(0, hps[i]), fainted: fainted[i], x: p.x + jx, y: p.y + jy };
+    });
 
     const attacks = [];
     const faints = [];

@@ -504,7 +504,8 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
         </div>
 
         {!finished ? (
-          <div className="relative p-4 overflow-y-auto">
+          <>
+          <div className="flex-1 overflow-y-auto relative p-4">
             <div className="flex items-center justify-center gap-3 mb-1.5 flex-wrap">
               <span className="text-[10px] uppercase tracking-widest text-white/30">Round {gameIndex + 1}/{match.games.length}</span>
               <span className="text-sm font-bold tabular-nums"><span className="text-[#00c8ff]">{scoreUser}</span><span className="text-white/25 mx-0.5">–</span><span className="text-[#f87171]">{scoreOpponent}</span></span>
@@ -616,7 +617,8 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
+          </div>
+          <div className="shrink-0 px-4 pb-4 pt-3 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <button onClick={() => setPlaying(p => !p)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
                   {playing ? <Pause size={13} /> : <Play size={13} />}
@@ -637,8 +639,8 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
                   {!isLastGameOfMatch ? 'Next Round' : matchIndex < matches.length - 1 ? 'Next Trainer' : 'See Result'}
                 </button>
               )}
-            </div>
           </div>
+          </>
         ) : (
           <div className="p-8 text-center">
             {status === 'won' ? <Trophy size={40} className="text-[#facc15] mx-auto mb-3" /> : <Skull size={40} className="text-white/30 mx-auto mb-3" />}

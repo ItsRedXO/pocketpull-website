@@ -104,7 +104,7 @@ interface Props {
 // ── Main ───────────────────────────────────────────────────────────────────────
 export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) => {
   const { user, isAuthenticated } = useAuth();
-  const { isGuest, canAct, consumeAction } = useGuestTrial();
+  const { isGuest, canAct, hasOpenedPack, consumeAction, markPackOpened } = useGuestTrial();
   const { balance, matchedBalance, updateBalance } = useBalance(user?.id);
   const { enabled: soundEnabled } = useSoundSetting();
   const { startReel, stop: stopTick } = useTickSound(soundEnabled);
@@ -168,6 +168,11 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
       return;
     }
 
+    if (isGuest && hasOpenedPack) {
+      setError('You already claimed your free pack. Sign up to open more!');
+      return;
+    }
+
     // ── Step 1a: show "Opening…" immediately — no animation, no audio ────
     setSpinState('opening');
 
@@ -198,6 +203,7 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
 
       if (isGuest) {
         consumeAction();
+        markPackOpened();
       } else {
         await updateBalance(result.newBalance);
         onComplete(result.newBalance);
@@ -396,12 +402,14 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
 
               {/* Sell button + Open Another */}
               <div className="flex gap-2">
-                <button onClick={handleReset}
-                  className="flex-1 py-3 rounded-xl font-display text-[12px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110 flex items-center justify-center gap-1.5"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', color: '#fff' }}
-                >
-                  Open Another
-                </button>
+                {!isGuest && (
+                  <button onClick={handleReset}
+                    className="flex-1 py-3 rounded-xl font-display text-[12px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110 flex items-center justify-center gap-1.5"
+                    style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', color: '#fff' }}
+                  >
+                    Open Another
+                  </button>
+                )}
                 {!isGuest && (
                   <button onClick={handleSell} disabled={selling}
                     className="flex-1 py-3 rounded-xl font-display text-[12px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110 disabled:opacity-60 flex items-center justify-center gap-1.5"

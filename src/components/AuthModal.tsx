@@ -407,7 +407,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                   className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-white/60"
                   style={{ color: 'rgba(255,255,255,0.3)' }}
                 >
-                  Try as Guest — 7 free actions
+                  Try as Guest — 10 free actions
                 </button>
               </div>
             )}

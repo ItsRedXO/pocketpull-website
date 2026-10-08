@@ -48,7 +48,7 @@ export const SignupWallModal: React.FC<Props> = ({ isOpen }) => {
                 Trial Complete
               </h2>
               <p className="text-white/50 text-sm leading-relaxed">
-                You've used all 7 free actions. Create a free account to keep playing — your trial progress won't be saved.
+                You've used all 10 free actions. Create a free account to keep playing — your trial progress won't be saved.
               </p>
             </div>
 

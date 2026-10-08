@@ -12,7 +12,7 @@ export const GuestTrialBanner: React.FC = () => {
     window.dispatchEvent(new CustomEvent('pocketpull-open-auth', { detail: 'signup' }));
   };
 
-  const pips = Array.from({ length: 7 });
+  const pips = Array.from({ length: 10 });
 
   return (
     <motion.div

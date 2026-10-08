@@ -5,20 +5,22 @@ import {
 } from '../lib/mockData';
 
 const STORAGE_KEY = 'pocketpull_guest_trial';
-const MAX_ACTIONS = 7;
+const MAX_ACTIONS = 10;
 
 interface StoredState {
   isGuest: boolean;
   actionsUsed: number;
+  hasOpenedPack: boolean;
 }
 
 function load(): StoredState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { isGuest: false, actionsUsed: 0 };
-    return JSON.parse(raw) as StoredState;
+    if (!raw) return { isGuest: false, actionsUsed: 0, hasOpenedPack: false };
+    const parsed = JSON.parse(raw) as StoredState;
+    return { hasOpenedPack: false, ...parsed };
   } catch {
-    return { isGuest: false, actionsUsed: 0 };
+    return { isGuest: false, actionsUsed: 0, hasOpenedPack: false };
   }
 }
 
@@ -31,6 +33,8 @@ interface GuestTrialContextValue {
   actionsUsed: number;
   actionsLeft: number;
   canAct: boolean;
+  hasOpenedPack: boolean;
+  markPackOpened: () => void;
   consumeAction: () => void;
   startGuestTrial: () => void;
   endGuestTrial: () => void;
@@ -65,15 +69,23 @@ export function GuestTrialProvider({ children }: { children: React.ReactNode }) 
     if (state.isGuest) seedQueryCache();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const markPackOpened = useCallback(() => {
+    setStateRaw(prev => {
+      const next = { ...prev, hasOpenedPack: true };
+      save(next);
+      return next;
+    });
+  }, []);
+
   const startGuestTrial = useCallback(() => {
-    const next: StoredState = { isGuest: true, actionsUsed: 0 };
+    const next: StoredState = { isGuest: true, actionsUsed: 0, hasOpenedPack: false };
     setState(next);
     seedQueryCache();
   }, [setState, seedQueryCache]);
 
   const endGuestTrial = useCallback(() => {
     seededRef.current = false;
-    setState({ isGuest: false, actionsUsed: 0 });
+    setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false });
     setSignupWallVisible(false);
     qc.removeQueries({ queryKey: ['brawl-profile'] });
     qc.removeQueries({ queryKey: ['brawl-roster'] });
@@ -100,6 +112,8 @@ export function GuestTrialProvider({ children }: { children: React.ReactNode }) 
       actionsUsed: state.actionsUsed,
       actionsLeft,
       canAct,
+      hasOpenedPack: state.hasOpenedPack,
+      markPackOpened,
       consumeAction,
       startGuestTrial,
       endGuestTrial,
