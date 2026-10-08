@@ -181,9 +181,43 @@ export function SafariZoneTab() {
               className="rounded-2xl border border-white/10 p-6 max-w-md w-full text-center relative overflow-hidden" style={{ background: '#0d0e14' }}>
               <AnimatePresence>
                 {!revealReady && (
-                  <motion.div key="portal" exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <motion.div animate={{ rotate: 360, scale: [1, 1.15, 1] }} transition={{ rotate: { repeat: Infinity, duration: 1.1, ease: 'linear' }, scale: { repeat: Infinity, duration: 0.7 } }}
-                      className="w-24 h-24 rounded-full" style={{ background: 'conic-gradient(from 0deg, #9b5cff, #00c8ff, #facc15, #9b5cff)', filter: 'blur(2px)', opacity: 0.6 }} />
+                  <motion.div key="portal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={{ duration: 0.3 }}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: '#0d0e14' }}>
+                    <div className="relative flex items-center justify-center">
+                      {/* Expanding pulse rings */}
+                      {[0, 1, 2].map(i => (
+                        <motion.div key={i} className="absolute rounded-full"
+                          style={{ border: `2px solid ${['#4ade80', '#facc15', '#00c8ff'][i]}`, width: 72, height: 72 }}
+                          animate={{ scale: [1, 2.6], opacity: [0.75, 0] }}
+                          transition={{ duration: 1.5, delay: i * 0.48, repeat: Infinity, ease: 'easeOut' }} />
+                      ))}
+                      {/* Spinning Safari Ball */}
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.6, ease: 'linear' }}
+                        className="relative w-16 h-16 rounded-full overflow-hidden"
+                        style={{ boxShadow: '0 0 28px rgba(74,222,128,0.55), 0 0 8px rgba(0,0,0,0.6)' }}>
+                        <div className="absolute inset-x-0 top-0 h-1/2" style={{ background: 'linear-gradient(135deg, #15803d, #4ade80)' }} />
+                        <div className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: 'linear-gradient(135deg, #92400e, #d97706)' }} />
+                        <div className="absolute inset-x-0" style={{ top: 'calc(50% - 3px)', height: 6, background: '#fff' }} />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-5 h-5 rounded-full bg-white border-2" style={{ borderColor: 'rgba(0,0,0,0.25)' }} />
+                        </div>
+                      </motion.div>
+                      {/* Orbiting particles */}
+                      <motion.div className="absolute w-28 h-28" animate={{ rotate: 360 }} transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}>
+                        {[0,1,2,3,4,5].map(i => {
+                          const a = (i / 6) * Math.PI * 2;
+                          return (
+                            <div key={i} className="absolute w-2 h-2 rounded-full"
+                              style={{
+                                background: ['#4ade80','#facc15','#f87171','#00c8ff','#9b5cff','#fb923c'][i],
+                                left: `calc(50% + ${Math.cos(a) * 44}px - 4px)`,
+                                top: `calc(50% + ${Math.sin(a) * 44}px - 4px)`,
+                                boxShadow: `0 0 6px ${['#4ade80','#facc15','#f87171','#00c8ff','#9b5cff','#fb923c'][i]}`,
+                              }} />
+                          );
+                        })}
+                      </motion.div>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
