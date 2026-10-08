@@ -100,7 +100,7 @@ export type ArenaSide = 'user' | 'opponent';
 export interface ArenaPokemonState {
   id: string; side: ArenaSide; speciesId: number; name: string;
   x: number; y: number; hp: number; maxHp: number; fainted: boolean;
-  artworkUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null;
+  artworkUrl: string | null; spriteUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null;
 }
 export interface ArenaAttackEvent {
   attackerId: string; defenderId: string; move: string; moveType: PokeType; vfx: string;

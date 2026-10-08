@@ -67,7 +67,6 @@ export function PokemonStatCard({ mon, selected, order, index, onClick, nickname
     <div className="relative w-full">
       <div style={{ paddingTop: '150%' }} />
       <motion.button
-        layout
         initial={{ opacity: 0, y: 10, scale: 0.92 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ delay: Math.min(index ?? 0, 12) * 0.02, type: 'spring', stiffness: 300, damping: 22 }}

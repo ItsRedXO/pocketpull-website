@@ -323,12 +323,15 @@ function PokemonIcon({
           }
           transition={{ duration: isAttacking ? 0.1 : 0.4, ease: 'easeOut', filter: { duration: 0.4 } }}
         >
-          {mon.artworkUrl ? (
+          {(mon.spriteUrl || mon.artworkUrl) ? (
             <img
-              src={mon.artworkUrl}
+              src={mon.spriteUrl || mon.artworkUrl!}
               alt={mon.name}
               className="w-full h-full object-contain"
-              style={{ objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(1.5)` }}
+              style={mon.spriteUrl
+                ? { imageRendering: 'pixelated', transform: `scaleX(${mon.side === 'user' ? 1 : -1}) scale(1.8)` }
+                : { objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(1.5)` }
+              }
             />
           ) : null}
           <AnimatePresence>

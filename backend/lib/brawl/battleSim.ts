@@ -40,7 +40,7 @@ export interface ArenaObstacle { x1: number; y1: number; x2: number; y2: number;
 export interface ArenaPokemonState {
   id: string; side: Side; speciesId: number; name: string;
   x: number; y: number; hp: number; maxHp: number; fainted: boolean;
-  artworkUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null;
+  artworkUrl: string | null; spriteUrl: string | null; primaryType: PokeType; secondaryType: PokeType | null;
 }
 export interface ArenaAttackEvent {
   attackerId: string; defenderId: string; move: string; moveType: PokeType; vfx: string;
@@ -324,7 +324,7 @@ function snapshot(fighter: Fighter): ArenaPokemonState {
   return {
     id: fighter.id, side: fighter.side, speciesId: fighter.speciesId, name: fighter.name,
     x: fighter.x, y: fighter.y, hp: Math.max(0, fighter.hp), maxHp: fighter.maxHp, fainted: fighter.fainted,
-    artworkUrl: fighter.artworkUrl, primaryType: fighter.primaryType, secondaryType: fighter.secondaryType,
+    artworkUrl: fighter.artworkUrl, spriteUrl: fighter.spriteUrl, primaryType: fighter.primaryType, secondaryType: fighter.secondaryType,
   };
 }
 
