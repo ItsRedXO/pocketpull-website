@@ -133,173 +133,77 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   const [page, setPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
-  // â”€â”€ Stats queries (using count() for accuracy — no limit caps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Stats: all from backend activity_logs (not Blink DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  const { data: packsTotal = 0, isLoading: packsLoading } = useQuery<number>({
-    queryKey: ['admin-packs-count', user.id],
+  const { data: userStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-user-stats-v2', user.id],
     queryFn: async () => {
-      const n = await blink.db.packsOpened.count({ where: { userId: user.id } });
-      return typeof n === 'number' ? n : 0;
-    }, staleTime: 0,
-  });
+      const h = await adminHeaders();
+      const base = `${BACKEND_BASE}/admin-logs?userId=${encodeURIComponent(user.id)}&limit=5000`;
+      const get = (url: string) => fetch(url, { headers: h }).then(r => r.ok ? r.json() : { rows: [], total: 0 }).catch(() => ({ rows: [], total: 0 }));
 
-  // Sell total: sum amounts from transactions (type = 'sell'). Uses a high
-  // fetch limit because there's no server-side SUM — client-side reduce is fine
-  // for admin panel volumes.
-  const { data: sellsData = { count: 0, totalValue: 0 }, isLoading: sellsLoading } = useQuery<{ count: number; totalValue: number }>({
-    queryKey: ['admin-sells-v2', user.id],
-    queryFn: async () => {
-      try {
-        const rows = await blink.db.transactions.list({ where: { userId: user.id, type: 'sell' }, limit: 10000 });
-        const arr = Array.isArray(rows) ? rows : [];
-        return { count: arr.length, totalValue: arr.reduce((s: number, d: any) => s + optNum(d.amount), 0) };
-      } catch { return { count: 0, totalValue: 0 }; }
-    }, staleTime: 0,
-  });
+      const [packsR, depositsR, sellsR, battlesR, upgradesR, exchangesR, cashoutsR] = await Promise.all([
+        get(`${base}&type=pack_open&limit=1`),
+        get(`${base}&type=deposit`),
+        get(`${base}&type=sell`),
+        get(`${base}&type=battle`),
+        get(`${base}&type=upgrade&limit=1`),
+        get(`${base}&type=exchange&limit=1`),
+        get(`${base}&type=cashout`),
+      ]);
 
-  // â”€â”€ Battles: query ALL participations from battlePlayers, not just hosted â”€â”€â”€
-  // The previous code only counted battles the user HOSTED via hostUserId.
-  // We now query battlePlayers to find every battle they participated in,
-  // then fetch the corresponding battle + all player rows for full detail.
-  // This captures wins, losses, draws, and shared-mode participations.
-  const { data: battleHistory = [], isLoading: battlesLoading } = useQuery<any[]>({
-    queryKey: ['admin-battle-participations', user.id],
-    queryFn: async () => {
-      try {
-        const bpRows = await blink.db.battlePlayers.list({
-          where: { userId: user.id },
-          limit: 5000,
-        }) as any[];
-        if (!bpRows?.length) return [];
+      const depositsTotal = (depositsR.rows || []).reduce((s: number, r: any) => s + optNum(r.valueIn), 0);
+      const sellsTotal = (sellsR.rows || []).reduce((s: number, r: any) => s + optNum(r.valueIn), 0);
+      const battlesRows: any[] = battlesR.rows || [];
+      const battlesWins = battlesRows.filter((r: any) => r.result === 'win' || optNum(r.valueOut) > 0).length;
+      const cashoutsRows: any[] = cashoutsR.rows || [];
+      const cashoutPending = cashoutsRows.filter((r: any) => r.result === 'pending').length;
 
-        const results: any[] = [];
-        for (const bp of bpRows) {
-          try {
-            const battle = await blink.db.battles.get(bp.battleId) as any;
-            if (!battle || battle.status !== 'finished') continue;
-
-            const allPlayers = await blink.db.battlePlayers.list({
-              where: { battleId: bp.battleId },
-              limit: 20,
-            }) as any[];
-
-            const packs = (() => { try { return JSON.parse(battle.packsJson || '[]'); } catch { return []; } })();
-            const packNames = packs.map((p: any) => p.name).join(', ');
-            const playerCount = allPlayers.length;
-
-            results.push({
-              id: `bh-${bp.battleId}`,
-              battleId: bp.battleId,
-              mode: battle.mode || 'standard',
-              packNames,
-              totalCost: Number(battle.totalCost || 0),
-              playerCount,
-              endedAt: battle.endedAt || battle.createdAt,
-              players: allPlayers.map((p: any) => ({
-                username: p.username,
-                isAi: Number(p.isAi || 0) > 0,
-                totalValue: Number(p.totalValue || 0),
-                isWinner: Number(p.isWinner || 0) > 0,
-                cards: (() => { try { return JSON.parse(p.cardsJson || '[]'); } catch { return []; } })().slice(0, 5).map((c: any) => ({
-                  name: c.name, value: Number(c.value || 0), rarity: c.rarity,
-                })),
-              })),
-              myResult: {
-                isWinner: Number(bp.isWinner || 0) > 0,
-                totalValue: Number(bp.totalValue || 0),
-              },
-              winnerUserId: battle.winnerUserId || null,
-              winnerUsername: battle.winnerUsername || null,
-              totalPot: Number(battle.totalCost || 0) * playerCount,
-            });
-          } catch { /* skip broken rows */ }
-        }
-
-        return results.sort((a: any, b: any) =>
-          new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime()
-        );
-      } catch { return []; }
+      return {
+        packsCount: packsR.total || 0,
+        depositsCount: depositsR.total || 0,
+        depositsTotal,
+        sellsCount: sellsR.total || 0,
+        sellsTotal,
+        battlesTotal: battlesR.total || 0,
+        battlesWins,
+        upgradeCount: upgradesR.total || 0,
+        exchangeCount: exchangesR.total || 0,
+        cashoutCount: cashoutsR.total || 0,
+        cashoutPending,
+        battleRows: battlesRows,
+      };
     },
     staleTime: 0,
   });
 
-  // Derived battle stats from battleHistory (all participations, not just hosted)
-  const battlesData = React.useMemo(() => {
-    const total = battleHistory.length;
-    let wins = 0;
-    for (const bh of battleHistory) {
-      if (bh.myResult?.isWinner && bh.mode !== 'shared') wins++;
-    }
-    return { total, wins };
-  }, [battleHistory]);
+  const packsTotal    = userStats?.packsCount ?? 0;
+  const depositData   = { count: userStats?.depositsCount ?? 0, totalValue: userStats?.depositsTotal ?? 0, bonusValue: 0, referralValue: 0 };
+  const sellsData     = { count: userStats?.sellsCount ?? 0, totalValue: userStats?.sellsTotal ?? 0 };
+  const battlesData   = { total: userStats?.battlesTotal ?? 0, wins: userStats?.battlesWins ?? 0 };
+  const upgradeCount  = userStats?.upgradeCount ?? 0;
+  const exchangeCount = userStats?.exchangeCount ?? 0;
+  const cashoutCount  = userStats?.cashoutCount ?? 0;
+  const pendingCashouts = userStats?.cashoutPending ?? 0;
+  const packsLoading = statsLoading;
+  const depositsLoading = statsLoading;
+  const sellsLoading = statsLoading;
+  const battlesLoading = statsLoading;
 
-  const { data: cashoutCount = 0 } = useQuery<number>({
-    queryKey: ['admin-cashouts-count', user.id],
-    queryFn: async () => {
-      try {
-        const n = await blink.db.cashoutRequests.count({ where: { userId: user.id } });
-        return typeof n === 'number' ? n : 0;
-      } catch { return 0; }
-    }, staleTime: 0,
-  });
-
-  // Deposit total: source of truth is transactions table (same as DepositsSection).
-  // Includes deposit, first_deposit_bonus, and referral_reward types.
-  const { data: depositData = { count: 0, totalValue: 0, bonusValue: 0, referralValue: 0 }, isLoading: depositsLoading } = useQuery<{ count: number; totalValue: number; bonusValue: number; referralValue: number }>({
-    queryKey: ['admin-deposits-stats-v3', user.id],
-    queryFn: async () => {
-      try {
-        const rows = await blink.db.transactions.list({ where: { userId: user.id }, limit: 5000 });
-        const arr = Array.isArray(rows) ? rows : [];
-        let deposits = 0, bonus = 0, referral = 0;
-        for (const r of arr) {
-          const amt = Math.abs(optNum(r.amount));
-          if (r.type === 'deposit') deposits += amt;
-          else if (r.type === 'first_deposit_bonus') bonus += amt;
-          else if (r.type === 'referral_reward' || r.type === 'referral_signup_bonus') referral += amt;
-        }
-        return {
-          count: arr.filter((r: any) => r.type === 'deposit').length,
-          totalValue: deposits,
-          bonusValue: bonus,
-          referralValue: referral,
-        };
-      } catch { return { count: 0, totalValue: 0, bonusValue: 0, referralValue: 0 }; }
-    }, staleTime: 0,
-  });
-
-  // Upgrade count — dedicated count query
-  const { data: upgradeCount = 0 } = useQuery<number>({
-    queryKey: ['admin-upgrade-count', user.id],
-    queryFn: async () => {
-      try {
-        const n = await blink.db.activityLogs.count({ where: { userId: user.id, type: 'upgrade' } });
-        return typeof n === 'number' ? n : 0;
-      } catch { return 0; }
-    }, staleTime: 0,
-  });
-
-  // Exchange count — dedicated count query
-  const { data: exchangeCount = 0 } = useQuery<number>({
-    queryKey: ['admin-exchange-count', user.id],
-    queryFn: async () => {
-      try {
-        const n = await blink.db.activityLogs.count({ where: { userId: user.id, type: 'exchange' } });
-        return typeof n === 'number' ? n : 0;
-      } catch { return 0; }
-    }, staleTime: 0,
-  });
-
-  // Pending cashout count
-  const { data: pendingCashouts = 0 } = useQuery<number>({
-    queryKey: ['admin-pending-cashouts', user.id],
-    queryFn: async () => {
-      try {
-        const rows = await blink.db.cashoutRequests.list({ where: { userId: user.id, status: 'pending' }, limit: 500 });
-        return Array.isArray(rows) ? rows.length : 0;
-      } catch { return 0; }
-    }, staleTime: 0,
-  });
+  // Battle timeline entries: built from the battle rows already fetched above
+  const battleHistory = React.useMemo(() => (userStats?.battleRows || []).map((r: any) => {
+    const d = (() => { try { return typeof r.details === 'string' ? JSON.parse(r.details) : (r.details || {}); } catch { return {}; } })();
+    return {
+      id: r.id, battleId: d.battleId || r.id, mode: d.mode || 'standard',
+      packNames: d.packNames || '', totalCost: optNum(r.valueIn),
+      playerCount: Array.isArray(d.players) ? d.players.length : 1,
+      endedAt: r.createdAt,
+      players: Array.isArray(d.players) ? d.players : [],
+      myResult: d.myResult || { isWinner: r.result === 'win' || optNum(r.valueOut) > 0, totalValue: optNum(r.valueOut) },
+      winnerUserId: null, winnerUsername: d.winner?.username || null,
+      totalPot: optNum(r.valueIn),
+    };
+  }), [userStats]);
 
   // â”€â”€ Paginated activity logs (backend endpoint, supports type filter) â”€â”€â”€â”€â”€â”€â”€â”€
 
