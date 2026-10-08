@@ -162,7 +162,7 @@ export function LogsTabFixed() {
                 <Meta label="Value In" value={`$${Number(selected.valueIn || 0).toFixed(2)}`} />
                 <Meta label="Value Out" value={`$${Number(selected.valueOut || 0).toFixed(2)}`} />
               </div>
-              <pre className="whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/30 p-4 text-xs leading-5 text-white/65">{JSON.stringify({ details: selected.details || {}, metadata: selected.metadata || {} }, null, 2)}</pre>
+              <LogDetailBody log={selected} />
             </div>
           </div>
         </div>
@@ -173,4 +173,108 @@ export function LogsTabFixed() {
 
 function Meta({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border border-white/5 bg-white/[0.03] p-3"><p className="mb-1 text-[10px] uppercase tracking-wider text-white/30">{label}</p><p className="break-words text-xs text-white/75">{value}</p></div>;
+}
+
+function DetailRow({ label, value, color = 'text-white/65' }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex justify-between items-center text-xs py-1.5 border-b border-white/5 last:border-0">
+      <span className="text-white/35 shrink-0">{label}</span>
+      <span className={`${color} font-bold text-right ml-3 break-all`}>{value}</span>
+    </div>
+  );
+}
+
+function LogDetailBody({ log }: { log: LogEntry }) {
+  const d: any = log.details || {};
+  const { type, valueIn, valueOut, result } = log;
+
+  if (type === 'pack_open') {
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+        <p className="text-[9px] uppercase tracking-widest text-[#9b5cff] mb-3 font-bold">Pack Opening Details</p>
+        <DetailRow label="Pack" value={d.packName || '—'} />
+        <DetailRow label="Pack Cost" value={`-$${Number(d.packCost || valueIn || 0).toFixed(2)}`} color="text-red-400" />
+        <DetailRow label="Card Won" value={d.cardWon || '—'} color="text-white" />
+        {d.rarity && (
+          <DetailRow label="Rarity" value={String(d.rarity).toUpperCase()} color={`font-bold`} />
+        )}
+        <DetailRow label="Card Value" value={`+$${Number(d.cardValue || valueOut || 0).toFixed(2)}`} color="text-green-400" />
+        {d.rollValue != null && <DetailRow label="Roll" value={Number(d.rollValue).toFixed(4)} />}
+      </div>
+    );
+  }
+
+  if (type === 'battle') {
+    const isWin = result === 'win' || d.myResult?.isWinner;
+    const isShared = d.isShared;
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+        <p className="text-[9px] uppercase tracking-widest text-[#f87171] mb-3 font-bold">Battle Details</p>
+        <DetailRow label="Mode" value={d.mode || 'standard'} />
+        <DetailRow label="Packs Used" value={d.packNames || '—'} />
+        <DetailRow label="Total Pot" value={`$${Number(d.totalPot || valueIn || 0).toFixed(2)}`} color="text-[#ffd700]" />
+        {d.myResult && <DetailRow label="My Value" value={`$${Number(d.myResult.totalValue || 0).toFixed(2)}`} color={isShared || isWin ? 'text-green-400' : 'text-red-400'} />}
+        {d.winner?.username && <DetailRow label="Winner" value={d.winner.username} color="text-[#ffd700]" />}
+      </div>
+    );
+  }
+
+  if (type === 'sell') {
+    const cards: any[] = Array.isArray(d.cards) ? d.cards : d.cardName ? [{ name: d.cardName, rarity: d.rarity, value: d.value }] : [];
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+        <p className="text-[9px] uppercase tracking-widest text-[#f59e0b] mb-3 font-bold">Sale Details</p>
+        {cards.map((c: any, i: number) => (
+          <DetailRow key={i} label={c.name || `Card ${i + 1}`} value={`+$${Number(c.value || 0).toFixed(2)}`} color="text-green-400" />
+        ))}
+        <DetailRow label="Total" value={`+$${Number(d.totalValue || valueIn || 0).toFixed(2)}`} color="text-green-400" />
+      </div>
+    );
+  }
+
+  if (type === 'upgrade') {
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+        <p className="text-[9px] uppercase tracking-widest text-[#ffd700] mb-3 font-bold">Upgrader Details</p>
+        {d.winChance != null && <DetailRow label="Success Chance" value={`${d.winChance}%`} color="text-[#00c8ff]" />}
+        <DetailRow label="Value In" value={`-$${Number(valueIn || 0).toFixed(2)}`} color="text-red-400" />
+        <DetailRow label="Value Out" value={`+$${Number(valueOut || 0).toFixed(2)}`} color={result === 'win' ? 'text-green-400' : 'text-red-400'} />
+      </div>
+    );
+  }
+
+  if (type === 'deposit') {
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+        <p className="text-[9px] uppercase tracking-widest text-[#10b981] mb-3 font-bold">Deposit Details</p>
+        <DetailRow label="Amount" value={`+$${Number(d.amount || valueIn || 0).toFixed(2)}`} color="text-green-400" />
+        <DetailRow label="Method" value={d.paymentMethod || '—'} />
+        <DetailRow label="Status" value={d.status || result || '—'} color="text-green-400" />
+        {d.paymentIntentId && <DetailRow label="Stripe ID" value={d.paymentIntentId} />}
+        {d.chargeId && <DetailRow label="Coinbase ID" value={d.chargeId} />}
+      </div>
+    );
+  }
+
+  if (type === 'cashout') {
+    return (
+      <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+        <p className="text-[9px] uppercase tracking-widest text-[#f59e0b] mb-3 font-bold">Cash Out Details</p>
+        <DetailRow label="Status" value={d.status || result || '—'} color="text-[#f59e0b]" />
+        <DetailRow label="Cards Submitted" value={String(d.totalCards || 0)} />
+        <DetailRow label="Total Value" value={`$${Number(d.totalValue || valueOut || 0).toFixed(2)}`} color="text-green-400" />
+        {d.confirmationNumber && <DetailRow label="Confirmation #" value={d.confirmationNumber} color="text-[#ffd700]" />}
+      </div>
+    );
+  }
+
+  const entries = Object.entries(d).filter(([, v]) => v !== null && v !== undefined && typeof v !== 'object');
+  if (entries.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 p-4 space-y-0">
+      {entries.map(([k, v]) => (
+        <DetailRow key={k} label={k} value={String(v)} />
+      ))}
+    </div>
+  );
 }
