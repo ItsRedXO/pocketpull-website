@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lock, Clock, Coins, Trophy, Swords, X, Check, Zap, Users } from 'lucide-react';
+import { Lock, Clock, Coins, Trophy, Swords, X, Check, Zap, Users, Loader2 } from 'lucide-react';
 import {
   getBrawlConfig, getBrawlProfile, playBrawlBattle, setup3v3Battle, play3v3Battle,
   type BrawlBattlePlayResult, type BrawlProfile, type TeamPreviewMon,
@@ -73,7 +73,7 @@ function TierRow({ index, color, config, status, wins, onPlay, playing }: { inde
         <motion.button onClick={onPlay} disabled={disabled} whileHover={!disabled ? { scale: 1.04 } : undefined} whileTap={!disabled ? { scale: 0.96 } : undefined}
           className="shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
           style={disabled ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' } : { background: `linear-gradient(90deg, ${color}, #00c8ff)`, color: '#000' }}>
-          {onCooldown ? <><Clock size={13} /> {cooldownLabel}</> : <><Swords size={13} /> Battle</>}
+          {playing ? <><Loader2 size={13} className="animate-spin" /> Loading…</> : onCooldown ? <><Clock size={13} /> {cooldownLabel}</> : <><Swords size={13} /> Battle</>}
         </motion.button>
       </motion.div>
     </motion.div>
@@ -105,7 +105,7 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
         </div>
         <div className="space-y-3">
           <motion.button
-            whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => onSelect('6v6')}
             className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
             style={{ borderColor: `${tierColor}40`, background: `${tierColor}12` }}
@@ -120,7 +120,7 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
           </motion.button>
 
           <motion.button
-            whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => onSelect('3v3')}
             className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
             style={{ borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
