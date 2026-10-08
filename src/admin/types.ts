@@ -20,6 +20,7 @@ export interface UserRow {
   lastSeenAt: string | null;
   lastActiveAt: string | null;
   gems?: number;
+  cardValue?: number;
 }
 
 export interface InventoryRow {

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { query } from '../lib/postgres';
 import { requireAuth, uid } from '../lib/auth';
 import { processWalletTransaction } from '../repositories/wallet';
+import { writeLog } from './logs';
 
 const app = new Hono();
 
@@ -70,6 +71,17 @@ app.post('/admin/users/:id/balance', async (c) => {
       return c.json({ success: false, error: result.error || 'Balance update failed.' }, 400);
     }
 
+    await writeLog(null, {
+      userId: targetUserId,
+      type: 'admin_balance',
+      username: target[0].username || 'Unknown',
+      action: `Admin ${mode === 'set' ? 'Set' : 'Adjusted'} Balance`,
+      details: { adminUserId, mode, delta, newBalance: result.balanceAfter, previousBalance: result.balanceBefore },
+      valueIn: delta > 0 ? delta : 0,
+      valueOut: delta < 0 ? Math.abs(delta) : 0,
+      result: 'success',
+    });
+
     return c.json({
       success: true,
       balance: result.balanceAfter,
@@ -126,6 +138,17 @@ app.post('/admin/users/:id/gems', async (c) => {
       [uid(), targetUserId, delta, before, newGems, `admin:${adminUserId}`, JSON.stringify({ adminUserId, mode })],
     );
 
+    await writeLog(null, {
+      userId: targetUserId,
+      type: 'admin_gems',
+      username: target[0].username || 'Unknown',
+      action: `Admin ${mode === 'set' ? 'Set' : 'Adjusted'} Gems`,
+      details: { adminUserId, mode, delta, newGems, previousGems: before },
+      valueIn: delta > 0 ? delta : 0,
+      valueOut: delta < 0 ? Math.abs(delta) : 0,
+      result: 'success',
+    });
+
     return c.json({
       success: true,
       gems: rows[0]?.gems ?? newGems,
@@ -134,6 +157,25 @@ app.post('/admin/users/:id/gems', async (c) => {
     });
   } catch (error: any) {
     const message = error?.message || 'Gems update failed.';
+    const status = message === 'UNAUTHORIZED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
+    return c.json({ success: false, error: message }, status);
+  }
+});
+
+app.get('/admin/users/card-values', async (c) => {
+  try {
+    await requireAdmin(c);
+    const rows = await query<{ user_id: string; total_value: string }>(
+      `SELECT user_id, COALESCE(SUM(value), 0)::text AS total_value
+       FROM inventory
+       WHERE COALESCE(sold, 0) = 0
+       GROUP BY user_id`,
+    );
+    const cardValues: Record<string, number> = {};
+    for (const row of rows) cardValues[row.user_id] = Number(row.total_value);
+    return c.json({ success: true, cardValues });
+  } catch (error: any) {
+    const message = error?.message || 'Failed to fetch card values.';
     const status = message === 'UNAUTHORIZED' ? 401 : message === 'FORBIDDEN' ? 403 : 500;
     return c.json({ success: false, error: message }, status);
   }

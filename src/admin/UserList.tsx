@@ -23,13 +23,22 @@ const FILTER_TABS: { key: FilterTab; label: string; color: string }[] = [
 
 const USERS_PER_PAGE = 25;
 
-type SortKey = 'username' | 'balance' | 'createdAt';
+type SortKey = 'username' | 'balance' | 'createdAt' | 'gems' | 'cardValue';
 type SortDir = 'asc' | 'desc';
+type RoleFilter = 'all' | 'admin' | 'user';
 
 const SORT_OPTIONS: { key: SortKey; label: string; asc: string; desc: string }[] = [
   { key: 'username',  label: 'Name',     asc: 'A→Z',       desc: 'Z→A' },
   { key: 'balance',   label: 'Balance',  asc: 'Low→High',   desc: 'High→Low' },
   { key: 'createdAt', label: 'Joined',   asc: 'Oldest',     desc: 'Newest' },
+  { key: 'gems',      label: 'Gems',     asc: 'Low→High',   desc: 'High→Low' },
+  { key: 'cardValue', label: 'Card Val', asc: 'Low→High',   desc: 'High→Low' },
+];
+
+const ROLE_FILTERS: { key: RoleFilter; label: string }[] = [
+  { key: 'all',   label: 'All Roles' },
+  { key: 'admin', label: 'Admins' },
+  { key: 'user',  label: 'Users' },
 ];
 
 export function UserList({
@@ -46,13 +55,14 @@ export function UserList({
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortKey>('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
 
-  // Reset page when tab, search, or sort changes
+  // Reset page when tab, search, sort, or role filter changes
   useEffect(() => {
     setPage(1);
-  }, [filterTab, search, sortBy, sortDir]);
+  }, [filterTab, search, sortBy, sortDir, roleFilter]);
 
-  // Filter by tab then by search
+  // Filter by tab then by search then by role
   const tabFiltered = users.filter((u) => {
     if (filterTab === 'active') return !u.isDeleted && !u.isBanned;
     if (filterTab === 'banned') return !u.isDeleted && u.isBanned;
@@ -61,6 +71,9 @@ export function UserList({
   });
 
   const filtered = tabFiltered.filter((u) => {
+    const isAdmin = u.role === 'admin' || u.role === 'owner';
+    if (roleFilter === 'admin' && !isAdmin) return false;
+    if (roleFilter === 'user' && isAdmin) return false;
     const s = search.toLowerCase();
     if (!s) return true;
     return (
@@ -75,6 +88,8 @@ export function UserList({
     if (sortBy === 'username') cmp = (a.username || a.displayName || '').localeCompare(b.username || b.displayName || '');
     else if (sortBy === 'balance') cmp = a.balance - b.balance;
     else if (sortBy === 'createdAt') cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+    else if (sortBy === 'gems') cmp = (a.gems ?? 0) - (b.gems ?? 0);
+    else if (sortBy === 'cardValue') cmp = (a.cardValue ?? 0) - (b.cardValue ?? 0);
     return sortDir === 'asc' ? cmp : -cmp;
   });
 
@@ -124,7 +139,7 @@ export function UserList({
               key={opt.key}
               onClick={() => {
                 if (active) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                else { setSortBy(opt.key); setSortDir(opt.key === 'balance' ? 'desc' : opt.key === 'createdAt' ? 'desc' : 'asc'); }
+                else { setSortBy(opt.key); setSortDir(opt.key === 'username' ? 'asc' : 'desc'); }
               }}
               className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all"
               style={{
@@ -143,6 +158,25 @@ export function UserList({
             </button>
           );
         })}
+      </div>
+
+      {/* Role filter */}
+      <div className="flex gap-1 mb-2 shrink-0">
+        {ROLE_FILTERS.map(rf => (
+          <button
+            key={rf.key}
+            onClick={() => setRoleFilter(rf.key)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all"
+            style={{
+              background: roleFilter === rf.key ? 'rgba(0,200,255,0.12)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${roleFilter === rf.key ? 'rgba(0,200,255,0.35)' : 'rgba(255,255,255,0.08)'}`,
+              color: roleFilter === rf.key ? '#00c8ff' : 'rgba(255,255,255,0.3)',
+            }}
+          >
+            {rf.key === 'admin' && <Shield size={9} />}
+            {rf.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex justify-between items-center mb-1 px-1 shrink-0">

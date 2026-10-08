@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users } from 'lucide-react';
 import { blink } from '../lib/blink';
@@ -8,15 +8,20 @@ import { UserRow, InventoryRow, FilterTab } from './types';
 import { UserList } from './UserList';
 import { UserDetail } from './UserDetail';
 
+async function getAdminAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const secret = localStorage.getItem('pocketpull_admin_pass');
+  if (secret) headers['X-Admin-Secret'] = secret;
+  try {
+    const token = await blink.auth.getValidToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  } catch {}
+  return headers;
+}
+
 async function logAdminAction(action: string, targetUser: string, details: Record<string, any> = {}) {
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    const secret = localStorage.getItem('pocketpull_admin_pass');
-    if (secret) headers['X-Admin-Secret'] = secret;
-    try {
-      const token = await blink.auth.getValidToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-    } catch {}
+    const headers = await getAdminAuthHeaders();
     await fetch(`${BACKEND_BASE}/admin/logs/action`, {
       method: 'POST',
       headers,
@@ -69,17 +74,34 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
     refetchInterval: 5000,
   });
 
+  const { data: cardValues } = useQuery<Record<string, number>>({
+    queryKey: ['admin-card-values'],
+    queryFn: async () => {
+      const headers = await getAdminAuthHeaders();
+      const r = await fetch(`${BACKEND_BASE}/admin/users/card-values`, { headers });
+      if (!r.ok) return {};
+      const data = await r.json();
+      return data.cardValues || {};
+    },
+    staleTime: 60_000,
+  });
+
+  const usersWithCardValues = useMemo(
+    () => allUsers.map(u => ({ ...u, cardValue: cardValues?.[u.id] ?? 0 })),
+    [allUsers, cardValues],
+  );
+
   const counts = {
-    active: allUsers.filter(u => !u.isDeleted && !u.isBanned).length,
-    banned: allUsers.filter(u => !u.isDeleted && u.isBanned).length,
-    deleted: allUsers.filter(u => u.isDeleted).length,
+    active: usersWithCardValues.filter(u => !u.isDeleted && !u.isBanned).length,
+    banned: usersWithCardValues.filter(u => !u.isDeleted && u.isBanned).length,
+    deleted: usersWithCardValues.filter(u => u.isDeleted).length,
   };
-  const currentSelectedUser = selectedUser ? (allUsers.find(u => u.id === selectedUser.id) || selectedUser) : null;
+  const currentSelectedUser = selectedUser ? (usersWithCardValues.find(u => u.id === selectedUser.id) || selectedUser) : null;
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-150px)] min-h-[520px] lg:min-h-[500px]">
       <div className={currentSelectedUser ? 'hidden lg:flex' : 'flex'}>
-        <UserList users={allUsers} isLoading={isLoading} search={search} setSearch={setSearch} filterTab={filterTab} setFilterTab={(t) => { setFilterTab(t); setSelectedUser(null); }} selectedUserId={currentSelectedUser?.id || null} onSelectUser={setSelectedUser} counts={counts} />
+        <UserList users={usersWithCardValues} isLoading={isLoading} search={search} setSearch={setSearch} filterTab={filterTab} setFilterTab={(t) => { setFilterTab(t); setSelectedUser(null); }} selectedUserId={currentSelectedUser?.id || null} onSelectUser={setSelectedUser} counts={counts} />
       </div>
       <div className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto pr-0 lg:pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
         {!currentSelectedUser ? <div className="flex items-center justify-center h-full min-h-48"><div className="text-center"><Users size={36} className="text-white/10 mx-auto mb-3" /><p className="text-white/20 text-sm">Select a user to view details</p></div></div> : <><button onClick={() => setSelectedUser(null)} className="lg:hidden flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-[#00c8ff] bg-[#00c8ff]/10 border border-[#00c8ff]/20">← Back to users</button><UserDetail user={currentSelectedUser} showToast={showToast} onClose={() => setSelectedUser(null)} onUpdate={setSelectedUser} onPreviewCard={setPreviewCard} logAdminAction={logAdminAction} /></>}
