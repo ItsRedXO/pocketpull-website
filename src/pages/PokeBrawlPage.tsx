@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Users, Swords, Binoculars, Briefcase, Sparkles, Trophy, BarChart3, Coins, Lock, TrendingUp, ChevronsRight } from 'lucide-react';
 import { getBrawlProfile, getBrawlRoster } from '../lib/brawlApi';
 import { useAuth } from '../hooks/useAuth';
+import { useGuestTrial } from '../context/GuestTrialContext';
 import { IntroFlow } from './brawl/IntroFlow';
 import { TeamTab } from './brawl/TeamTab';
 import { PlayTab } from './brawl/PlayTab';
@@ -30,6 +31,8 @@ const SUB_TABS: { id: SubTab; label: string; icon: React.FC<{ size?: number; cla
 export function PokeBrawlPage() {
   const qc = useQueryClient();
   const { isAuthenticated } = useAuth();
+  const { isGuest } = useGuestTrial();
+  const isAllowed = isAuthenticated || isGuest;
   const { data: profileData, isLoading } = useQuery({ queryKey: ['brawl-profile'], queryFn: getBrawlProfile, enabled: isAuthenticated });
   const { data: rosterData } = useQuery({ queryKey: ['brawl-roster'], queryFn: getBrawlRoster, enabled: isAuthenticated });
   const [subTab, setSubTab] = useState<SubTab>('team');
@@ -68,7 +71,7 @@ export function PokeBrawlPage() {
             </div>
           </div>
 
-          {isAuthenticated && profileData?.profile.has_completed_intro && (
+          {isAllowed && profileData?.profile.has_completed_intro && (
             <div className="flex items-center gap-4 md:gap-6 flex-wrap">
               <div className="flex items-center gap-2.5">
                 <Swords size={22} className="text-[#9b5cff]" />
@@ -101,7 +104,7 @@ export function PokeBrawlPage() {
           )}
         </div>
 
-        {isAuthenticated && profileData?.profile.has_completed_intro && (
+        {isAllowed && profileData?.profile.has_completed_intro && (
           <div className="flex items-center justify-end gap-2 flex-wrap mb-4">
             <DailyBonusButton dailyBonus={profileData?.dailyBonus} />
             {profileData?.rank && (
@@ -117,7 +120,7 @@ export function PokeBrawlPage() {
           </div>
         )}
 
-        {!isAuthenticated ? (
+        {!isAllowed ? (
           <div className="min-h-[50vh] flex items-center justify-center">
             <div className="text-center space-y-4 px-4">
               <Lock size={48} className="mx-auto text-[#00c8ff]/20" />

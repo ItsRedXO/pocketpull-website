@@ -24,6 +24,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { openPack, sellCard } from '../lib/api';
 import { useSoundSetting } from '../hooks/useSoundSetting';
 import { useTickSound } from '../hooks/useTickSound';
+import { useGuestTrial } from '../context/GuestTrialContext';
+import { MOCK_PACK_OPEN_RESULT } from '../lib/mockData';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const RARITY_COLOR: Record<string, string> = {
@@ -102,6 +104,7 @@ interface Props {
 // ── Main ───────────────────────────────────────────────────────────────────────
 export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) => {
   const { user, isAuthenticated } = useAuth();
+  const { isGuest, canAct, consumeAction } = useGuestTrial();
   const { balance, matchedBalance, updateBalance } = useBalance(user?.id);
   const { enabled: soundEnabled } = useSoundSetting();
   const { startReel, stop: stopTick } = useTickSound(soundEnabled);
@@ -149,23 +152,30 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
     setActionMsg(null);
     setSold(false);
 
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated && !isGuest) {
       setError('Create an account or sign in to open packs.');
       window.dispatchEvent(new CustomEvent('pocketpull-open-auth', { detail: 'signup' }));
       return;
     }
 
-    if (totalBalanceRef.current < pack.price) {
+    if (!isGuest && totalBalanceRef.current < pack.price) {
       setError('Insufficient balance — deposit funds to open packs.');
+      return;
+    }
+
+    if (isGuest && !canAct) {
+      window.dispatchEvent(new CustomEvent('pocketpull-open-auth', { detail: 'signup' }));
       return;
     }
 
     // ── Step 1a: show "Opening…" immediately — no animation, no audio ────
     setSpinState('opening');
 
-    // ── Step 1b: call backend (card is saved to inventory server-side) ────
+    // ── Step 1b: call backend (or return mock data for guests) ────
     try {
-      const result = await openPack(pack.id, code);
+      const result = isGuest
+        ? await Promise.resolve(MOCK_PACK_OPEN_RESULT)
+        : await openPack(pack.id, code);
 
       const winnerPackCard: PackCard = {
         id: result.inventoryId,
@@ -186,10 +196,13 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
         inventoryId: result.inventoryId,
       });
 
-      await updateBalance(result.newBalance);
-      onComplete(result.newBalance);
-
-      qc.invalidateQueries({ queryKey: ['inventory'] });
+      if (isGuest) {
+        consumeAction();
+      } else {
+        await updateBalance(result.newBalance);
+        onComplete(result.newBalance);
+        qc.invalidateQueries({ queryKey: ['inventory'] });
+      }
 
       // ── Step 2: build strip WITH the real winner at WINNER_IDX ─────────
       const realStrip = buildStrip(cards, winnerPackCard);
@@ -365,7 +378,7 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
                   <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: winCol }}>
                     {RARITY_LABEL[winner.rarity] ?? winner.rarity}
                   </p>
-                  <p className="text-[9px] text-white/40 mt-0.5">✅ Saved to your collection</p>
+                  <p className="text-[9px] text-white/40 mt-0.5">{isGuest ? '👀 Sign up to keep this card' : '✅ Saved to your collection'}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-[15px] font-display font-bold" style={{ color: winCol }}>
@@ -389,12 +402,14 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
                 >
                   Open Another
                 </button>
-                <button onClick={handleSell} disabled={selling}
-                  className="flex-1 py-3 rounded-xl font-display text-[12px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110 disabled:opacity-60 flex items-center justify-center gap-1.5"
-                  style={{ background: `${winCol}18`, border: `1.5px solid ${winCol}55`, color: winCol, boxShadow: `0 0 12px -4px ${winCol}66` }}
-                >
-                  <DollarSign size={12} /> {selling ? 'Selling...' : `Sell — $${Number(winner.estimatedValue).toFixed(2)}`}
-                </button>
+                {!isGuest && (
+                  <button onClick={handleSell} disabled={selling}
+                    className="flex-1 py-3 rounded-xl font-display text-[12px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110 disabled:opacity-60 flex items-center justify-center gap-1.5"
+                    style={{ background: `${winCol}18`, border: `1.5px solid ${winCol}55`, color: winCol, boxShadow: `0 0 12px -4px ${winCol}66` }}
+                  >
+                    <DollarSign size={12} /> {selling ? 'Selling...' : `Sell — $${Number(winner.estimatedValue).toFixed(2)}`}
+                  </button>
+                )}
               </div>
             </motion.div>
           )}

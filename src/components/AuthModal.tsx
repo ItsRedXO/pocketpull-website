@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Eye, EyeOff, Mail, Lock, User, User2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useGuestTrial } from '../context/GuestTrialContext';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -86,6 +87,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const [agreeUsShipping, setAgreeUsShipping] = useState(false);
 
   const { signIn, signUp, sendPasswordReset } = useAuth();
+  const { startGuestTrial } = useGuestTrial();
+
+  const handleGuestTrial = () => {
+    startGuestTrial();
+    onClose();
+  };
 
   const resetForm = () => {
     setEmail('');
@@ -388,6 +395,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                   </button>
                 </p>
               </form>
+            )}
+
+            {/* Try as Guest */}
+            {tab !== 'forgot' && (
+              <div className="mt-5 pt-4 text-center" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <p className="text-[11px] text-white/25 mb-2">Just want to look around?</p>
+                <button
+                  type="button"
+                  onClick={handleGuestTrial}
+                  className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-white/60"
+                  style={{ color: 'rgba(255,255,255,0.3)' }}
+                >
+                  Try as Guest — 7 free actions
+                </button>
+              </div>
             )}
 
             {/* Sign Up Form */}

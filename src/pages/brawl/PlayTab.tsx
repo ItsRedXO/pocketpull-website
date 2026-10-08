@@ -6,6 +6,8 @@ import {
   getBrawlConfig, getBrawlProfile, playBrawlBattle, setup3v3Battle, play3v3Battle,
   type BrawlBattlePlayResult, type BrawlProfile, type TeamPreviewMon,
 } from '../../lib/brawlApi';
+import { useGuestTrial } from '../../context/GuestTrialContext';
+import { getMockBattleResult } from '../../lib/mockData';
 import { BattleReplay } from './BattleReplay';
 
 const TIER_COLORS = ['#8892a4', '#6890f0', '#9b5cff', '#f97316', '#facc15'];
@@ -431,8 +433,9 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
 
 export function PlayTab() {
   const qc = useQueryClient();
+  const { isGuest, canAct, consumeAction } = useGuestTrial();
   const { data: config } = useQuery({ queryKey: ['brawl-config'], queryFn: getBrawlConfig, staleTime: 60_000 });
-  const { data: profile } = useQuery({ queryKey: ['brawl-profile'], queryFn: getBrawlProfile });
+  const { data: profile } = useQuery({ queryKey: ['brawl-profile'], queryFn: getBrawlProfile, enabled: !isGuest, staleTime: Infinity });
   const [playingTier, setPlayingTier] = useState<string | null>(null);
   const [result, setResult] = useState<BrawlBattlePlayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -446,6 +449,14 @@ export function PlayTab() {
 
   const handleBattleClick = (tierId: string) => {
     setError(null);
+    if (isGuest && !canAct) {
+      window.dispatchEvent(new CustomEvent('pocketpull-open-auth', { detail: 'signup' }));
+      return;
+    }
+    if (isGuest) {
+      run6v6(tierId);
+      return;
+    }
     setModeSelectTier(tierId);
   };
 
@@ -472,7 +483,10 @@ export function PlayTab() {
   const run6v6 = async (tierId: string) => {
     setPlayingTier(tierId);
     try {
-      const res = await playBrawlBattle(tierId);
+      const res = isGuest
+        ? await Promise.resolve(getMockBattleResult(tierId))
+        : await playBrawlBattle(tierId);
+      if (isGuest) consumeAction();
       setResult(res);
     } catch (e: any) {
       setError(e.message || 'Battle failed to start');
