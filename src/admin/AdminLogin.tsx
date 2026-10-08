@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, User, Eye, EyeOff, Shield } from 'lucide-react';
 
@@ -45,7 +45,7 @@ export const AdminLogin: React.FC<Props> = ({ onLogin, error }) => {
             <Shield size={28} className="text-[#9b5cff]" />
           </div>
           <h1 className="text-2xl font-sans font-bold text-white tracking-wide uppercase">Admin Portal</h1>
-          <p className=”text-[12px] text-white/30 mt-1 uppercase tracking-[0.2em]”>PocketPull TCG — Restricted Access</p>
+          <p className="text-[12px] text-white/30 mt-1 uppercase tracking-[0.2em]">PocketPull TCG — Restricted Access</p>
         </div>
 
         {/* Form */}

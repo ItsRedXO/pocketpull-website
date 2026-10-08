@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ticket, Percent, Users, Save, Plus, RefreshCw, Shuffle, Pencil, X, Ban, CheckCircle2, Loader2, User, Trash2, DollarSign, Package, Clock } from 'lucide-react';
 import {
@@ -39,7 +39,7 @@ const emptyForm = {
   maxUses: '', expiresAt: '', expiresTime: '',
 };
 
-// â”€â”€ Deal Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Deal Settings â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function DealsSection({ showToast }: Props) {
   const { data, isLoading, refetch } = useQuery({ queryKey: ['admin-deal-settings'], queryFn: fetchDealSettings, staleTime: 0 });
   const [draft, setDraft] = useState<DealSettings | null>(null);
@@ -108,7 +108,7 @@ function DealsSection({ showToast }: Props) {
   );
 }
 
-// â”€â”€ Code Detail Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Code Detail Modal â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClose: () => void; showToast: (msg: string, ok?: boolean) => void }) {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['admin-promo-code-redemptions', code.id], queryFn: () => fetchPromoCodeRedemptions(code.id) });
@@ -162,7 +162,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
             {isSocial ? (
               <div>
                 <p className="text-[10px] font-bold text-[#9b5cff] flex items-center gap-1"><Package size={10} /> Social Pack</p>
-                <p className="text-[10px] text-white/60">{code.rewardPackName || 'â€”'}</p>
+                <p className="text-[10px] text-white/60">{code.rewardPackName || 'â€"'}</p>
               </div>
             ) : (
               <p className="text-sm font-bold text-white">${code.rewardAmount.toFixed(2)}</p>
@@ -223,7 +223,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
   );
 }
 
-// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Main â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
   const qc = useQueryClient();
   const { data, isLoading, isFetching, refetch } = useQuery({ queryKey: ['admin-promo-codes'], queryFn: fetchPromoCodes, staleTime: 0 });
@@ -307,7 +307,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
 
       <DealsSection showToast={showToast} />
 
-      {/* â”€â”€ Code Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* â"€â"€ Code Form â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
       <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(13,14,20,0.9)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
@@ -376,7 +376,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Select Pack</label>
               {socialPacks.length === 0 ? (
-                <p className="text-[11px] text-white/30 py-2">No social packs found â€” create one in the Packs tab first.</p>
+                <p className="text-[11px] text-white/30 py-2">No social packs found â€" create one in the Packs tab first.</p>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-2">
                   {socialPacks.map(p => (
@@ -455,7 +455,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
         </form>
       </div>
 
-      {/* â”€â”€ Codes List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* â"€â"€ Codes List â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
       <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(13,14,20,0.9)' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
           <h3 className="font-sans text-sm uppercase tracking-wider text-white">All Codes ({codes.length})</h3>
@@ -466,7 +466,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
         {isLoading ? (
           <div className="flex items-center justify-center py-10"><Loader2 size={20} className="animate-spin text-white/30" /></div>
         ) : codes.length === 0 ? (
-          <div className=”text-white/30 text-xs py-10 text-center”>No promo codes yet — create one above.</div>
+          <div className="text-white/30 text-xs py-10 text-center">No promo codes yet — create one above.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[12px]">
@@ -488,7 +488,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                     <td className="px-5 py-3">
                       <button onClick={() => setViewingCode(c)} className="font-mono font-bold text-[#00c8ff] hover:underline">{c.code}</button>
                     </td>
-                    <td className="px-5 py-3 text-white/50 max-w-[160px] truncate">{c.description || 'â€”'}</td>
+                    <td className="px-5 py-3 text-white/50 max-w-[160px] truncate">{c.description || 'â€"'}</td>
                     <td className="px-5 py-3">
                       {c.rewardType === 'social_pack' ? (
                         <div className="flex items-center gap-1.5">
@@ -501,7 +501,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                     </td>
                     <td className="px-5 py-3 text-white/50">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / âˆž'}</td>
                     <td className="px-5 py-3 text-white/50">{new Date(c.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : 'â€”'}</td>
+                    <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : 'â€"'}</td>
                     <td className="px-5 py-3">
                       <button onClick={() => toggleActive(c)}
                         className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${c.isActive ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-white/5 text-white/30 border-white/10 hover:bg-white/10'}`}>
