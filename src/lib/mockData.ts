@@ -166,7 +166,7 @@ function generateBattleFrames(userWins: boolean): { frames: ArenaFrame[]; maxTic
   const fainted = new Array(12).fill(false);
   const frames: ArenaFrame[] = [];
   let koUser = 0, koOpponent = 0;
-  const TICKS = 22;
+  const TICKS = 26;
 
   const getMove = (type: string) => {
     const pool = TYPE_MOVES[type] ?? ['Tackle', 'Quick Attack'];
@@ -174,27 +174,54 @@ function generateBattleFrames(userWins: boolean): { frames: ArenaFrame[]; maxTic
   };
   const randEff = () => EFFECTIVENESS_POOL[Math.floor(Math.random() * EFFECTIVENESS_POOL.length)];
 
-  for (let tick = 0; tick < TICKS; tick++) {
-    // Determine which Pokemon attack this tick
-    const uAtk = tick % 6;
-    const oAtk = (tick + 2) % 6;
-    const oTarget = (tick + 1) % 6;
-    const uTarget = tick % 3;
+  // Per-Pokemon wander phase so each game has unique idle movement
+  const wanderPhase = Array.from({ length: 12 }, () => Math.random() * Math.PI * 2);
 
-    // Build positions: attacker lunges diagonally toward target; others sway gently
+  const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const liveU = () => Array.from({ length: 6 }, (_, i) => i).filter(i => !fainted[i]);
+  const liveO = () => Array.from({ length: 6 }, (_, i) => i).filter(i => !fainted[6 + i]);
+
+  for (let tick = 0; tick < TICKS; tick++) {
+    const alive_u = liveU();
+    const alive_o = liveO();
+
+    // Pick user attackers: always at least one, 40% chance of a second
+    const uAttackers: Array<{ atk: number; tgt: number }> = [];
+    if (alive_u.length > 0 && alive_o.length > 0) {
+      const atk1 = pick(alive_u);
+      // Focus fire: target the opponent with lowest remaining HP
+      const tgt1 = alive_o.reduce((best, i) => hps[6 + i] < hps[6 + best] ? i : best, alive_o[0]);
+      uAttackers.push({ atk: atk1, tgt: tgt1 });
+      if (Math.random() < 0.4 && alive_u.length > 1) {
+        const atk2 = pick(alive_u.filter(i => i !== atk1));
+        uAttackers.push({ atk: atk2, tgt: pick(alive_o) });
+      }
+    }
+
+    // Opponent attacks one random target, ~55% of ticks
+    const oAttackers: Array<{ atk: number; tgt: number }> = [];
+    if (alive_o.length > 0 && alive_u.length > 0 && Math.random() < 0.55) {
+      oAttackers.push({ atk: pick(alive_o), tgt: pick(alive_u) });
+    }
+
+    const uAtkSet = new Set(uAttackers.map(a => a.atk));
+    const oAtkSet = new Set(oAttackers.map(a => a.atk));
+
+    // Build per-tick positions: lungers move toward their actual target; others wander
     const pokemon = buildInitialPokemon(maxHps).map((p, i) => {
-      const isUAtk = p.side === 'user' && i === uAtk && !fainted[i];
-      const isOAtk = p.side === 'opponent' && (i - 6) === oAtk && !fainted[i];
       let dx = 0, dy = 0;
-      if (isUAtk) {
-        dx = 13;
-        dy = (OPP_POSITIONS[oTarget].y - p.y) * 0.38;
-      } else if (isOAtk) {
-        dx = -13;
-        dy = (USER_POSITIONS[uTarget].y - p.y) * 0.38;
+      const uA = p.side === 'user' ? uAttackers.find(a => a.atk === i) : undefined;
+      const oA = p.side === 'opponent' ? oAttackers.find(a => a.atk === (i - 6)) : undefined;
+      if (uA) {
+        dx = 12;
+        dy = (OPP_POSITIONS[uA.tgt].y - p.y) * 0.4;
+      } else if (oA) {
+        dx = -12;
+        dy = (USER_POSITIONS[oA.tgt].y - p.y) * 0.4;
       } else {
-        dx = Math.sin(tick * 0.7 + i * 2.1) * 1.2;
-        dy = Math.cos(tick * 0.9 + i * 1.7) * 1.0;
+        // Gentle independent wander — different phase per Pokemon, unique per game
+        dx = Math.sin(tick * 0.55 + wanderPhase[i]) * 1.8;
+        dy = Math.cos(tick * 0.45 + wanderPhase[i] * 1.3) * 1.4;
       }
       return { ...p, hp: Math.max(0, hps[i]), fainted: fainted[i], x: p.x + dx, y: p.y + dy };
     });
@@ -202,43 +229,45 @@ function generateBattleFrames(userWins: boolean): { frames: ArenaFrame[]; maxTic
     const attacks: ArenaFrame['attacks'] = [];
     const faints: ArenaFrame['faints'] = [];
 
-    // User attacks opponent every tick
-    if (!fainted[uAtk] && !fainted[6 + oTarget]) {
-      const eff = randEff();
-      const base = Math.floor(16 + Math.random() * 20);
-      const dmg = eff === 'super-effective' ? Math.floor(base * 1.8) : eff === 'not-very-effective' ? Math.floor(base * 0.55) : base;
-      const p = MOCK_STARTER_ROSTER[uAtk];
-      attacks.push({
-        attackerId: `u-${uAtk}`, defenderId: `o-${oTarget}`,
-        move: getMove(p.primary_type), moveType: p.primary_type,
-        vfx: p.primary_type, damage: dmg, effectiveness: eff,
-        fromX: USER_POSITIONS[uAtk].x + 13, fromY: USER_POSITIONS[uAtk].y,
-        toX: OPP_POSITIONS[oTarget].x, toY: OPP_POSITIONS[oTarget].y,
-      });
-      hps[6 + oTarget] -= dmg;
-      if (hps[6 + oTarget] <= 0 && !fainted[6 + oTarget]) {
-        fainted[6 + oTarget] = true;
-        faints.push({ pokemonId: `o-${oTarget}`, side: 'opponent', name: OPP_SPECIES[oTarget].name });
-        koUser++;
+    for (const { atk, tgt } of uAttackers) {
+      if (!fainted[atk] && !fainted[6 + tgt]) {
+        const eff = randEff();
+        const base = Math.floor(22 + Math.random() * 24);
+        const dmg = eff === 'super-effective' ? Math.floor(base * 1.8) : eff === 'not-very-effective' ? Math.floor(base * 0.55) : base;
+        const sp = MOCK_STARTER_ROSTER[atk];
+        attacks.push({
+          attackerId: `u-${atk}`, defenderId: `o-${tgt}`,
+          move: getMove(sp.primary_type), moveType: sp.primary_type,
+          vfx: sp.primary_type, damage: dmg, effectiveness: eff,
+          fromX: USER_POSITIONS[atk].x + 12, fromY: USER_POSITIONS[atk].y,
+          toX: OPP_POSITIONS[tgt].x, toY: OPP_POSITIONS[tgt].y,
+        });
+        hps[6 + tgt] -= dmg;
+        if (hps[6 + tgt] <= 0 && !fainted[6 + tgt]) {
+          fainted[6 + tgt] = true;
+          faints.push({ pokemonId: `o-${tgt}`, side: 'opponent', name: OPP_SPECIES[tgt].name });
+          koUser++;
+        }
       }
     }
 
-    // Opponent attacks user every other tick
-    if (tick % 2 === 1 && !fainted[6 + oAtk] && !fainted[uTarget]) {
-      const dmg = userWins ? Math.floor(7 + Math.random() * 11) : Math.floor(20 + Math.random() * 28);
-      const op = OPP_SPECIES[oAtk];
-      attacks.push({
-        attackerId: `o-${oAtk}`, defenderId: `u-${uTarget}`,
-        move: getMove(op.type), moveType: op.type,
-        vfx: op.type, damage: dmg, effectiveness: 'neutral',
-        fromX: OPP_POSITIONS[oAtk].x - 13, fromY: OPP_POSITIONS[oAtk].y,
-        toX: USER_POSITIONS[uTarget].x, toY: USER_POSITIONS[uTarget].y,
-      });
-      hps[uTarget] -= dmg;
-      if (hps[uTarget] <= 0 && !fainted[uTarget]) {
-        fainted[uTarget] = true;
-        faints.push({ pokemonId: `u-${uTarget}`, side: 'user', name: MOCK_STARTER_ROSTER[uTarget].name });
-        koOpponent++;
+    for (const { atk, tgt } of oAttackers) {
+      if (!fainted[6 + atk] && !fainted[tgt]) {
+        const dmg = userWins ? Math.floor(8 + Math.random() * 12) : Math.floor(22 + Math.random() * 28);
+        const op = OPP_SPECIES[atk];
+        attacks.push({
+          attackerId: `o-${atk}`, defenderId: `u-${tgt}`,
+          move: getMove(op.type), moveType: op.type,
+          vfx: op.type, damage: dmg, effectiveness: 'neutral',
+          fromX: OPP_POSITIONS[atk].x - 12, fromY: OPP_POSITIONS[atk].y,
+          toX: USER_POSITIONS[tgt].x, toY: USER_POSITIONS[tgt].y,
+        });
+        hps[tgt] -= dmg;
+        if (hps[tgt] <= 0 && !fainted[tgt]) {
+          fainted[tgt] = true;
+          faints.push({ pokemonId: `u-${tgt}`, side: 'user', name: MOCK_STARTER_ROSTER[tgt].name });
+          koOpponent++;
+        }
       }
     }
 
