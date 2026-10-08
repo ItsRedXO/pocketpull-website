@@ -453,6 +453,14 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   const [showVsIntro, setShowVsIntro] = useState(true);
   const theme = useMemo(() => ARENA_THEMES[Math.floor(Math.random() * ARENA_THEMES.length)], [matchIndex]);
 
+  // Hide the mobile bottom nav while the modal is open — it sits at the same
+  // Y position as the footer and intercepts taps on iOS Safari despite lower z-index.
+  useEffect(() => {
+    const nav = document.querySelector('nav') as HTMLElement | null;
+    if (nav) nav.style.display = 'none';
+    return () => { if (nav) nav.style.display = ''; };
+  }, []);
+
   useEffect(() => {
     setShowVsIntro(true);
     setPlaying(false);
@@ -618,7 +626,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
             </div>
 
           </div>
-          <div className="shrink-0 px-4 pb-4 pt-3 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap">
+          <div className="shrink-0 relative z-10 px-4 pb-4 pt-3 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <button onClick={() => setPlaying(p => !p)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
                   {playing ? <Pause size={13} /> : <Play size={13} />}
