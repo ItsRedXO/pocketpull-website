@@ -10,6 +10,16 @@ interface Props { showToast: (msg: string, ok?: boolean) => void; }
 
 const inputClass = 'px-3 py-2 rounded-lg text-[13px] text-white bg-white/5 border border-white/10 focus:outline-none focus:border-[#9b5cff]/50 placeholder-white/25 w-full';
 
+function isCodeExpired(code: { expiresAt: string | null }): boolean {
+  return code.expiresAt !== null && new Date(code.expiresAt) < new Date();
+}
+
+function codeStatus(code: { isActive: boolean; expiresAt: string | null }): 'active' | 'expired' | 'inactive' {
+  if (isCodeExpired(code)) return 'expired';
+  if (code.isActive) return 'active';
+  return 'inactive';
+}
+
 function formatExpiryDate(iso: string): string {
   const d = new Date(iso);
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
@@ -175,7 +185,9 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Status</p>
-            <p className={`text-sm font-bold ${code.isActive ? 'text-green-400' : 'text-white/40'}`}>{code.isActive ? 'Active' : 'Inactive'}</p>
+            <p className={`text-sm font-bold ${codeStatus(code) === 'active' ? 'text-green-400' : codeStatus(code) === 'expired' ? 'text-yellow-400' : 'text-white/40'}`}>
+              {codeStatus(code) === 'active' ? 'Active' : codeStatus(code) === 'expired' ? 'Expired' : 'Inactive'}
+            </p>
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Expires</p>
@@ -504,10 +516,16 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                     <td className="px-5 py-3 text-white/50">{new Date(c.createdAt).toLocaleDateString()}</td>
                     <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : 'â€"'}</td>
                     <td className="px-5 py-3">
-                      <button onClick={() => toggleActive(c)}
-                        className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${c.isActive ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-white/5 text-white/30 border-white/10 hover:bg-white/10'}`}>
-                        {c.isActive ? <CheckCircle2 size={11} /> : <Ban size={11} />} {c.isActive ? 'Active' : 'Inactive'}
-                      </button>
+                      {codeStatus(c) === 'expired' ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                          <Clock size={11} /> Expired
+                        </span>
+                      ) : (
+                        <button onClick={() => toggleActive(c)}
+                          className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${c.isActive ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-white/5 text-white/30 border-white/10 hover:bg-white/10'}`}>
+                          {c.isActive ? <CheckCircle2 size={11} /> : <Ban size={11} />} {c.isActive ? 'Active' : 'Inactive'}
+                        </button>
+                      )}
                     </td>
                     <td className="px-5 py-3">
                       <button onClick={() => startEdit(c)} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-all"><Pencil size={13} /></button>

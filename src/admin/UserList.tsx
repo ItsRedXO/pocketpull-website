@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Search, Ban, UserX, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { Search, Ban, UserX, ChevronLeft, ChevronRight, Shield, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { UserRow, FilterTab } from './types';
 import { getPresenceStatus, PRESENCE_COLOR, PRESENCE_LABEL } from './presence';
 
@@ -23,6 +23,15 @@ const FILTER_TABS: { key: FilterTab; label: string; color: string }[] = [
 
 const USERS_PER_PAGE = 25;
 
+type SortKey = 'username' | 'balance' | 'createdAt';
+type SortDir = 'asc' | 'desc';
+
+const SORT_OPTIONS: { key: SortKey; label: string; asc: string; desc: string }[] = [
+  { key: 'username',  label: 'Name',     asc: 'A→Z',       desc: 'Z→A' },
+  { key: 'balance',   label: 'Balance',  asc: 'Low→High',   desc: 'High→Low' },
+  { key: 'createdAt', label: 'Joined',   asc: 'Oldest',     desc: 'Newest' },
+];
+
 export function UserList({
   users,
   isLoading,
@@ -35,11 +44,13 @@ export function UserList({
   counts,
 }: UserListProps) {
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<SortKey>('createdAt');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  // Reset page when tab or search changes
+  // Reset page when tab, search, or sort changes
   useEffect(() => {
     setPage(1);
-  }, [filterTab, search]);
+  }, [filterTab, search, sortBy, sortDir]);
 
   // Filter by tab then by search
   const tabFiltered = users.filter((u) => {
@@ -59,9 +70,17 @@ export function UserList({
     );
   });
 
-  const totalPages = Math.ceil(filtered.length / USERS_PER_PAGE);
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortBy === 'username') cmp = (a.username || a.displayName || '').localeCompare(b.username || b.displayName || '');
+    else if (sortBy === 'balance') cmp = a.balance - b.balance;
+    else if (sortBy === 'createdAt') cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const totalPages = Math.ceil(sorted.length / USERS_PER_PAGE);
   const startIdx = (page - 1) * USERS_PER_PAGE;
-  const pagedUsers = filtered.slice(startIdx, startIdx + USERS_PER_PAGE);
+  const pagedUsers = sorted.slice(startIdx, startIdx + USERS_PER_PAGE);
 
   return (
     <div className="w-full lg:w-72 shrink-0 flex flex-col h-full min-h-0 overflow-hidden">
@@ -87,17 +106,47 @@ export function UserList({
       </div>
 
       <div className="relative mb-2 shrink-0">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search users..."
-          className="admin-input pl-8 text-[12px]"
+          className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-9 pr-3 text-[12px] text-white placeholder-white/20 outline-none focus:border-[#9b5cff]/50 focus:bg-white/[0.07] transition-colors"
         />
       </div>
 
+      {/* Sort bar */}
+      <div className="flex gap-1 mb-2 shrink-0 flex-wrap">
+        {SORT_OPTIONS.map(opt => {
+          const active = sortBy === opt.key;
+          return (
+            <button
+              key={opt.key}
+              onClick={() => {
+                if (active) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                else { setSortBy(opt.key); setSortDir(opt.key === 'balance' ? 'desc' : opt.key === 'createdAt' ? 'desc' : 'asc'); }
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all"
+              style={{
+                background: active ? 'rgba(155,92,255,0.15)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${active ? 'rgba(155,92,255,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                color: active ? '#9b5cff' : 'rgba(255,255,255,0.3)',
+              }}
+            >
+              {opt.label}
+              {active
+                ? sortDir === 'asc'
+                  ? <ArrowUp size={9} />
+                  : <ArrowDown size={9} />
+                : <ArrowUpDown size={9} className="opacity-40" />
+              }
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex justify-between items-center mb-1 px-1 shrink-0">
-        <p className="text-[10px] text-white/25 uppercase tracking-wider">{filtered.length} users</p>
+        <p className="text-[10px] text-white/25 uppercase tracking-wider">{sorted.length} users</p>
         {totalPages > 1 && (
           <p className="text-[10px] text-white/25 uppercase tracking-wider">Page {page} of {totalPages}</p>
         )}
