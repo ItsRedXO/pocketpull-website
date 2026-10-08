@@ -1,9 +1,9 @@
 ﻿import React, { useState } from 'react';
 import { Gem } from 'lucide-react';
-import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 import { UserRow } from './types';
 import { useQueryClient } from '@tanstack/react-query';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 interface GemsSectionProps {
   user: UserRow;
@@ -13,15 +13,10 @@ interface GemsSectionProps {
 }
 
 async function adminGemsChange(userId: string, mode: 'add' | 'set', amount: number) {
-  const token = await blink.auth.getValidToken();
-  const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  const h = await getAdminAuthHeaders();
   const response = await fetch(`${BACKEND_BASE}/admin/users/${encodeURIComponent(userId)}/gems`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(adminSecret ? { 'X-Admin-Secret': adminSecret } : {}),
-    },
+    headers: { 'Content-Type': 'application/json', ...h },
     body: JSON.stringify({ mode, amount }),
   });
   const payload = await response.json().catch(() => ({}));

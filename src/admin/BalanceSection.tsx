@@ -1,8 +1,8 @@
 ﻿import React, { useState } from 'react';
-import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 import { UserRow } from './types';
 import { useQueryClient } from '@tanstack/react-query';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 interface BalanceSectionProps {
   user: UserRow;
@@ -12,15 +12,10 @@ interface BalanceSectionProps {
 }
 
 async function adminBalanceChange(userId: string, mode: 'add' | 'set', amount: number) {
-  const token = await blink.auth.getValidToken();
-  const adminSecret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
+  const h = await getAdminAuthHeaders();
   const response = await fetch(`${BACKEND_BASE}/admin/users/${encodeURIComponent(userId)}/balance`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(adminSecret ? { 'X-Admin-Secret': adminSecret } : {}),
-    },
+    headers: { 'Content-Type': 'application/json', ...h },
     body: JSON.stringify({ mode, amount }),
   });
   const payload = await response.json().catch(() => ({}));
@@ -102,7 +97,7 @@ export function BalanceSection({ user, showToast, onUpdate, logAdminAction }: Ba
           className="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 transition-all"
           style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}
         >
-          {savingBalance ? '...' : 'Â± Add'}
+          {savingBalance ? '...' : '+/- Add'}
         </button>
         <button
           onClick={handleSetBalance}

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Activity, Package, DollarSign, Swords, ShoppingCart, Sparkles, ArrowRightLeft, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
-import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 import { UserRow } from './types';
 import { useQuery } from '@tanstack/react-query';
 import type { LogEntryRaw, LogsPage, TimelineEntry } from './activityTypes';
@@ -22,12 +22,7 @@ const PAGE_SIZE = 50;
 // longer has the current activity_logs data -- BACKEND_BASE is the same
 // Railway backend every other admin panel call already uses.
 async function adminHeaders(): Promise<Record<string, string>> {
-  const token = await blink.auth.getValidToken().catch(() => null);
-  const secret = typeof window !== 'undefined' ? localStorage.getItem('pocketpull_admin_pass') : null;
-  return {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(secret ? { 'X-Admin-Secret': secret } : {}),
-  };
+  return { ...await getAdminAuthHeaders() };
 }
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
