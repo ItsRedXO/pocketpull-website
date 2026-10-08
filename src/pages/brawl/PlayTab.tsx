@@ -88,7 +88,7 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }}
       onClick={onClose}
     >
@@ -441,6 +441,14 @@ export function PlayTab() {
 
   // Mode select state
   const [modeSelectTier, setModeSelectTier] = useState<string | null>(null);
+
+  // Hide the mobile bottom nav while the mode-select modal is open (same iOS tap-intercept fix as BattleReplay)
+  useEffect(() => {
+    if (!modeSelectTier) return;
+    const nav = document.querySelector('nav') as HTMLElement | null;
+    if (nav) nav.style.display = 'none';
+    return () => { if (nav) nav.style.display = ''; };
+  }, [modeSelectTier]);
   // Team pick state
   type PickSetup = { tierId: string; userTeam: TeamPreviewMon[]; opponentTeam: TeamPreviewMon[]; opponentSpeciesIds: number[] };
   const [pickSetup, setPickSetup] = useState<PickSetup | null>(null);
