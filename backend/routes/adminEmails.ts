@@ -108,17 +108,32 @@ app.get('/admin/emails/subscribers', async c => {
   }
 
   try {
-    const rows = await query<{ id: string; email: string; username: string; email_subscribed: boolean; created_at: string }>(
-      `SELECT id, email,
-              COALESCE(display_name, username, 'Unknown') AS username,
-              COALESCE(email_subscribed, TRUE) AS email_subscribed,
-              created_at
-       FROM users
-       WHERE email IS NOT NULL AND email != ''
-         AND (is_deleted IS NULL OR is_deleted = 0)
-       ORDER BY created_at DESC
-       LIMIT 5000`,
-    );
+    let rows: { id: string; email: string; username: string; email_subscribed: boolean; created_at: string }[];
+    try {
+      rows = await query(
+        `SELECT id, email,
+                COALESCE(display_name, username, 'Unknown') AS username,
+                COALESCE(email_subscribed, TRUE) AS email_subscribed,
+                created_at
+         FROM users
+         WHERE email IS NOT NULL AND email != ''
+           AND (is_deleted IS NULL OR is_deleted = 0)
+         ORDER BY created_at DESC
+         LIMIT 5000`,
+      );
+    } catch {
+      // email_subscribed column may not exist yet; fall back without it
+      rows = (await query(
+        `SELECT id, email,
+                COALESCE(display_name, username, 'Unknown') AS username,
+                created_at
+         FROM users
+         WHERE email IS NOT NULL AND email != ''
+           AND (is_deleted IS NULL OR is_deleted = 0)
+         ORDER BY created_at DESC
+         LIMIT 5000`,
+      ) as any[]).map((r: any) => ({ ...r, email_subscribed: true }));
+    }
     const subscribed = rows.filter(r => r.email_subscribed).length;
     return c.json({ subscribers: rows, total: rows.length, subscribed, unsubscribed: rows.length - subscribed });
   } catch (error: any) {
@@ -193,13 +208,24 @@ app.post('/admin/emails/broadcast', async c => {
   if (!subject) return c.json({ error: 'Subject is required' }, 400);
   if (!message.trim()) return c.json({ error: 'Message body is required' }, 400);
 
-  const users = await query<{ id: string; email: string }>(
-    `SELECT id, email FROM users
-     WHERE email IS NOT NULL AND email != ''
-       AND COALESCE(email_subscribed, TRUE) = TRUE
-       AND (is_deleted IS NULL OR is_deleted = 0)
-     LIMIT 10000`,
-  );
+  let users: { id: string; email: string }[];
+  try {
+    users = await query(
+      `SELECT id, email FROM users
+       WHERE email IS NOT NULL AND email != ''
+         AND COALESCE(email_subscribed, TRUE) = TRUE
+         AND (is_deleted IS NULL OR is_deleted = 0)
+       LIMIT 10000`,
+    );
+  } catch {
+    // email_subscribed column may not exist yet; treat everyone as subscribed
+    users = await query(
+      `SELECT id, email FROM users
+       WHERE email IS NOT NULL AND email != ''
+         AND (is_deleted IS NULL OR is_deleted = 0)
+       LIMIT 10000`,
+    );
+  }
 
   if (users.length === 0) return c.json({ error: 'No subscribed users found' }, 400);
 

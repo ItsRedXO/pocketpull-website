@@ -119,14 +119,19 @@ function ComposeModal({ onClose, onSent, showToast }: { onClose: () => void; onS
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [subCount, setSubCount] = useState<number | null>(null);
+  const [subCountError, setSubCountError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (mode !== 'broadcast' || subCount !== null) return;
+    if (mode !== 'broadcast' || subCount !== null || subCountError) return;
     fetch(`${BACKEND_BASE}/admin/emails/subscribers`, { headers: adminHeaders() })
-      .then(r => r.json())
-      .then(d => { if (typeof d?.subscribed === 'number') setSubCount(d.subscribed); })
-      .catch(() => {});
-  }, [mode, subCount]);
+      .then(async r => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d?.error || `Failed to load (${r.status})`);
+        if (typeof d?.subscribed === 'number') setSubCount(d.subscribed);
+        else throw new Error('Unexpected response from server');
+      })
+      .catch((e: any) => setSubCountError(e?.message || 'Could not load subscriber count'));
+  }, [mode, subCount, subCountError]);
 
   const send = async () => {
     if (sending) return;
@@ -204,12 +209,19 @@ function ComposeModal({ onClose, onSent, showToast }: { onClose: () => void; onS
               <input value={to} onChange={e => setTo(e.target.value)} placeholder="user@example.com (comma-separate for multiple)" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none focus:border-[#9b5cff]/50" />
             </label>
           ) : (
-            <div className="rounded-lg border border-[#00c8ff]/20 bg-[#00c8ff]/5 px-4 py-3">
-              <p className="text-xs font-bold text-[#00c8ff]">
+            <div className={`rounded-lg border px-4 py-3 ${subCountError ? 'border-red-500/30 bg-red-500/5' : 'border-[#00c8ff]/20 bg-[#00c8ff]/5'}`}>
+              <p className={`text-xs font-bold ${subCountError ? 'text-red-400' : 'text-[#00c8ff]'}`}>
                 <Radio size={12} className="mr-1.5 inline" />
-                {subCount === null ? 'Loading subscriber count…' : `Will send to ${subCount.toLocaleString()} subscribed user${subCount !== 1 ? 's' : ''}`}
+                {subCountError
+                  ? subCountError
+                  : subCount === null
+                    ? 'Loading subscriber count…'
+                    : `Will send to ${subCount.toLocaleString()} subscribed user${subCount !== 1 ? 's' : ''}`}
               </p>
-              <p className="mt-1 text-[11px] text-white/40">Each email includes a personal unsubscribe link.</p>
+              {!subCountError && <p className="mt-1 text-[11px] text-white/40">Each email includes a personal unsubscribe link.</p>}
+              {subCountError && (
+                <button onClick={() => setSubCountError(null)} className="mt-1 text-[11px] text-white/50 underline hover:text-white/80">Retry</button>
+              )}
             </div>
           )}
           <label className="block">
