@@ -497,7 +497,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
 
   return (
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
-      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col overflow-hidden" style={{ background: '#0d0e14', maxHeight: 'calc(100dvh - 24px)' }}>
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col overflow-hidden" style={{ background: '#0d0e14', height: 'calc(100dvh - 24px)' }}>
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 shrink-0">
           <div className="text-xs font-bold uppercase tracking-widest text-white/60">{tierLabel} — Trainer {matchIndex + 1}/{matches.length}</div>
           <button onClick={onClose} className="text-white/40 hover:text-white p-1"><X size={16} /></button>
