@@ -49,7 +49,7 @@ function PullCardZoom({ card, onClose }: { card: PullRow | null; onClose: () => 
               />
             ) : (
               <div className="w-40 h-56 rounded-xl bg-white/5 flex items-center justify-center">
-                <span className="text-5xl">ðŸƒ</span>
+                <span className="text-5xl">🃏</span>
               </div>
             )}
             <div
@@ -202,7 +202,7 @@ export function PullsTab() {
                   {p.cardImageUrl ? (
                     <img src={p.cardImageUrl} alt={p.cardName || 'Card'} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-lg">ðŸƒ</span>
+                    <span className="text-lg">🃏</span>
                   )}
                 </div>
                 <span className="text-[12px] text-white font-sans truncate">{p.packName}</span>

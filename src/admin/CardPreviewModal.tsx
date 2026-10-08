@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
 
@@ -51,7 +51,7 @@ export const CardPreviewModal: React.FC<Props> = ({ card, onClose }) => {
                   />
                 ) : (
                   <div className="w-40 h-56 rounded-xl bg-white/5 flex items-center justify-center">
-                    <span className="text-4xl">ðŸƒ</span>
+                    <span className="text-4xl">🃏</span>
                   </div>
                 )}
                 <div 

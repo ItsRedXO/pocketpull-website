@@ -219,16 +219,16 @@ function BattleDetails({ details, valueIn, valueOut, result }: { details: any; v
   let resultLabel: string;
   let resultColor: string;
   if (isShared) {
-    resultLabel = 'ðŸ¤ SHARED REWARDS';
+    resultLabel = '🤝 SHARED REWARDS';
     resultColor = 'text-[#00c8ff] border-[#00c8ff]/20 bg-[#00c8ff]/10';
   } else if (isDraw) {
     resultLabel = 'âš–ï¸ DRAW';
     resultColor = 'text-amber-400 border-amber-500/20 bg-amber-500/10';
   } else if (myResult?.isWinner) {
-    resultLabel = 'ðŸŽ‰ Battle WON';
+    resultLabel = '🎉 Battle WON';
     resultColor = 'text-green-400 border-green-500/20 bg-green-500/10';
   } else {
-    resultLabel = 'ðŸ’” Battle LOST';
+    resultLabel = '💔 Battle LOST';
     resultColor = 'text-red-400 border-red-500/20 bg-red-500/10';
   }
 
@@ -352,7 +352,7 @@ function UpgradeDetails({ details, result, valueIn, valueOut }: { details: any; 
   return (
     <div className="space-y-3">
       <div className={`p-2.5 rounded-lg text-center text-[11px] font-bold uppercase tracking-wider ${result === 'win' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-        {result === 'win' ? 'ðŸŽ‰ Upgrade WIN' : 'ðŸ’” Upgrade LOSS'}
+        {result === 'win' ? '🎉 Upgrade WIN' : '💔 Upgrade LOSS'}
       </div>
       {details?.winChance != null && <Row label="Success Chance" value={`${details.winChance}%`} valueColor="text-[#00c8ff]" />}
       {details?.cardsUsed?.length > 0 && <CardGroup label="Cards Put In" cards={details.cardsUsed} bg="rgba(255,255,255,0.03)" vc="text-white/40" />}

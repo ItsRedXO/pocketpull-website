@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, ShieldPlus } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -294,7 +294,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
             { label: 'Balance', value: '$' + balance.toFixed(2), color: '#10b981' },
             { label: 'Matched', value: '$' + matched.toFixed(2), color: '#60a5fa' },
             { label: 'Real', value: '$' + realBalance.toFixed(2), color: '#f59e0b' },
-            { label: 'Gems', value: (user.gems ?? 0).toLocaleString() + ' ðŸ’Ž', color: '#9b5cff' },
+            { label: 'Gems', value: (user.gems ?? 0).toLocaleString() + ' 💎', color: '#9b5cff' },
           ].map(s => (
             <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">{s.label}</p>

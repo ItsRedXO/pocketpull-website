@@ -87,7 +87,7 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
         cardName: card.cardName,
         rarity: card.rarity,
         value: Number(card.estimatedValue) || 0,
-        emoji: 'ðŸƒ',
+        emoji: '🃏',
         isFavorite: 0,
         cardImageUrl: card.cardImageUrl || null,
         packName: getPackName(card.packId),
