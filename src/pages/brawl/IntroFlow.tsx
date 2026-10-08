@@ -35,7 +35,10 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
               className="px-8 py-3 rounded-xl font-display uppercase tracking-wider text-sm bg-gradient-to-r from-[#9b5cff] to-[#00c8ff] text-black font-bold">
               Open Starter Pack
             </motion.button>
-            <p className="text-white/30 text-[11px] mt-2">6 random Pokemon, free, right now.</p>
+            <p className="inline-block mt-3 rounded-full px-4 py-1.5 text-[11px] text-white/70 backdrop-blur-sm"
+              style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              6 random Pokémon, free, right now.
+            </p>
           </motion.div>
         )}
 
@@ -44,14 +47,20 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
               <Sparkles size={40} className="text-[#9b5cff]" />
             </motion.div>
-            <p className="text-white/50 text-sm uppercase tracking-widest">Opening starter pack…</p>
+            <p className="rounded-full px-4 py-1.5 text-sm uppercase tracking-widest text-white/80 backdrop-blur-sm"
+              style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              Opening starter pack…
+            </p>
           </motion.div>
         )}
 
         {step === 'reveal' && (
           <motion.div key="reveal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-3xl w-full text-center">
-            <h2 className="font-display text-2xl uppercase tracking-widest text-white mb-1">Your Starter Team</h2>
-            <p className="text-white/40 text-xs mb-6">All 6 are on your active team — swap them any time in the Team tab.</p>
+            <div className="inline-block rounded-2xl px-8 py-4 mb-6 backdrop-blur-sm"
+              style={{ background: 'rgba(0,0,0,0.40)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <h2 className="font-display text-2xl uppercase tracking-widest text-white mb-1">Your Starter Team</h2>
+              <p className="text-white/65 text-xs">All 6 are on your active team — swap them any time in the Team tab.</p>
+            </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
               {roster.map((p, i) => (
                 <motion.div key={p.id} initial={{ opacity: 0, y: 24, scale: 0.8 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: i * 0.12, type: 'spring' }}
