@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Activity, Package, DollarSign, Swords, ShoppingCart, Sparkles, ArrowRightLeft, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
 import { blink } from '../lib/blink';
@@ -46,7 +46,7 @@ function arrLen(v: any): number {
   return Array.isArray(v) ? v.length : 0;
 }
 
-/** Log type â†’ stat-filter mapping */
+/** Log type → stat-filter mapping */
 const STAT_FILTER_MAP: Record<string, string | null> = {
   Packs:    'pack_open',
   Deposits: 'deposit',
@@ -120,12 +120,12 @@ function buildSubtitle(log: LogEntryRaw): string {
 
         const players: any[] = Array.isArray(d.players) ? d.players : [];
         const modeLabel = mode === 'underdog' ? 'Underdog' : mode === 'shared' ? 'Shared' : 'Standard';
-        return `${status} Â· ${modeLabel} Â· ${players.length}P Â· ${safeStr(d.packNames)}`;
+        return `${status} · ${modeLabel} · ${players.length}P · ${safeStr(d.packNames)}`;
       }
-      case 'cashout': return `${d.totalCards || 0} cards Â· ${safeStr(log.result, 'pending')}`;
+      case 'cashout': return `${d.totalCards || 0} cards · ${safeStr(log.result, 'pending')}`;
       case 'deposit': return safeStr(d.paymentMethod, 'Deposit');
-      case 'upgrade': return `${log.result === 'win' ? 'WIN' : 'LOSS'} Â· ${d.winChance != null ? d.winChance + '%' : ''}`;
-      case 'exchange': return `${arrLen(d.offeredCards)} â†’ ${arrLen(d.receivedCards)} cards`;
+      case 'upgrade': return `${log.result === 'win' ? 'WIN' : 'LOSS'} · ${d.winChance != null ? d.winChance + '%' : ''}`;
+      case 'exchange': return `${arrLen(d.offeredCards)} → ${arrLen(d.receivedCards)} cards`;
       default: return '';
     }
   } catch { return ''; }
@@ -138,7 +138,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   const [page, setPage] = useState(0);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
-  // â”€â”€ Stats queries (using count() for accuracy â€” no limit caps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Stats queries (using count() for accuracy — no limit caps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const { data: packsTotal = 0, isLoading: packsLoading } = useQuery<number>({
     queryKey: ['admin-packs-count', user.id],
@@ -149,7 +149,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   });
 
   // Sell total: sum amounts from transactions (type = 'sell'). Uses a high
-  // fetch limit because there's no server-side SUM â€” client-side reduce is fine
+  // fetch limit because there's no server-side SUM — client-side reduce is fine
   // for admin panel volumes.
   const { data: sellsData = { count: 0, totalValue: 0 }, isLoading: sellsLoading } = useQuery<{ count: number; totalValue: number }>({
     queryKey: ['admin-sells-v2', user.id],
@@ -273,7 +273,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }, staleTime: 0,
   });
 
-  // Upgrade count â€” dedicated count query
+  // Upgrade count — dedicated count query
   const { data: upgradeCount = 0 } = useQuery<number>({
     queryKey: ['admin-upgrade-count', user.id],
     queryFn: async () => {
@@ -284,7 +284,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }, staleTime: 0,
   });
 
-  // Exchange count â€” dedicated count query
+  // Exchange count — dedicated count query
   const { data: exchangeCount = 0 } = useQuery<number>({
     queryKey: ['admin-exchange-count', user.id],
     queryFn: async () => {
@@ -311,7 +311,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
   const { data: logsPage, isLoading } = useQuery<LogsPage>({
     queryKey: ['admin-activity-logs-v2', user.id, page, typeFilter],
     queryFn: async () => {
-      // Battle filter uses local battleHistory â€” skip backend call
+      // Battle filter uses local battleHistory — skip backend call
       if (typeFilter === 'battle') return { rows: [], total: 0 };
 
       let url = `${BACKEND_BASE}/admin-logs?userId=${encodeURIComponent(user.id)}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
@@ -349,7 +349,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
 
   // â”€â”€ When Battles filter is active, build entries from battleHistory â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // The activityLogs table only has winner-centric entries.  battleHistory
-  // queries battlePlayers directly for all participations â€” wins, losses,
+  // queries battlePlayers directly for all participations — wins, losses,
   // draws, and shared-mode are all present.
   const battleTimelineEntries: LogEntryRaw[] = React.useMemo(() => {
     if (typeFilter !== 'battle') return [];
@@ -437,7 +437,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
     }
   }, [effectiveLogs]);
 
-  // â”€â”€ Stat cards (clickable â€” single-select type filter toggle) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Stat cards (clickable — single-select type filter toggle) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const statCards = [
     { id: 'Packs',    label: 'Packs',    value: packsLoading ? '...' : String(packsTotal), color: '#9b5cff', icon: <Package size={10} /> },
@@ -471,7 +471,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
         )}
       </h4>
 
-      {/* Summary grid â€” clickable stat cards */}
+      {/* Summary grid — clickable stat cards */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         {statCards.map(s => {
           const filterType = STAT_FILTER_MAP[s.id];
@@ -544,7 +544,7 @@ export function ActivitySection({ user }: ActivitySectionProps) {
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
-            <p className="text-[9px] text-white/20">{effectiveTotal} total Â· Page {page + 1} of {totalPages}</p>
+            <p className="text-[9px] text-white/20">{effectiveTotal} total · Page {page + 1} of {totalPages}</p>
             <div className="flex gap-1">
               <button
                 disabled={page === 0}

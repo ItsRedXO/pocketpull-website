@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, RefreshCw, Plus, Trash2, Monitor } from 'lucide-react';
 import { useLoadingScreenConfig, DEFAULT_LOADING_CONFIG, type LoadingScreenConfig } from '../hooks/useSiteConfig';
 
@@ -80,7 +80,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-sans text-lg uppercase tracking-widest text-white">Loading Screen</h2>
-          <p className="text-xs text-gray-500 mt-1">Drag the preview â€” block to reposition, right edge of bar to resize width</p>
+          <p className="text-xs text-gray-500 mt-1">Drag the preview — block to reposition, right edge of bar to resize width</p>
         </div>
         <button
           onClick={handleSave}
@@ -144,7 +144,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
             <SliderRow label="Corner Radius" field="barRadius" min={0} max={24} />
             <SliderRow label="Horizontal Position" field="barX" min={10} max={90} unit="%" />
             <SliderRow label="Vertical Position" field="barY" min={5} max={95} unit="%" />
-            <p className="text-[9px] text-gray-600">Or drag freely in the preview â€” right edge of bar resizes width</p>
+            <p className="text-[9px] text-gray-600">Or drag freely in the preview — right edge of bar resizes width</p>
           </div>
 
           {/* Messages */}
@@ -219,7 +219,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               style={{ top: `${draft.barY}%`, height: '1px', background: 'rgba(255,255,255,0.12)' }}
             />
 
-            {/* Logo â€” mirrors live site: floats above the bar group */}
+            {/* Logo — mirrors live site: floats above the bar group */}
             <img
               src="/pocketpull-logo.png"
               alt=""
@@ -237,7 +237,7 @@ export const LoadingScreenTab: React.FC<Props> = ({ showToast }) => {
               }}
             />
 
-            {/* Bar group â€” drag freely to reposition */}
+            {/* Bar group — drag freely to reposition */}
             <div
               ref={contentBlockRef}
               className="absolute flex flex-col items-center"

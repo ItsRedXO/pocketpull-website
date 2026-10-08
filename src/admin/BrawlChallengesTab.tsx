@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, Plus, Trash2, Target } from 'lucide-react';
 import {
@@ -118,7 +118,7 @@ export function BrawlChallengesTab({ showToast }: { showToast: (m: string, ok?: 
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Target size={16} className="text-[#9b5cff]" />
-          <h2 className="font-sans text-sm uppercase tracking-widest text-white/70">Poke Brawl â€” Challenges</h2>
+          <h2 className="font-sans text-sm uppercase tracking-widest text-white/70">Poke Brawl — Challenges</h2>
           <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40 bg-white/5">{templates.length} templates</span>
         </div>
         <button onClick={() => setShowNewForm(v => !v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase bg-[#9b5cff]/20 text-[#9b5cff] hover:bg-[#9b5cff]/30">
@@ -164,7 +164,7 @@ export function BrawlChallengesTab({ showToast }: { showToast: (m: string, ok?: 
           </label>
           <div className="flex gap-2 lg:col-span-4">
             <button disabled={creating} onClick={handleCreate} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold uppercase bg-[#4ade80]/20 text-[#4ade80] hover:bg-[#4ade80]/30 disabled:opacity-50">
-              <Save size={12} /> {creating ? 'Creatingâ€¦' : 'Create Challenge'}
+              <Save size={12} /> {creating ? 'Creating…' : 'Create Challenge'}
             </button>
             <button onClick={() => { setShowNewForm(false); setNewTemplate(BLANK_NEW_TEMPLATE); }} className="px-3 py-1.5 rounded-md text-[11px] font-bold uppercase text-white/40 hover:text-white">Cancel</button>
           </div>
@@ -172,7 +172,7 @@ export function BrawlChallengesTab({ showToast }: { showToast: (m: string, ok?: 
       )}
 
       {isLoading ? (
-        <div className="text-white/40 text-sm py-10 text-center">Loading challengesâ€¦</div>
+        <div className="text-white/40 text-sm py-10 text-center">Loading challenges…</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-white/10">
           <table className="w-full text-xs">

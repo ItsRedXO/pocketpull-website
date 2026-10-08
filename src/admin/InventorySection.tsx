@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Image as ImageIcon, Search } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { InventoryRow, UserRow, RARITY_COLOR, RARITY_LABEL } from './types';
@@ -117,7 +117,7 @@ export function InventorySection({ user, showToast, onPreviewCard }: InventorySe
     <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-sans">
-          Inventory Â· {inventory.length} cards
+          Inventory · {inventory.length} cards
         </h4>
         <span className="text-[10px] font-bold font-sans text-green-400/80 tracking-wider">
           Total: ${totalValue.toFixed(2)}

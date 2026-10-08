@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, History, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,16 +61,16 @@ function PullCardZoom({ card, onClose }: { card: PullRow | null; onClose: () => 
           {/* Info footer */}
           <div className="p-4 border-t border-white/5 space-y-2">
             <div>
-              <h3 className="text-base font-sans text-white uppercase truncate">{card.cardName || 'â€”'}</h3>
+              <h3 className="text-base font-sans text-white uppercase truncate">{card.cardName || '—'}</h3>
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: rarityColor }}>
-                {card.rarity || 'â€”'}
+                {card.rarity || '—'}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div><span className="text-white/30">Pack</span><p className="text-white/70 truncate">{card.packName}</p></div>
               <div><span className="text-white/30">Cost</span><p className="text-[#10b981] font-bold">${card.cost.toFixed(2)}</p></div>
               <div><span className="text-white/30">User</span><p className="text-white/70 truncate">{card.username}</p></div>
-              <div><span className="text-white/30">Date</span><p className="text-white/70">{card.createdAt ? new Date(card.createdAt).toLocaleString() : 'â€”'}</p></div>
+              <div><span className="text-white/30">Date</span><p className="text-white/70">{card.createdAt ? new Date(card.createdAt).toLocaleString() : '—'}</p></div>
             </div>
           </div>
         </motion.div>
@@ -141,7 +141,7 @@ export function PullsTab() {
         return {
           id: r.id, userId: r.userId, packName: r.packName,
           cost: Number(r.cost) || 0, createdAt: r.createdAt || '',
-          cardName: r.cardName || 'â€”', rarity: r.rarity || 'â€”',
+          cardName: r.cardName || '—', rarity: r.rarity || '—',
           cardImageUrl: cardImageMap[nameKey] || null,
           username: userMap[r.userId] || r.userId,
         };
@@ -168,7 +168,7 @@ export function PullsTab() {
         <div>
           <h2 className="font-sans text-xl uppercase tracking-wider text-white">Recent Pack Openings</h2>
           <p className="text-[11px] text-white/30 mt-0.5">
-            {totalPulls.toLocaleString()} total Â· Page {page + 1} of {totalPages}
+            {totalPulls.toLocaleString()} total · Page {page + 1} of {totalPages}
           </p>
         </div>
         <button onClick={() => refetch()} disabled={isLoading || isRefetching}
@@ -208,7 +208,7 @@ export function PullsTab() {
                 <span className="text-[12px] text-white font-sans truncate">{p.packName}</span>
                 <div className="flex flex-col min-w-0">
                   <span className="text-[11px] text-white truncate">{p.cardName}</span>
-                  {p.rarity !== 'â€”' && (
+                  {p.rarity !== '—' && (
                     <span className="text-[8px] font-bold uppercase" style={{ color: RARITY_COLOR[p.rarity || 'common'] }}>
                       {p.rarity}
                     </span>
@@ -216,7 +216,7 @@ export function PullsTab() {
                 </div>
                 <span className="text-[11px] text-white/60 truncate" title={p.username}>{p.username}</span>
                 <span className="text-[12px] font-bold" style={{ color: '#10b981' }}>${p.cost.toFixed(2)}</span>
-                <span className="text-[10px] text-white/25">{p.createdAt ? new Date(p.createdAt).toLocaleString() : 'â€”'}</span>
+                <span className="text-[10px] text-white/25">{p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}</span>
               </div>
             ))}
           </div>

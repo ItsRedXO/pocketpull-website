@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Sparkles, Plus } from 'lucide-react';
 import { 
   DndContext, 
@@ -63,7 +63,7 @@ export const CardListSection: React.FC<Props> = ({
     <section>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-sans">
-          {isMystery ? 'Cards & Quantities' : `Cards & Odds â€” ${cards.length} cards`}
+          {isMystery ? 'Cards & Quantities' : `Cards & Odds — ${cards.length} cards`}
         </h3>
         <span className={`text-[11px] font-sans font-bold ${isMystery || Math.abs(totalOdds - 100) <= 1 ? 'text-green-400' : 'text-red-400'}`}>
           {isMystery ? 'Unit-weighted odds âœ“' : `Total: ${totalOdds.toFixed(1)}% ${Math.abs(totalOdds - 100) > 1 ? 'âš  must equal 100%' : 'âœ“'}`}

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X, Package, DollarSign, Swords, ShoppingCart, Sparkles, ArrowRightLeft, CreditCard, Crown, Bot, Activity } from 'lucide-react';
@@ -97,7 +97,7 @@ function PackDetails({ details, valueIn, valueOut }: { details: any; valueIn: nu
       <div className="p-2.5 rounded-lg text-center text-[11px] font-bold uppercase tracking-wider bg-[#9b5cff]/10 text-[#9b5cff] border border-[#9b5cff]/20">
         Pack Opened
       </div>
-      <Row label="Pack Name" value={details?.packName || 'â€”'} />
+      <Row label="Pack Name" value={details?.packName || '—'} />
       <Row label="Pack Price" value={`$${Number(details?.packCost || valueIn || 0).toFixed(2)}`} valueColor="text-red-400" />
       <div className="p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)' }}>
         <p className="text-[9px] uppercase tracking-wider text-white/25 mb-2">Card Pulled</p>
@@ -207,7 +207,7 @@ function SellDetails({ details, valueIn }: { details: any; valueIn: number }) {
 
 function BattleDetails({ details, valueIn, valueOut, result }: { details: any; valueIn: number; valueOut: number; result: string }) {
   const mode = details?.mode || 'standard';
-  const packNames = details?.packNames || 'â€”';
+  const packNames = details?.packNames || '—';
   const players = details?.players || [];
   const winner = details?.winner || {};
   const totalPot = Number(details?.totalPot || valueIn || 0);
@@ -418,9 +418,9 @@ function DepositDetails({ details, valueIn, result, createdAt }: { details: any;
       <Row label="Amount" value={`+$${Number(details?.amount || valueIn || 0).toFixed(2)}`} valueColor="text-green-400" />
       {details?.paymentIntentId && <Row label="Stripe Payment ID" value={details.paymentIntentId} valueColor="text-white/60" />}
       {details?.chargeId && <Row label="Coinbase Charge ID" value={details.chargeId} valueColor="text-white/60" />}
-      <Row label="Payment Method" value={details?.paymentMethod || 'â€”'} />
-      <Row label="Status" value={details?.status || result || 'â€”'} valueColor="text-green-400" />
-      <Row label="Date" value={createdAt ? new Date(createdAt).toLocaleString() : 'â€”'} />
+      <Row label="Payment Method" value={details?.paymentMethod || '—'} />
+      <Row label="Status" value={details?.status || result || '—'} valueColor="text-green-400" />
+      <Row label="Date" value={createdAt ? new Date(createdAt).toLocaleString() : '—'} />
     </div>
   );
 }
@@ -433,8 +433,8 @@ function UnknownDetails({ entry }: { entry: TimelineEntry }) {
   const d = entry.logData;
   return (
     <div className="space-y-2.5">
-      <Row label="Type" value={s(d?.type, 'â€”')} />
-      <Row label="Result" value={s(d?.result, 'â€”')} />
+      <Row label="Type" value={s(d?.type, '—')} />
+      <Row label="Result" value={s(d?.result, '—')} />
       <Row label="Value In" value={`${n(d?.valueIn).toFixed(2)}`} valueColor="text-amber-400" />
       <Row label="Value Out" value={`${n(d?.valueOut).toFixed(2)}`} valueColor="text-green-400" />
     </div>

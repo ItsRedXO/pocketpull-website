@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { getTcgDexMatches, hydrateTcgDexCards, type TcgDexCard, type ListEntry } from '../../lib/tcgdex';
@@ -203,7 +203,7 @@ export const TcgDexSearchModal: React.FC<Props> = ({ onImport, onClose }) => {
     try {
       const hydrated = await hydrateTcgDexCards(sel);
       if (hydrated.length === 0) {
-        setError('Could not load card data â€” please try again.');
+        setError('Could not load card data — please try again.');
         return;
       }
       onImport(hydrated.map(c => ({
@@ -226,7 +226,7 @@ export const TcgDexSearchModal: React.FC<Props> = ({ onImport, onClose }) => {
         className="w-full max-w-5xl bg-[#0d0f1c] rounded-2xl mb-8 border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/6">
           <div><h2 className="font-sans text-base uppercase text-white tracking-wider">TCGDex Card Search</h2>
-          <p className="text-[10px] text-white/30 mt-0.5">Search real PokÃ©mon cards Â· Select to import</p></div>
+          <p className="text-[10px] text-white/30 mt-0.5">Search real PokÃ©mon cards · Select to import</p></div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all"><X size={15} /></button>
         </div>
         <div className="p-6 flex flex-col gap-4">
@@ -237,7 +237,7 @@ export const TcgDexSearchModal: React.FC<Props> = ({ onImport, onClose }) => {
                 setQuery(e.target.value); if (debounceRef.current) clearTimeout(debounceRef.current);
                 debounceRef.current = setTimeout(() => doSearch(e.target.value), 600);
               }} onKeyDown={e => { if (e.key === 'Enter') { if (debounceRef.current) clearTimeout(debounceRef.current); doSearch(query); } if (e.key === 'Escape') onClose(); }}
-              placeholder="Search by PokÃ©mon name, type, or set (e.g. Grass, Charizard)â€¦" className="w-full pl-9 pr-10 py-3 rounded-xl text-[13px] text-white outline-none bg-white/5 border border-white/10 focus:border-[#9b5cff55] transition-all" />
+              placeholder="Search by PokÃ©mon name, type, or set (e.g. Grass, Charizard)…" className="w-full pl-9 pr-10 py-3 rounded-xl text-[13px] text-white outline-none bg-white/5 border border-white/10 focus:border-[#9b5cff55] transition-all" />
               {(loading || hydrating || scanning) && <Loader2 size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9b5cff] animate-spin" />}
             </div>
             <select value={sortOrder} onChange={e => { setSortOrder(e.target.value as SortOrder); setCurrentPage(1); }}

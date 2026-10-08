@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Save, RotateCcw, SaveAll } from 'lucide-react';
 import {
   useBrawlTierLayouts,
@@ -91,7 +91,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
             <button disabled={!isDirty(tier) || isSaving} onClick={handleSave}
               className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase rounded-lg ${isDirty(tier) ? 'text-black' : 'bg-white/5 text-white/30'}`}
               style={isDirty(tier) ? { background: TIER_COLOR[tier] } : {}}>
-              <Save size={12} /> {isSaving ? 'Savingâ€¦' : `Save ${TIER_SHORT[tier]}`}
+              <Save size={12} /> {isSaving ? 'Saving…' : `Save ${TIER_SHORT[tier]}`}
             </button>
           </div>
         </div>
@@ -156,7 +156,7 @@ export function BrawlCardLayoutTab({ showToast }: { showToast: (m: string, ok?: 
         {/* Pokemon label */}
         <div className="text-center text-[11px] font-bold capitalize" style={{ color: TIER_COLOR[tier] }}>
           {PREVIEW_MONS[tier].name}
-          <span className="ml-1 text-[9px] text-white/30 font-normal">Â· {PREVIEW_MONS[tier].primary_type}</span>
+          <span className="ml-1 text-[9px] text-white/30 font-normal">· {PREVIEW_MONS[tier].primary_type}</span>
         </div>
 
         {/* Card */}

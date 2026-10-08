@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Coins, Save, Trash2, Plus, Star, ChevronDown, RotateCcw, Package } from 'lucide-react';
 import {
@@ -84,13 +84,13 @@ function SpeciesPicker({ species, value, onChange }: { species: AdminBrawlSpecie
     <div className="relative" ref={rootRef}>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs min-w-[220px] hover:border-white/20 transition-colors">
-        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (OVR ${selected.overall_rating})` : 'Grant a Pokemonâ€¦'}</span>
+        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (OVR ${selected.overall_rating})` : 'Grant a Pokemon…'}</span>
         <ChevronDown size={13} className="text-white/40 shrink-0" />
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-72 rounded-lg border border-white/10 shadow-2xl overflow-hidden" style={{ background: '#14151f' }}>
           <div className="p-2 border-b border-white/10">
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search speciesâ€¦"
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search species…"
               className="w-full px-2 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#9b5cff]" />
           </div>
           <div className="max-h-56 overflow-y-auto">
@@ -132,13 +132,13 @@ function ItemPicker({ items, value, onChange }: { items: AdminBrawlItem[]; value
     <div className="relative" ref={rootRef}>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs min-w-[220px] hover:border-white/20 transition-colors">
-        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (${selected.rarity})` : 'Grant an itemâ€¦'}</span>
+        <span className={selected ? 'text-white font-bold' : 'text-white/40'}>{selected ? `${selected.name} (${selected.rarity})` : 'Grant an item…'}</span>
         <ChevronDown size={13} className="text-white/40 shrink-0" />
       </button>
       {open && (
         <div className="absolute z-30 mt-1 w-72 rounded-lg border border-white/10 shadow-2xl overflow-hidden" style={{ background: '#14151f' }}>
           <div className="p-2 border-b border-white/10">
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search itemsâ€¦"
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search items…"
               className="w-full px-2 py-1.5 rounded-md bg-white/5 border border-white/10 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#9b5cff]" />
           </div>
           <div className="max-h-56 overflow-y-auto">
@@ -309,7 +309,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
       </h4>
 
       {loadingDetail || !detail ? (
-        <div className="text-white/40 text-sm py-10 text-center">Loading trainer dataâ€¦</div>
+        <div className="text-white/40 text-sm py-10 text-center">Loading trainer data…</div>
       ) : (
         <div className="space-y-4">
           {/* Wallet */}
@@ -350,7 +350,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
           {/* Roster */}
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40"><Star size={12} /> Roster ({detail.roster.length}) â€” click to toggle active team</div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40"><Star size={12} /> Roster ({detail.roster.length}) — click to toggle active team</div>
               <button onClick={handleSaveTeam} disabled={!teamDirty || saving || teamSelection.length < 1}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${teamDirty ? 'bg-[#00c8ff]/20 text-[#00c8ff]' : 'text-white/15'}`}>
                 <Save size={11} /> Save Team ({teamSelection.length}/6)
@@ -381,7 +381,7 @@ export function UserPokeBrawlSection({ userId, showToast }: UserPokeBrawlSection
               <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white/40"><Package size={12} /> Items ({userItems.length})</div>
             </div>
             {loadingUserItems ? (
-              <p className="text-white/30 text-xs py-4 text-center">Loading itemsâ€¦</p>
+              <p className="text-white/30 text-xs py-4 text-center">Loading items…</p>
             ) : userItems.length === 0 ? (
               <p className="text-white/30 text-xs py-4 text-center">This trainer owns no items yet.</p>
             ) : (

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAdminAuth } from './useAdminAuth';
 import { AdminLogin } from './AdminLogin';
 import { AdminDashboard } from './AdminDashboard';
@@ -48,7 +48,7 @@ export const AdminApp: React.FC = () => {
 
   if (isLoading || roleVerified === null) return <Spinner />;
 
-  // Deny access â€” show login
+  // Deny access — show login
   if (!isAdmin && !roleVerified) {
     return <AdminLogin onLogin={login} error={error} />;
   }

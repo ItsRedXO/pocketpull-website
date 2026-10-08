@@ -434,7 +434,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-1.5 flex items-center gap-1">
-                <Clock size={10} /> Expiry Time <span className="text-white/20">(optional Â· UTC)</span>
+                <Clock size={10} /> Expiry Time <span className="text-white/20">(optional · UTC)</span>
               </label>
               <input type="time" value={form.expiresTime}
                 onChange={e => setForm({ ...form, expiresTime: e.target.value })}

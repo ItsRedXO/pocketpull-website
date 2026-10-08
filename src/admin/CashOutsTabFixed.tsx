@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Banknote, CheckCircle, ChevronLeft, ChevronRight, Loader2, Package, Printer, RefreshCw, RotateCcw, Search, Truck, X } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
@@ -205,7 +205,7 @@ export const CashOutsTabFixed: React.FC<{ showToast?: (msg: string, ok?: boolean
               return <label key={`${card.inventory_id || i}`} className="flex items-center gap-3 border-b border-white/5 px-4 py-3 cursor-pointer hover:bg-white/[0.03]">
                 <input type="checkbox" checked={checked} onChange={() => setSelectedIndices(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; })} disabled={isFulfilled || !['pending','processing','partial'].includes(selected.status)} />
                 {card.card_image_url ? <img src={card.card_image_url} alt="" className="h-10 w-8 rounded object-cover bg-black/20" /> : <div className="h-10 w-8 rounded bg-white/5 flex items-center justify-center"><Package size={13} className="text-white/20" /></div>}
-                <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-white">{card.card_name || 'Unknown Card'}</p><p className="text-[10px] text-white/35">{card.rarity || 'â€”'} Â· {fmt(card.value)}</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-white">{card.card_name || 'Unknown Card'}</p><p className="text-[10px] text-white/35">{card.rarity || '—'} · {fmt(card.value)}</p></div>
                 <span className={`text-[9px] font-bold uppercase ${isFulfilled ? 'text-green-400' : 'text-amber-400'}`}>{isFulfilled ? 'Fulfilled' : 'Pending'}</span>
               </label>;
             })}
@@ -242,7 +242,7 @@ export const CashOutsTabFixed: React.FC<{ showToast?: (msg: string, ok?: boolean
       <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
         {loading ? <div className="p-12 text-center text-white/30"><Loader2 size={20} className="mx-auto animate-spin mb-2" />Loading cashouts...</div> : visible.length === 0 ? <div className="p-12 text-center text-white/30">No cashout requests match.</div> : visible.map(req => { const colors = statusColor(req.status); return <button key={req.id} onClick={() => openRequest(req)} className="grid w-full gap-2 border-b border-white/5 px-4 py-3 text-left hover:bg-white/[0.04] md:grid-cols-[1.2fr_1fr_100px_100px_120px] md:items-center"><span className="truncate text-xs text-white">{req.username}</span><span className="truncate text-[10px] text-white/45">#{req.confirmationNumber}</span><span className="text-xs font-bold text-[#10b981]">{fmt(req.totalValue)}</span><span className="text-[10px] font-bold uppercase" style={{ color: colors.color }}>{req.status}</span><span className="text-[10px] text-white/30">{fmtDate(req.createdAt)}</span></button>; })}
       </div>
-      <div className="flex items-center justify-between"><span className="text-[11px] text-white/30">{filtered.length} requests Â· Page {page} of {totalPages}</span><div className="flex gap-1"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronLeft size={13} /></button><button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronRight size={13} /></button></div></div>
+      <div className="flex items-center justify-between"><span className="text-[11px] text-white/30">{filtered.length} requests · Page {page} of {totalPages}</span><div className="flex gap-1"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronLeft size={13} /></button><button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 disabled:opacity-30"><ChevronRight size={13} /></button></div></div>
     </section>
   );
 };

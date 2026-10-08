@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Package, Plus, Edit2, Trash2, RefreshCw, Eye, EyeOff, ChevronDown } from 'lucide-react';
@@ -106,7 +106,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
     qc.invalidateQueries({ queryKey: ['admin-all-cards'] });
     qc.invalidateQueries({ queryKey: ['packs-catalog'] });
     qc.invalidateQueries({ queryKey: ['pack-cards'] });
-    showToast('Pack saved â€” live site updated! âœ“');
+    showToast('Pack saved — live site updated! âœ“');
     logAdminAction('Admin Saved Pack', 'system', { packId: editTarget?.id, packName: editTarget?.name });
   };
 
@@ -121,7 +121,7 @@ export function PacksTab({ showToast }: { showToast: (m: string, ok?: boolean) =
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="font-sans text-xl uppercase tracking-wider text-white">Pack Manager</h2>
-          <p className="text-[11px] text-white/30 mt-0.5">{packs.length} packs Â· {allCards.length} cards total</p>
+          <p className="text-[11px] text-white/30 mt-0.5">{packs.length} packs · {allCards.length} cards total</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => { refetch(); qc.invalidateQueries({ queryKey: ['admin-all-cards'] }); }}
