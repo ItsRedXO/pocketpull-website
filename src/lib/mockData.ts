@@ -143,63 +143,92 @@ function buildInitialPokemon(maxHp: number[]): ArenaPokemonState[] {
   return out;
 }
 
+const TYPE_MOVES: Record<string, string[]> = {
+  electric: ['Thunderbolt', 'Discharge', 'Thunder'],
+  fire:     ['Flamethrower', 'Fire Blast', 'Heat Wave'],
+  water:    ['Hydro Pump', 'Surf', 'Scald'],
+  grass:    ['Energy Ball', 'Leaf Storm', 'Petal Blizzard'],
+  ghost:    ['Shadow Ball', 'Hex', 'Phantom Force'],
+  fighting: ['Aura Sphere', 'Close Combat', 'Focus Blast'],
+  normal:   ['Hyper Beam', 'Body Slam', 'Return'],
+  dragon:   ['Draco Meteor', 'Dragon Claw', 'Outrage'],
+  poison:   ['Sludge Bomb', 'Poison Jab', 'Gunk Shot'],
+  flying:   ['Air Slash', 'Hurricane', 'Brave Bird'],
+  steel:    ['Iron Head', 'Flash Cannon', 'Bullet Punch'],
+};
+const EFFECTIVENESS_POOL: Array<'neutral' | 'super-effective' | 'not-very-effective'> = [
+  'neutral', 'neutral', 'neutral', 'neutral', 'super-effective', 'not-very-effective',
+];
+
 function generateBattleFrames(userWins: boolean): { frames: ArenaFrame[]; maxTicks: number } {
   const maxHps = [105, 234, 237, 240, 180, 210, 320, 212, 230, 280, 155, 220];
   const hps = [...maxHps];
   const fainted = new Array(12).fill(false);
   const frames: ArenaFrame[] = [];
   let koUser = 0, koOpponent = 0;
-  const TICKS = 18;
+  const TICKS = 22;
+
+  const getMove = (type: string) => {
+    const pool = TYPE_MOVES[type] ?? ['Tackle', 'Quick Attack'];
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+  const randEff = () => EFFECTIVENESS_POOL[Math.floor(Math.random() * EFFECTIVENESS_POOL.length)];
 
   for (let tick = 0; tick < TICKS; tick++) {
+    // Determine which Pokemon attack this tick
+    const uAtk = tick % 6;
+    const oAtk = (tick + 2) % 6;
+    const oTarget = (tick + 1) % 6;
+    const uTarget = tick % 3;
+
+    // Build positions: attacker lunges toward centre, rest stay in formation
     const pokemon = buildInitialPokemon(maxHps).map((p, i) => {
-      const jx = (Math.sin(tick * 1.7 + i * 2.3) * 2.5);
-      const jy = (Math.cos(tick * 1.3 + i * 1.9) * 2.0);
-      return { ...p, hp: Math.max(0, hps[i]), fainted: fainted[i], x: p.x + jx, y: p.y + jy };
+      const isUAtk = p.side === 'user' && i === uAtk && !fainted[i];
+      const isOAtk = p.side === 'opponent' && (i - 6) === oAtk && !fainted[i];
+      const lunge = isUAtk ? 13 : isOAtk ? -13 : 0;
+      return { ...p, hp: Math.max(0, hps[i]), fainted: fainted[i], x: p.x + lunge, y: p.y };
     });
 
-    const attacks = [];
-    const faints = [];
+    const attacks: ArenaFrame['attacks'] = [];
+    const faints: ArenaFrame['faints'] = [];
 
-    // User side attacks opponent
-    const uAtk = tick % 6;
-    const oTarget = tick % 6;
+    // User attacks opponent every tick
     if (!fainted[uAtk] && !fainted[6 + oTarget]) {
-      const dmg = Math.floor(18 + Math.random() * 22);
+      const eff = randEff();
+      const base = Math.floor(16 + Math.random() * 20);
+      const dmg = eff === 'super-effective' ? Math.floor(base * 1.8) : eff === 'not-very-effective' ? Math.floor(base * 0.55) : base;
+      const p = MOCK_STARTER_ROSTER[uAtk];
       attacks.push({
         attackerId: `u-${uAtk}`, defenderId: `o-${oTarget}`,
-        move: 'Quick Attack', moveType: MOCK_STARTER_ROSTER[uAtk].primary_type,
-        vfx: 'normal', damage: dmg, effectiveness: 'neutral' as const,
-        fromX: USER_POSITIONS[uAtk].x, fromY: USER_POSITIONS[uAtk].y,
+        move: getMove(p.primary_type), moveType: p.primary_type,
+        vfx: p.primary_type, damage: dmg, effectiveness: eff,
+        fromX: USER_POSITIONS[uAtk].x + 13, fromY: USER_POSITIONS[uAtk].y,
         toX: OPP_POSITIONS[oTarget].x, toY: OPP_POSITIONS[oTarget].y,
       });
       hps[6 + oTarget] -= dmg;
       if (hps[6 + oTarget] <= 0 && !fainted[6 + oTarget]) {
         fainted[6 + oTarget] = true;
-        faints.push({ pokemonId: `o-${oTarget}`, side: 'opponent' as const, name: OPP_SPECIES[oTarget].name });
+        faints.push({ pokemonId: `o-${oTarget}`, side: 'opponent', name: OPP_SPECIES[oTarget].name });
         koUser++;
       }
     }
 
-    // Opponent attacks user (less damage if user wins)
-    if (tick % 3 === 0) {
-      const oAtk = Math.floor(tick / 3) % 6;
-      const uTarget = tick % 3;
-      if (!fainted[6 + oAtk] && !fainted[uTarget]) {
-        const dmg = userWins ? Math.floor(6 + Math.random() * 10) : Math.floor(20 + Math.random() * 30);
-        attacks.push({
-          attackerId: `o-${oAtk}`, defenderId: `u-${uTarget}`,
-          move: 'Tackle', moveType: OPP_SPECIES[oAtk].type,
-          vfx: 'normal', damage: dmg, effectiveness: 'neutral' as const,
-          fromX: OPP_POSITIONS[oAtk].x, fromY: OPP_POSITIONS[oAtk].y,
-          toX: USER_POSITIONS[uTarget].x, toY: USER_POSITIONS[uTarget].y,
-        });
-        hps[uTarget] -= dmg;
-        if (hps[uTarget] <= 0 && !fainted[uTarget]) {
-          fainted[uTarget] = true;
-          faints.push({ pokemonId: `u-${uTarget}`, side: 'user' as const, name: MOCK_STARTER_ROSTER[uTarget].name });
-          koOpponent++;
-        }
+    // Opponent attacks user every other tick
+    if (tick % 2 === 1 && !fainted[6 + oAtk] && !fainted[uTarget]) {
+      const dmg = userWins ? Math.floor(7 + Math.random() * 11) : Math.floor(20 + Math.random() * 28);
+      const op = OPP_SPECIES[oAtk];
+      attacks.push({
+        attackerId: `o-${oAtk}`, defenderId: `u-${uTarget}`,
+        move: getMove(op.type), moveType: op.type,
+        vfx: op.type, damage: dmg, effectiveness: 'neutral',
+        fromX: OPP_POSITIONS[oAtk].x - 13, fromY: OPP_POSITIONS[oAtk].y,
+        toX: USER_POSITIONS[uTarget].x, toY: USER_POSITIONS[uTarget].y,
+      });
+      hps[uTarget] -= dmg;
+      if (hps[uTarget] <= 0 && !fainted[uTarget]) {
+        fainted[uTarget] = true;
+        faints.push({ pokemonId: `u-${uTarget}`, side: 'user', name: MOCK_STARTER_ROSTER[uTarget].name });
+        koOpponent++;
       }
     }
 
@@ -222,11 +251,12 @@ function buildGame(result: 'win' | 'loss'): BrawlGameResult {
 export function getMockBattleResult(tier: string): BrawlBattlePlayResult {
   const game1 = buildGame('win');
   const game2 = buildGame('win');
+  const game3 = buildGame('win');
   const match: BrawlMatchResult = {
     index: 0, result: 'win',
     opponentSpeciesIds: OPP_SPECIES.map(s => s.id),
-    scoreUser: 2, scoreOpponent: 0,
-    games: [game1, game2],
+    scoreUser: 3, scoreOpponent: 0,
+    games: [game1, game2, game3],
   };
   return {
     success: true, tier, status: 'won', matchesWon: 1, matchesTotal: 1,

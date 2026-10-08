@@ -404,8 +404,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                 <button
                   type="button"
                   onClick={handleGuestTrial}
-                  className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-white/60"
-                  style={{ color: 'rgba(255,255,255,0.3)' }}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all hover:brightness-110 active:scale-95"
+                  style={{ background: 'rgba(155,92,255,0.10)', border: '1px solid rgba(155,92,255,0.35)', color: 'rgba(255,255,255,0.65)' }}
                 >
                   Try as Guest — 10 free actions
                 </button>

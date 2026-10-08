@@ -384,7 +384,7 @@ export const PackSpinner: React.FC<Props> = ({ pack, cards, onComplete, code }) 
                   <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: winCol }}>
                     {RARITY_LABEL[winner.rarity] ?? winner.rarity}
                   </p>
-                  <p className="text-[9px] text-white/40 mt-0.5">{isGuest ? '👀 Sign up to keep this card' : '✅ Saved to your collection'}</p>
+                  {!isGuest && <p className="text-[9px] text-white/40 mt-0.5">✅ Saved to your collection</p>}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-[15px] font-display font-bold" style={{ color: winCol }}>
