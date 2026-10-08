@@ -181,43 +181,62 @@ export function SafariZoneTab() {
               className="rounded-2xl border border-white/10 p-6 max-w-md w-full text-center relative overflow-hidden" style={{ background: '#0d0e14' }}>
               <AnimatePresence>
                 {!revealReady && (
-                  <motion.div key="portal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={{ duration: 0.3 }}
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: '#0d0e14' }}>
-                    <div className="relative flex items-center justify-center">
-                      {/* Expanding pulse rings */}
+                  <motion.div key="portal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+                    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-2xl pointer-events-none" style={{ background: '#0d0e14' }}>
+                    {/* Fixed 144×144 container — rings expand to 136px, everything stays inside */}
+                    <div className="relative flex items-center justify-center" style={{ width: 144, height: 144 }}>
+                      {/* Pulse rings — capped at 1.9× so they fit in 144px */}
                       {[0, 1, 2].map(i => (
-                        <motion.div key={i} className="absolute rounded-full"
-                          style={{ border: `2px solid ${['#4ade80', '#facc15', '#00c8ff'][i]}`, width: 72, height: 72 }}
-                          animate={{ scale: [1, 2.6], opacity: [0.75, 0] }}
-                          transition={{ duration: 1.5, delay: i * 0.48, repeat: Infinity, ease: 'easeOut' }} />
+                        <motion.div key={i} className="absolute"
+                          style={{ width: 72, height: 72, borderRadius: '50%', border: `2px solid ${['#4ade80','#facc15','#00c8ff'][i]}` }}
+                          animate={{ scale: [1, 1.9], opacity: [0.75, 0] }}
+                          transition={{ duration: 1.4, delay: i * 0.44, repeat: Infinity, ease: 'easeOut' }} />
                       ))}
-                      {/* Spinning Safari Ball */}
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.6, ease: 'linear' }}
-                        className="relative w-16 h-16 rounded-full overflow-hidden"
-                        style={{ boxShadow: '0 0 28px rgba(74,222,128,0.55), 0 0 8px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute inset-x-0 top-0 h-1/2" style={{ background: 'linear-gradient(135deg, #15803d, #4ade80)' }} />
-                        <div className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: 'linear-gradient(135deg, #92400e, #d97706)' }} />
-                        <div className="absolute inset-x-0" style={{ top: 'calc(50% - 3px)', height: 6, background: '#fff' }} />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-5 h-5 rounded-full bg-white border-2" style={{ borderColor: 'rgba(0,0,0,0.25)' }} />
-                        </div>
+                      {/* Safari Ball — SVG with clipPath guarantees a true circle */}
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.8, ease: 'linear' }}
+                        style={{ filter: 'drop-shadow(0 0 14px rgba(74,222,128,0.7))' }}>
+                        <svg width="72" height="72" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                          <defs>
+                            <clipPath id="szBallClip"><circle cx="50" cy="50" r="47" /></clipPath>
+                          </defs>
+                          <circle cx="50" cy="50" r="47" fill="#111827" />
+                          {/* top half — green */}
+                          <rect x="3" y="3" width="94" height="47" fill="#15803d" clipPath="url(#szBallClip)" />
+                          {/* bottom half — amber */}
+                          <rect x="3" y="50" width="94" height="47" fill="#b45309" clipPath="url(#szBallClip)" />
+                          {/* accent arc on green */}
+                          <path d="M12 30 Q35 18 50 20 Q65 18 88 30" fill="none" stroke="#4ade80" strokeWidth="3.5" strokeLinecap="round" opacity="0.65" clipPath="url(#szBallClip)" />
+                          {/* white center band */}
+                          <rect x="3" y="44" width="94" height="12" fill="white" clipPath="url(#szBallClip)" />
+                          {/* rim */}
+                          <circle cx="50" cy="50" r="47" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
+                          {/* center button */}
+                          <circle cx="50" cy="50" r="12" fill="white" />
+                          <circle cx="50" cy="50" r="8" fill="#d1d5db" />
+                          <circle cx="46" cy="46" r="3.5" fill="white" opacity="0.75" />
+                        </svg>
                       </motion.div>
-                      {/* Orbiting particles */}
-                      <motion.div className="absolute w-28 h-28" animate={{ rotate: 360 }} transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}>
-                        {[0,1,2,3,4,5].map(i => {
+                      {/* 6 glowing dots orbiting at r=52px (104px diameter — contained in 144px) */}
+                      <motion.div className="absolute inset-0" animate={{ rotate: 360 }} transition={{ duration: 2.6, repeat: Infinity, ease: 'linear' }}>
+                        {(['#4ade80','#facc15','#f87171','#00c8ff','#9b5cff','#fb923c'] as const).map((color, i) => {
                           const a = (i / 6) * Math.PI * 2;
                           return (
-                            <div key={i} className="absolute w-2 h-2 rounded-full"
-                              style={{
-                                background: ['#4ade80','#facc15','#f87171','#00c8ff','#9b5cff','#fb923c'][i],
-                                left: `calc(50% + ${Math.cos(a) * 44}px - 4px)`,
-                                top: `calc(50% + ${Math.sin(a) * 44}px - 4px)`,
-                                boxShadow: `0 0 6px ${['#4ade80','#facc15','#f87171','#00c8ff','#9b5cff','#fb923c'][i]}`,
-                              }} />
+                            <div key={i} style={{
+                              position: 'absolute', width: 9, height: 9, borderRadius: '50%',
+                              background: color, boxShadow: `0 0 8px ${color}`,
+                              left: `calc(50% + ${Math.cos(a) * 52}px - 4.5px)`,
+                              top:  `calc(50% + ${Math.sin(a) * 52}px - 4.5px)`,
+                            }} />
                           );
                         })}
                       </motion.div>
                     </div>
+                    <motion.p className="text-[11px] font-bold uppercase tracking-widest"
+                      style={{ color: 'rgba(255,255,255,0.35)' }}
+                      animate={{ opacity: [0.35, 0.75, 0.35] }}
+                      transition={{ repeat: Infinity, duration: 1.6 }}>
+                      Searching the tall grass…
+                    </motion.p>
                   </motion.div>
                 )}
               </AnimatePresence>
