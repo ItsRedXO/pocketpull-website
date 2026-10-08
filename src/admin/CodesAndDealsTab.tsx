@@ -173,7 +173,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
             {isSocial ? (
               <div>
                 <p className="text-[10px] font-bold text-[#9b5cff] flex items-center gap-1"><Package size={10} /> Social Pack</p>
-                <p className="text-[10px] text-white/60">{code.rewardPackName || 'â€"'}</p>
+                <p className="text-[10px] text-white/60">{code.rewardPackName || '-'}</p>
               </div>
             ) : (
               <p className="text-sm font-bold text-white">${code.rewardAmount.toFixed(2)}</p>
@@ -181,7 +181,7 @@ function CodeDetailModal({ code, onClose, showToast }: { code: PromoCode; onClos
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Total Uses</p>
-            <p className="text-sm font-bold text-white">{code.useCount}{code.maxUses !== null ? ` / ${code.maxUses}` : ' / âˆž'}</p>
+            <p className="text-sm font-bold text-white">{code.useCount}{code.maxUses !== null ? ` / ${code.maxUses}` : ' / Unlimited'}</p>
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-widest text-white/30">Status</p>
@@ -501,7 +501,7 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                     <td className="px-5 py-3">
                       <button onClick={() => setViewingCode(c)} className="font-mono font-bold text-[#00c8ff] hover:underline">{c.code}</button>
                     </td>
-                    <td className="px-5 py-3 text-white/50 max-w-[160px] truncate">{c.description || 'â€"'}</td>
+                    <td className="px-5 py-3 text-white/50 max-w-[160px] truncate">{c.description || '-'}</td>
                     <td className="px-5 py-3">
                       {c.rewardType === 'social_pack' ? (
                         <div className="flex items-center gap-1.5">
@@ -512,9 +512,9 @@ export const CodesAndDealsTab: React.FC<Props> = ({ showToast }) => {
                         <span className="text-white font-bold">${c.rewardAmount.toFixed(2)}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-white/50">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / âˆž'}</td>
+                    <td className="px-5 py-3 text-white/50">{c.useCount}{c.maxUses !== null ? ` / ${c.maxUses}` : ' / Unlimited'}</td>
                     <td className="px-5 py-3 text-white/50">{new Date(c.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : 'â€"'}</td>
+                    <td className="px-5 py-3 text-white/50">{c.expiresAt ? formatExpiryFull(c.expiresAt) : '-'}</td>
                     <td className="px-5 py-3">
                       {codeStatus(c) === 'expired' ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
