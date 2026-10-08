@@ -21,16 +21,30 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
   setActiveTab,
 }) => {
   return (
-    <div className="flex gap-1 mb-6 bg-white/5 rounded-xl p-1">
+    <div
+      className="flex gap-1 mb-6 rounded-xl p-1 backdrop-blur-sm"
+      style={{
+        background: 'rgba(255,255,255,0.07)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 16px rgba(0,0,0,0.25)',
+      }}
+    >
       {tabs.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           onClick={() => setActiveTab(id)}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
             activeTab === id
-              ? 'bg-[#00c8ff]/10 text-[#00c8ff] border border-[#00c8ff]/20'
-              : 'text-gray-400 hover:text-white'
+              ? 'text-[#00c8ff]'
+              : 'text-white/40 hover:text-white/70 hover:bg-white/5'
           }`}
+          style={activeTab === id ? {
+            background: 'rgba(0,200,255,0.12)',
+            border: '1px solid rgba(0,200,255,0.25)',
+            boxShadow: '0 0 12px rgba(0,200,255,0.1)',
+          } : {
+            border: '1px solid transparent',
+          }}
         >
           <Icon size={14} />
           <span className="hidden sm:inline">{label}</span>
