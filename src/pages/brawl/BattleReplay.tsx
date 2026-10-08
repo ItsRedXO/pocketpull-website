@@ -496,8 +496,8 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   const skipVsIntro = () => { setShowVsIntro(false); setPlaying(true); };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
-      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col overflow-hidden" style={{ background: '#0d0e14', height: 'calc(100dvh - 24px)' }}>
+    <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex flex-col items-center p-3">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 min-h-0 w-full max-w-4xl rounded-2xl border border-white/10 flex flex-col overflow-hidden" style={{ background: '#0d0e14' }}>
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 shrink-0">
           <div className="text-xs font-bold uppercase tracking-widest text-white/60">{tierLabel} — Trainer {matchIndex + 1}/{matches.length}</div>
           <button onClick={onClose} className="text-white/40 hover:text-white p-1"><X size={16} /></button>
@@ -505,7 +505,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
 
         {!finished ? (
           <>
-          <div className="flex-1 overflow-y-auto relative p-4">
+          <div className="flex-1 min-h-0 overflow-y-auto relative p-4">
             <div className="flex items-center justify-center gap-3 mb-1.5 flex-wrap">
               <span className="text-[10px] uppercase tracking-widest text-white/30">Round {gameIndex + 1}/{match.games.length}</span>
               <span className="text-sm font-bold tabular-nums"><span className="text-[#00c8ff]">{scoreUser}</span><span className="text-white/25 mx-0.5">–</span><span className="text-[#f87171]">{scoreOpponent}</span></span>
