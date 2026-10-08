@@ -187,8 +187,8 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
     .map(id => opponentTeam.find(m => m.speciesId === id))
     .filter(Boolean) as TeamPreviewMon[];
 
-  // Y positions for 6-mon columns (same formula as battleSim toFighter)
-  const colY = (i: number, n: number) => 8 + i * (84 / Math.max(n - 1, 1));
+  // Y positions for 6-mon columns — keep bottom away from the timer bar
+  const colY = (i: number, n: number) => 10 + i * (75 / Math.max(n - 1, 1));
   // Y positions for 3 center slots (spread evenly)
   const slotY = (i: number) => 15 + i * 35;
 

@@ -311,7 +311,7 @@ function PokemonIcon({
       >
         {/* faint tilt + lunge + #2 animated grayscale */}
         <motion.div
-          className="relative w-20 h-20 flex items-center justify-center"
+          className="relative w-12 h-12 flex items-center justify-center"
           initial={{ filter: 'grayscale(0) brightness(1)', x: 0 }}
           animate={
             mon.fainted
@@ -326,7 +326,7 @@ function PokemonIcon({
             <img
               src={mon.spriteUrl || mon.artworkUrl!}
               alt={mon.name}
-              className="w-20 h-20 object-contain"
+              className="w-12 h-12 object-contain"
               style={mon.spriteUrl
                 ? { imageRendering: 'pixelated', transform: `scaleX(${mon.side === 'user' ? 1 : -1})` }
                 : { objectPosition: 'top', transform: `scaleX(${facingScaleX}) scaleY(1.5)` }
@@ -339,7 +339,7 @@ function PokemonIcon({
         </motion.div>
 
         {/* HP bar — #5 low-health pulse below 20% */}
-        <div className="w-16 h-[4px] rounded-full bg-white/15 mt-1 overflow-hidden">
+        <div className="w-12 h-[4px] rounded-full bg-white/15 mt-1 overflow-hidden">
           <motion.div
             className="h-full rounded-full"
             animate={{
