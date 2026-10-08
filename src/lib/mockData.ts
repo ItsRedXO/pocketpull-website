@@ -70,10 +70,10 @@ export const MOCK_STARTER_ROSTER: BrawlInstance[] = [
 // ── Fake pack open result ─────────────────────────────────────────────────
 export const MOCK_PACK_OPEN_RESULT = {
   card: {
-    name: 'Umbreon VMAX',
+    name: "Steven's Metagross ex",
     rarity: 'god',
-    value: 2500,
-    imageUrl: 'https://storage.googleapis.com/blink-core-storage/projects/pocketpull-premium-site-b2nnhe2n/cards/1780195998568_22_jpg/fe93fe6d-10e4-4d4f-a92e-d90153069b9f.jpg' as string | null,
+    value: 95,
+    imageUrl: 'https://storage.googleapis.com/blink-core-storage/projects/pocketpull-premium-site-b2nnhe2n/cards/1780014540184_17_jpg/4b13f944-ec38-4132-894a-382c9991cf63.jpg' as string | null,
   },
   inventoryId: 'guest-inv-demo',
   newBalance: 100,
@@ -181,12 +181,22 @@ function generateBattleFrames(userWins: boolean): { frames: ArenaFrame[]; maxTic
     const oTarget = (tick + 1) % 6;
     const uTarget = tick % 3;
 
-    // Build positions: attacker lunges toward centre, rest stay in formation
+    // Build positions: attacker lunges diagonally toward target; others sway gently
     const pokemon = buildInitialPokemon(maxHps).map((p, i) => {
       const isUAtk = p.side === 'user' && i === uAtk && !fainted[i];
       const isOAtk = p.side === 'opponent' && (i - 6) === oAtk && !fainted[i];
-      const lunge = isUAtk ? 13 : isOAtk ? -13 : 0;
-      return { ...p, hp: Math.max(0, hps[i]), fainted: fainted[i], x: p.x + lunge, y: p.y };
+      let dx = 0, dy = 0;
+      if (isUAtk) {
+        dx = 13;
+        dy = (OPP_POSITIONS[oTarget].y - p.y) * 0.38;
+      } else if (isOAtk) {
+        dx = -13;
+        dy = (USER_POSITIONS[uTarget].y - p.y) * 0.38;
+      } else {
+        dx = Math.sin(tick * 0.7 + i * 2.1) * 1.2;
+        dy = Math.cos(tick * 0.9 + i * 1.7) * 1.0;
+      }
+      return { ...p, hp: Math.max(0, hps[i]), fainted: fainted[i], x: p.x + dx, y: p.y + dy };
     });
 
     const attacks: ArenaFrame['attacks'] = [];
