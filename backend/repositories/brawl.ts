@@ -398,6 +398,7 @@ export async function getLeaderboard(limit = 50): Promise<LeaderboardRow[]> {
   return query<LeaderboardRow>(
     `SELECT p.user_id, u.username, u.avatar_url, p.league, p.league_rating, p.wins, p.losses
      FROM brawl_profiles p JOIN users u ON u.id = p.user_id
+     WHERE (u.data->>'is_guest')::boolean IS NOT TRUE
      ORDER BY p.wins DESC, p.losses ASC LIMIT $1`,
     [limit],
   );
@@ -412,8 +413,9 @@ export interface RankInfo { rank: number; total: number; }
 export async function getPlayerRank(userId: string): Promise<RankInfo> {
   const rows = await query<{ rank: string; total: string }>(
     `SELECT rank, total FROM (
-       SELECT user_id, ROW_NUMBER() OVER (ORDER BY wins DESC, losses ASC) AS rank, COUNT(*) OVER () AS total
-       FROM brawl_profiles
+       SELECT p.user_id, ROW_NUMBER() OVER (ORDER BY p.wins DESC, p.losses ASC) AS rank, COUNT(*) OVER () AS total
+       FROM brawl_profiles p JOIN users u ON u.id = p.user_id
+       WHERE (u.data->>'is_guest')::boolean IS NOT TRUE
      ) ranked WHERE user_id = $1`,
     [userId],
   );

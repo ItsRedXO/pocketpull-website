@@ -89,8 +89,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const { signIn, signUp, sendPasswordReset } = useAuth();
   const { startGuestTrial } = useGuestTrial();
 
-  const handleGuestTrial = () => {
-    startGuestTrial();
+  const handleGuestTrial = async () => {
+    await startGuestTrial();
     onClose();
   };
 

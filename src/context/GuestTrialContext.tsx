@@ -1,8 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import {
-  MOCK_STARTER_ROSTER, getMockBrawlProfileResponse, getMockBrawlConfig,
-} from '../lib/mockData';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { BACKEND_BASE } from '../lib/backend';
 
 const STORAGE_KEY = 'pocketpull_guest_trial';
 const MAX_ACTIONS = 10;
@@ -30,13 +28,14 @@ function save(s: StoredState) {
 
 interface GuestTrialContextValue {
   isGuest: boolean;
+  guestTrialLoading: boolean;
   actionsUsed: number;
   actionsLeft: number;
   canAct: boolean;
   hasOpenedPack: boolean;
   markPackOpened: () => void;
   consumeAction: () => void;
-  startGuestTrial: () => void;
+  startGuestTrial: () => Promise<void>;
   endGuestTrial: () => void;
   showSignupWall: boolean;
   dismissSignupWall: () => void;
@@ -45,28 +44,24 @@ interface GuestTrialContextValue {
 const GuestTrialContext = createContext<GuestTrialContextValue | null>(null);
 
 export function GuestTrialProvider({ children }: { children: React.ReactNode }) {
-  const qc = useQueryClient();
   const [state, setStateRaw] = useState<StoredState>(load);
   const [signupWallVisible, setSignupWallVisible] = useState(false);
-  const seededRef = useRef(false);
+  const [loading, setLoading] = useState(false);
 
   const setState = useCallback((s: StoredState) => {
     save(s);
     setStateRaw(s);
   }, []);
 
-  const seedQueryCache = useCallback(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
-    const profile = getMockBrawlProfileResponse();
-    qc.setQueryData(['brawl-profile'], profile);
-    qc.setQueryData(['brawl-roster'], { roster: MOCK_STARTER_ROSTER });
-    qc.setQueryData(['brawl-config'], getMockBrawlConfig());
-  }, [qc]);
-
-  // Re-seed cache on mount if already in guest mode (page refresh)
+  // On mount: verify the anonymous Supabase session is still alive.
+  // If it's gone (expired or cleared), reset guest state so the user
+  // isn't stuck in a broken mode where isGuest=true but no token exists.
   useEffect(() => {
-    if (state.isGuest) seedQueryCache();
+    if (!state.isGuest) return;
+    if (!supabase) { setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false }); return; }
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false });
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markPackOpened = useCallback(() => {
@@ -77,20 +72,38 @@ export function GuestTrialProvider({ children }: { children: React.ReactNode }) 
     });
   }, []);
 
-  const startGuestTrial = useCallback(() => {
-    const next: StoredState = { isGuest: true, actionsUsed: 0, hasOpenedPack: false };
-    setState(next);
-    seedQueryCache();
-  }, [setState, seedQueryCache]);
+  const startGuestTrial = useCallback(async () => {
+    if (!supabase) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error || !data.session) throw error || new Error('No anonymous session');
+
+      await fetch(`${BACKEND_BASE}/auth/guest-session`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${data.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      setState({ isGuest: true, actionsUsed: 0, hasOpenedPack: false });
+    } catch (err) {
+      console.error('[GuestTrial] Failed to start:', err);
+      // Still set isGuest=true optimistically — brawl will show API errors
+      // on actual actions, which is a reasonable fallback.
+      setState({ isGuest: true, actionsUsed: 0, hasOpenedPack: false });
+    } finally {
+      setLoading(false);
+    }
+  }, [setState]);
 
   const endGuestTrial = useCallback(() => {
-    seededRef.current = false;
     setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false });
     setSignupWallVisible(false);
-    qc.removeQueries({ queryKey: ['brawl-profile'] });
-    qc.removeQueries({ queryKey: ['brawl-roster'] });
-    qc.removeQueries({ queryKey: ['brawl-config'] });
-  }, [setState, qc]);
+    // Sign out the anonymous Supabase session so real auth can take over
+    if (supabase) supabase.auth.signOut().catch(() => {});
+  }, [setState]);
 
   const consumeAction = useCallback(() => {
     setStateRaw(prev => {
@@ -109,6 +122,7 @@ export function GuestTrialProvider({ children }: { children: React.ReactNode }) 
   return (
     <GuestTrialContext.Provider value={{
       isGuest: state.isGuest,
+      guestTrialLoading: loading,
       actionsUsed: state.actionsUsed,
       actionsLeft,
       canAct,

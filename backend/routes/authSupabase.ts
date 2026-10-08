@@ -3,6 +3,7 @@ import { requireAuth, uid } from '../lib/auth';
 import { verifySupabaseToken, extractSupabaseBearer } from '../lib/supabaseAuth';
 import { getOrCreateSupabaseIdentity, inviteSupabaseIdentity, backfillPasswordIfNeeded } from '../lib/supabaseAdmin';
 import { query } from '../lib/postgres';
+import { getOrCreateProfile } from '../repositories/brawl';
 
 const app = new Hono();
 
@@ -319,6 +320,44 @@ app.post('/auth/complete-supabase-signup', async (c) => {
   );
 
   return c.json({ success: true, userId, alreadyExists: false });
+});
+
+/**
+ * POST /auth/guest-session
+ *
+ * Creates a temporary PocketPull account for an anonymous Supabase session
+ * so guest users can play PokeBrawl with real server-generated content.
+ * Idempotent: calling again with the same anonymous JWT just returns the
+ * existing account. The users row is tagged data->>'is_guest'='true' so
+ * leaderboard queries and cashout endpoints can exclude/block it.
+ */
+app.post('/auth/guest-session', async (c) => {
+  let claims;
+  try {
+    const token = extractSupabaseBearer(c.req.header('Authorization'));
+    claims = await verifySupabaseToken(token);
+  } catch (err: any) {
+    return c.json({ error: `Supabase token invalid: ${err.message}` }, 401);
+  }
+
+  const existing = await query<{ id: string }>(
+    'SELECT id FROM users WHERE auth_user_id=$1 LIMIT 1', [claims.authUserId]
+  );
+  if (existing[0]) return c.json({ success: true, userId: existing[0].id });
+
+  const userId = `usr_${uid()}`;
+  const username = `Guest_${userId.slice(-6)}`;
+  const referralCode = Math.random().toString(36).slice(2, 10).toUpperCase();
+
+  await query(
+    `INSERT INTO users (id, username, display_name, avatar_url, balance, matched_balance, email_verified, role, is_banned, is_deleted, referral_code, referred_by_id, referral_reward_paid, auth_user_id, created_at, data)
+     VALUES ($1,$2,$2,'',0,0,0,'',0,0,$3,NULL,0,$4,now(),'{"is_guest":true}'::jsonb)`,
+    [userId, username, referralCode, claims.authUserId]
+  );
+
+  await getOrCreateProfile(userId);
+
+  return c.json({ success: true, userId });
 });
 
 export default app;

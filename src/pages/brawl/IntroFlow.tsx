@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { completeBrawlIntro, type BrawlInstance } from '../../lib/brawlApi';
 import { useGuestTrial } from '../../context/GuestTrialContext';
-import { MOCK_STARTER_ROSTER, getMockBrawlProfileResponse } from '../../lib/mockData';
-import { useQueryClient } from '@tanstack/react-query';
 import { typeColor } from './typeColors';
 import { PokemonPortrait } from './PokemonPortrait';
 
@@ -13,26 +11,15 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
   const [roster, setRoster] = useState<BrawlInstance[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { isGuest, consumeAction } = useGuestTrial();
-  const qc = useQueryClient();
 
   const handleStart = async () => {
     setStep('opening');
     setError(null);
     try {
-      if (isGuest) {
-        await new Promise(r => setTimeout(r, 800));
-        setRoster(MOCK_STARTER_ROSTER);
-        consumeAction();
-        const completedProfile = getMockBrawlProfileResponse();
-        completedProfile.profile.has_completed_intro = 1;
-        qc.setQueryData(['brawl-profile'], completedProfile);
-        qc.setQueryData(['brawl-roster'], { roster: MOCK_STARTER_ROSTER });
-        setStep('reveal');
-      } else {
-        const result = await completeBrawlIntro();
-        if (result.roster) setRoster(result.roster);
-        setStep('reveal');
-      }
+      const result = await completeBrawlIntro();
+      if (result.roster) setRoster(result.roster);
+      if (isGuest) consumeAction();
+      setStep('reveal');
     } catch (e: any) {
       setError(e.message || 'Failed to open your starter pack');
       setStep('start');

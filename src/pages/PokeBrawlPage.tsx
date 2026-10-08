@@ -33,8 +33,8 @@ export function PokeBrawlPage() {
   const { isAuthenticated } = useAuth();
   const { isGuest } = useGuestTrial();
   const isAllowed = isAuthenticated || isGuest;
-  const { data: profileData, isLoading } = useQuery({ queryKey: ['brawl-profile'], queryFn: getBrawlProfile, enabled: isAuthenticated });
-  const { data: rosterData } = useQuery({ queryKey: ['brawl-roster'], queryFn: getBrawlRoster, enabled: isAuthenticated });
+  const { data: profileData, isLoading } = useQuery({ queryKey: ['brawl-profile'], queryFn: getBrawlProfile, enabled: isAllowed });
+  const { data: rosterData } = useQuery({ queryKey: ['brawl-roster'], queryFn: getBrawlRoster, enabled: isAllowed });
   const [subTab, setSubTab] = useState<SubTab>('team');
 
   const activeTeam = useMemo(() => (rosterData?.roster || []).filter(m => Number(m.is_on_team)), [rosterData]);
