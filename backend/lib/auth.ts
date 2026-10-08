@@ -4,6 +4,7 @@ import { getUser } from '../repositories/users';
 import { postgresBlinkDb } from './postgresBlinkDb';
 import { verifySupabaseToken, extractSupabaseBearer } from './supabaseAuth';
 import { query } from './postgres';
+import { jwtVerify } from 'jose';
 
 /**
  * Resolves the Authorization header to a usr_XXXX id. Phase 5: the frontend
@@ -25,6 +26,21 @@ export async function resolveUserId(c: Context): Promise<string | null> {
     const rows = await query<{ id: string }>('SELECT id FROM users WHERE auth_user_id=$1 LIMIT 1', [claims.authUserId]);
     if (rows[0]?.id) return rows[0].id;
   } catch {}
+
+  // Guest session JWT signed by POST /auth/guest-session
+  const guestSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (guestSecret && authHeader) {
+    try {
+      const raw = authHeader.replace(/^Bearer\s+/i, '').trim();
+      const { payload } = await jwtVerify(raw, new TextEncoder().encode(guestSecret), { issuer: 'pocketpull-guest' });
+      if (typeof payload.sub === 'string') {
+        const rows = await query<{ id: string }>(
+          `SELECT id FROM users WHERE id=$1 AND data->>'is_guest'='true' LIMIT 1`, [payload.sub]
+        );
+        if (rows[0]?.id) return rows[0].id;
+      }
+    } catch {}
+  }
 
   try {
     const blink = getBlinkServer(c.env as any);

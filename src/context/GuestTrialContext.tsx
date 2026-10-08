@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { setGuestToken, getGuestToken } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 
 const STORAGE_KEY = 'pocketpull_guest_trial';
@@ -53,15 +53,14 @@ export function GuestTrialProvider({ children }: { children: React.ReactNode }) 
     setStateRaw(s);
   }, []);
 
-  // On mount: verify the anonymous Supabase session is still alive.
-  // If it's gone (expired or cleared), reset guest state so the user
-  // isn't stuck in a broken mode where isGuest=true but no token exists.
+  // On mount: if isGuest=true, verify the guest token still exists in
+  // sessionStorage. If not (tab closed and reopened, or token cleared),
+  // reset so the user isn't stuck in a broken state.
   useEffect(() => {
     if (!state.isGuest) return;
-    if (!supabase) { setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false }); return; }
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false });
-    });
+    if (!getGuestToken()) {
+      setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markPackOpened = useCallback(() => {
@@ -73,36 +72,24 @@ export function GuestTrialProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const startGuestTrial = useCallback(async () => {
-    if (!supabase) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error || !data.session) throw error || new Error('No anonymous session');
-
-      await fetch(`${BACKEND_BASE}/auth/guest-session`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${data.session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
+      const res = await fetch(`${BACKEND_BASE}/auth/guest-session`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Guest session failed: ${res.status}`);
+      const data = await res.json() as { token: string; userId: string };
+      setGuestToken(data.token);
       setState({ isGuest: true, actionsUsed: 0, hasOpenedPack: false });
     } catch (err) {
       console.error('[GuestTrial] Failed to start:', err);
-      // Still set isGuest=true optimistically — brawl will show API errors
-      // on actual actions, which is a reasonable fallback.
-      setState({ isGuest: true, actionsUsed: 0, hasOpenedPack: false });
     } finally {
       setLoading(false);
     }
   }, [setState]);
 
   const endGuestTrial = useCallback(() => {
+    setGuestToken(null);
     setState({ isGuest: false, actionsUsed: 0, hasOpenedPack: false });
     setSignupWallVisible(false);
-    // Sign out the anonymous Supabase session so real auth can take over
-    if (supabase) supabase.auth.signOut().catch(() => {});
   }, [setState]);
 
   const consumeAction = useCallback(() => {

@@ -24,14 +24,31 @@ const blinkClient = createClient({
   auth: { mode: 'headless' }
 });
 
+const GUEST_TOKEN_KEY = 'pocketpull_guest_token';
+let _guestToken: string | null = null;
+
+export function setGuestToken(token: string | null) {
+  _guestToken = token;
+  try {
+    if (token) sessionStorage.setItem(GUEST_TOKEN_KEY, token);
+    else sessionStorage.removeItem(GUEST_TOKEN_KEY);
+  } catch { /* noop */ }
+}
+
+export function getGuestToken(): string | null {
+  if (_guestToken) return _guestToken;
+  try { return sessionStorage.getItem(GUEST_TOKEN_KEY); } catch { return null; }
+}
+
 /**
- * Phase 4: prefer a live Supabase session's access token (set once an
- * account is linked and has signed in since -- see useAuth.ts) and fall
- * back to the Blink token otherwise. Every account not yet linked, or
- * without a currently valid Supabase session, is completely unaffected --
- * this only ever adds a path, never removes the Blink one.
+ * Phase 4: prefer a live Supabase session's access token, falling back to
+ * Blink token. Guest trial sessions (via POST /auth/guest-session) take
+ * precedence over both so they work without Supabase anon auth enabled.
  */
 export async function getPreferredAuthToken(): Promise<string | null> {
+  const guestToken = getGuestToken();
+  if (guestToken) return guestToken;
+
   if (supabase) {
     try {
       const { data } = await supabase.auth.getSession();
