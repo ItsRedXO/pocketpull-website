@@ -87,7 +87,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
   const [agreeUsShipping, setAgreeUsShipping] = useState(false);
 
   const { signIn, signUp, sendPasswordReset } = useAuth();
-  const { startGuestTrial } = useGuestTrial();
+  const { startGuestTrial, endGuestTrial } = useGuestTrial();
 
   const handleGuestTrial = async () => {
     await startGuestTrial();
@@ -132,6 +132,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
     setError('');
     try {
       await signIn(email, password);
+      endGuestTrial();
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
