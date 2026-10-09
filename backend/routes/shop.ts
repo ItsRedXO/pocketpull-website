@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { requireAuth, uid } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
 import { deductGemsInClient } from '../lib/gems';
+import { writeLog } from './logs';
 
 const app = new Hono();
 
@@ -169,9 +170,10 @@ app.post('/shop/purchase', async (c) => {
         [`sp_${uid()}`, userId, shopItemId, gemPrice, inventoryId],
       );
 
-      return { inventoryId, newGems: gemResult.newGems, item };
+      return { inventoryId, newGems: gemResult.newGems, item, username: String(user.username || user.display_name || 'Trainer') };
     });
 
+    try { await writeLog(null, { type:'shop_purchase', userId, username:result.username, action:`Gem Shop: ${result.item.card_name}`, details:{ cardName:result.item.card_name, rarity:result.item.card_rarity, estimatedValue:Number(result.item.estimated_value), gemsSpent:Number(result.item.gem_price) }, valueIn:0, valueOut:Number(result.item.estimated_value), result:'success' }); } catch(e:any){console.error('[shop/purchase] writeLog failed:',e?.message);}
     return c.json({
       success: true,
       inventoryId: result.inventoryId,

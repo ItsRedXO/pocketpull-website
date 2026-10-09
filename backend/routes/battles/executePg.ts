@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { requireAuth, uid, getRewardUserId } from '../../lib/auth';
+import { writeLog } from '../logs';
 import { query, transaction } from '../../lib/postgres';
 import { calculateBattleGems, awardGems } from '../../lib/gems';
 import { sha256, computeRoll, buildOddsSnapshot, selectCardIndex } from '../../lib/provablyFair';
@@ -147,6 +148,19 @@ app.post('/execute', async (c) => {
         return awardGems(p.userId, gems, 'pack_battle', battleId);
       }));
     } catch (e: any) { console.error('[battles/execute-pg] gem award failed:', e?.message); }
+    try {
+      const bpacks: any[] = parseJson((result as any).battle?.packs_json, []);
+      const potTotal = bpacks.reduce((s:number,p:any)=>s+Number(p.price||0),0);
+      const humanPlayers = finishedPlayers.filter((p:any)=>!p.isAi);
+      const humanCount = Math.max(1, humanPlayers.length);
+      const isDraw = (result as any).isDraw;
+      await Promise.all(humanPlayers.map((p:any) => writeLog(null, {
+        type:'battle', userId:p.userId, username:p.username||'Trainer',
+        action: p.isWinner ? 'Pack Battle Win' : isDraw ? 'Pack Battle Draw' : 'Pack Battle Loss',
+        details:{ battleId, mode:(result as any).battle?.mode||'standard', packs:bpacks.map((pk:any)=>pk.name).filter(Boolean), potTotal, myCards:p.cards.map((c:any)=>({name:c.name,value:c.value,rarity:c.rarity})), myTotal:p.totalValue, isDraw, players:finishedPlayers.map((fp:any)=>({username:fp.username,totalValue:fp.totalValue,isWinner:fp.isWinner,isAi:fp.isAi})) },
+        valueIn:potTotal/humanCount, valueOut:p.totalValue, result:p.isWinner?'win':isDraw?'draw':'loss',
+      })));
+    } catch(e:any){console.error('[battles/execute-pg] writeLog failed:',e?.message);}
     return c.json({ success: true, playerResults: finishedPlayers, winner: (result as any).winner, isDraw: (result as any).isDraw });
   } catch (err: any) {
     console.error('[battles/execute-pg] error:', err?.message || err);

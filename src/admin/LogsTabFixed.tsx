@@ -23,20 +23,28 @@ const RARITY_COLOR: Record<string, string> = {
 };
 
 const TYPE_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pack_open: { label: 'Pack Opening', color: '#9b5cff', icon: <Package size={11} /> },
-  sell:      { label: 'Card Sale',    color: '#f59e0b', icon: <DollarSign size={11} /> },
-  battle:    { label: 'Battle',       color: '#f87171', icon: <Swords size={11} /> },
-  cashout:   { label: 'Cash Out',     color: '#fcd34d', icon: <ShoppingCart size={11} /> },
-  deposit:   { label: 'Deposit',      color: '#10b981', icon: <CreditCard size={11} /> },
-  upgrade:   { label: 'Upgrader',     color: '#ffd700', icon: <Sparkles size={11} /> },
-  exchange:  { label: 'Exchange',     color: '#00c8ff', icon: <ArrowRightLeft size={11} /> },
-  admin:     { label: 'Admin Action', color: '#f87171', icon: <Shield size={11} /> },
+  pack_open:     { label: 'Pack Opening',  color: '#9b5cff', icon: <Package size={11} /> },
+  sell:          { label: 'Card Sale',     color: '#f59e0b', icon: <DollarSign size={11} /> },
+  battle:        { label: 'Pack Battle',   color: '#f87171', icon: <Swords size={11} /> },
+  brawl_battle:  { label: 'Brawl Battle',  color: '#ff6b35', icon: <Swords size={11} /> },
+  safari_pull:   { label: 'Safari Pull',   color: '#10b981', icon: <Bot size={11} /> },
+  shop_purchase: { label: 'Gem Shop',      color: '#9b5cff', icon: <Sparkles size={11} /> },
+  brawl_item:    { label: 'Brawl Item',    color: '#00c8ff', icon: <ArrowRightLeft size={11} /> },
+  cashout:       { label: 'Cash Out',      color: '#fcd34d', icon: <ShoppingCart size={11} /> },
+  deposit:       { label: 'Deposit',       color: '#10b981', icon: <CreditCard size={11} /> },
+  upgrade:       { label: 'Upgrader',      color: '#ffd700', icon: <Sparkles size={11} /> },
+  exchange:      { label: 'Exchange',      color: '#00c8ff', icon: <ArrowRightLeft size={11} /> },
+  admin:         { label: 'Admin Action',  color: '#f87171', icon: <Shield size={11} /> },
+  admin_balance: { label: 'Admin Balance', color: '#f87171', icon: <Shield size={11} /> },
+  admin_gems:    { label: 'Admin Gems',    color: '#f87171', icon: <Shield size={11} /> },
+  admin_cashout: { label: 'Admin Cashout', color: '#f87171', icon: <Shield size={11} /> },
 };
 
 function resultIcon(result: string | null) {
-  if (result === 'win' || result === 'success' || result === 'sold' || result === 'sold_all' || result === 'completed' || result === 'pulled')
+  if (result === 'win' || result === 'won' || result === 'success' || result === 'sold' || result === 'sold_all' || result === 'completed' || result === 'pulled')
     return <CheckCircle size={10} />;
-  if (result === 'loss') return <XCircle size={10} />;
+  if (result === 'loss' || result === 'eliminated') return <XCircle size={10} />;
+  if (result === 'draw') return <AlertCircle size={10} />;
   if (result === 'pending') return <AlertCircle size={10} />;
   if (result === 'admin_action') return <Shield size={10} />;
   return null;
@@ -76,13 +84,38 @@ function rowSummary(log: LogEntry, cardImageMap: Record<string, string>): { line
       };
     }
     case 'battle': {
-      const me = d.myResult;
-      const opp = Array.isArray(d.players) ? d.players.find((p: any) => p.username !== log.username) : null;
+      const opps = Array.isArray(d.players) ? d.players.filter((p: any) => p.username !== log.username && !p.isAi) : [];
+      const oppNames = opps.map((p:any) => p.username).join(', ');
+      const outcome = log.result === 'win' ? 'WON' : log.result === 'draw' ? 'DRAW' : 'LOST';
       return {
-        line1: opp ? `vs ${opp.username}` : (d.packNames || '—'),
-        line2: `Pot: ${fmt(Number(d.totalPot || log.valueIn || 0))} · ${me?.isWinner ? 'WON' : d.isShared ? 'SHARED' : 'LOST'}`,
+        line1: oppNames ? `vs ${oppNames}` : (Array.isArray(d.packs) ? d.packs.join(', ') : '—'),
+        line2: `Pot: ${fmt(Number(d.potTotal || log.valueIn || 0))} · My cards: ${fmt(Number(d.myTotal || log.valueOut || 0))} · ${outcome}`,
       };
     }
+    case 'brawl_battle': {
+      const outcome = log.result === 'win' ? 'WON' : 'LOST';
+      return {
+        line1: `${d.tierLabel || d.tier || '—'} ${d.mode === '3v3' ? '(3v3)' : ''}— ${outcome}`,
+        line2: `Matches: ${d.matchesWon ?? 0}/${d.matchesTotal ?? 0} · Entry: ${d.entryCost ?? 0} · Reward: ${d.reward ?? 0}`,
+      };
+    }
+    case 'safari_pull': {
+      const mon = Array.isArray(d.pokemon) ? d.pokemon.slice(0, 4).join(', ') : '';
+      return {
+        line1: `Safari Zone Tier ${d.tier}`,
+        line2: `${mon || '—'}${d.count > 4 ? ` +${d.count - 4} more` : ''} · Cost: ${d.cost ?? 0}`,
+      };
+    }
+    case 'shop_purchase':
+      return {
+        line1: d.cardName || '—',
+        line2: `${String(d.rarity || '').toUpperCase()} · ${d.gemsSpent ?? 0} gems · est. ${fmt(Number(d.estimatedValue || 0))}`,
+      };
+    case 'brawl_item':
+      return {
+        line1: `Item: ${d.itemKey || '—'}`,
+        line2: `Qty after: ${d.quantity ?? '—'}`,
+      };
     case 'deposit':
       return { line1: `+${fmt(Number(d.amount || log.valueIn || 0))}`, line2: d.paymentMethod || '—' };
     case 'cashout':
@@ -93,7 +126,10 @@ function rowSummary(log: LogEntry, cardImageMap: Record<string, string>): { line
     }
     case 'exchange':
       return { line1: `Traded ${(d.offeredCards || []).length} → received ${(d.receivedCards || []).length}`, line2: undefined };
-    case 'admin': {
+    case 'admin':
+    case 'admin_balance':
+    case 'admin_gems':
+    case 'admin_cashout': {
       const target = d.targetUser ? `→ ${d.targetUser}` : '';
       const delta = d.delta != null ? ` (${d.delta > 0 ? '+' : ''}${fmt(d.delta)})` : d.newBalance != null ? ` → ${fmt(d.newBalance)}` : '';
       return { line1: `${log.action}${delta}`, line2: target || undefined };

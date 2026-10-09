@@ -3,6 +3,7 @@ import { requireAuth } from '../lib/auth';
 import { query, transaction } from '../lib/postgres';
 import { setInventoryFlag } from '../repositories/inventory';
 import { processWalletTransactionInClient } from '../repositories/wallet';
+import { writeLog } from './logs';
 
 const app = new Hono();
 async function auth(c:any){try{return await requireAuth(c);}catch(e:any){if(e.message==='ACCOUNT_DEACTIVATED')return c.json({error:'Account deactivated'},403);return c.json({error:'Authentication required'},401);}}
@@ -33,9 +34,11 @@ app.post('/inventory/sell',async c=>{
       const updated=await client.query('UPDATE inventory SET sold=1 WHERE id=$1 AND user_id=$2 AND COALESCE(sold,0)=0',[inventoryId,userId]); if(updated.rowCount!==1)throw new Error('Card could not be marked sold');
       const data=card.data&&typeof card.data==='object'?card.data:{}; const cardName=card.card_name||data.cardName||data.card_name||data.name||'Card'; const imageUrl=card.card_image_url||data.cardImageUrl||data.card_image_url||data.imageUrl||data.image_url||''; const description=`Sold ${cardName}${imageUrl?` |img:${imageUrl}|`:''}`;
       try{await client.query('SAVEPOINT sell_history_insert');await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[`txn_sell_${inventoryId}`,userId,'sell',value,description,`sell:${inventoryId}`]);}catch(historyError){await client.query('ROLLBACK TO SAVEPOINT sell_history_insert').catch(()=>undefined);console.error('[inventory/sell] history insert failed; sale retained',historyError);}
-      return {kind:'ok' as const,value,balance:wallet.balanceAfter};
+      return {kind:'ok' as const,value,balance:wallet.balanceAfter,cardName,rarity:String(card.rarity||'common')};
     });
-    if(result.kind==='not_found')return c.json({error:'Card not found'},404); if(result.kind==='sold')return c.json({error:'Card already sold'},409); return c.json({success:true,inventoryId,soldCardId:inventoryId,value:result.value,cardValue:result.value,balance:result.balance,newBalance:result.balance});
+    if(result.kind==='not_found')return c.json({error:'Card not found'},404); if(result.kind==='sold')return c.json({error:'Card already sold'},409);
+    try{const[uRow]=await query<{username:string;display_name:string}>('SELECT username,display_name FROM users WHERE id=$1',[userId]);const username=uRow?.username||uRow?.display_name||'Trainer';await writeLog(null,{type:'sell',userId,username,action:'Card Sold',details:{cardName:result.cardName,rarity:result.rarity,totalValue:result.value,cards:[{name:result.cardName,value:result.value,rarity:result.rarity}]},valueIn:result.value,valueOut:0,result:'sold'});}catch(e:any){console.error('[inventory/sell] writeLog failed:',e?.message);}
+    return c.json({success:true,inventoryId,soldCardId:inventoryId,value:result.value,cardValue:result.value,balance:result.balance,newBalance:result.balance});
   }catch(e:any){console.error('[inventory/sell]',e);return c.json({error:e.message||'Failed to sell card'},400);}
 });
 
@@ -48,9 +51,11 @@ app.post('/inventory/sell-all',async c=>{
       const wallet=await processWalletTransactionInClient(client,{userId,type:'sell_all',amount:total,sourceId}); if(!wallet.success)throw new Error(wallet.error||'Failed to credit wallet');
       const updated=await client.query('UPDATE inventory SET sold=1 WHERE user_id=$1 AND id=ANY($2::text[]) AND COALESCE(sold,0)=0',[userId,ids]); if(updated.rowCount!==cards.rowCount)throw new Error('Some cards could not be marked sold');
       for(const card of cards.rows){const data=card.data&&typeof card.data==='object'?card.data:{};const cardName=data.cardName||data.card_name||data.name||'Card';const imageUrl=data.cardImageUrl||data.card_image_url||data.imageUrl||data.image_url||'';const description=`Sold ${cardName}${imageUrl?` |img:${imageUrl}|`:''}`;try{await client.query('INSERT INTO transactions(id,user_id,type,amount,description,source_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING',[`txn_sell_${card.id}`,userId,'sell',Number(card.value||0),description,card.id]);}catch(historyError){console.error('[inventory/sell-all] history insert failed; sale retained',historyError);}}
-      return {balance:wallet.balanceAfter,ids,total,count:cards.rowCount};
+      return {balance:wallet.balanceAfter,ids,total,count:cards.rowCount,cardSummaries:cards.rows.slice(0,50).map((r:any)=>{const d=r.data&&typeof r.data==='object'?r.data:{};return {name:r.card_name||d.cardName||d.name||'Card',value:Number(r.value||0),rarity:String(r.rarity||'common')};})};
     });
-    if(!result)return c.json({error:'No unlocked cards to sell'},400); return c.json({success:true,newBalance:result.balance,soldCardIds:result.ids,totalValue:result.total,count:result.count});
+    if(!result)return c.json({error:'No unlocked cards to sell'},400);
+    try{const[uRow]=await query<{username:string;display_name:string}>('SELECT username,display_name FROM users WHERE id=$1',[userId]);const username=uRow?.username||uRow?.display_name||'Trainer';await writeLog(null,{type:'sell',userId,username,action:`Sold All Cards (${result.count})`,details:{count:result.count,totalValue:result.total,cards:result.cardSummaries},valueIn:result.total,valueOut:0,result:'sold_all'});}catch(e:any){console.error('[inventory/sell-all] writeLog failed:',e?.message);}
+    return c.json({success:true,newBalance:result.balance,soldCardIds:result.ids,totalValue:result.total,count:result.count});
   }catch(e:any){console.error('[inventory/sell-all]',e);return c.json({error:e.message||'Failed to sell cards'},400);}
 });
 

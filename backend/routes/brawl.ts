@@ -16,6 +16,7 @@ import {
 import { pickOpponentTeam, type PlayerTypeProfile } from '../lib/brawl/opponentAI';
 import { getChallengeStatus, selectChallenge, advanceChallenge, claimChallenge } from '../repositories/brawlChallenges';
 import { getShopStatus, getInventory, buyItem } from '../repositories/brawlItems';
+import { writeLog } from './logs';
 
 // Starter packs are deliberately weaker than the general species pool (28-38
 // overall -- real basic-stage Pokemon top out around 36-37 post-rescale, see
@@ -228,6 +229,7 @@ app.post('/brawl/items/buy', async c => {
   if (typeof itemKey !== 'string') return c.json({ error: 'Invalid request' }, 400);
   try {
     const result = await buyItem(userId, itemKey);
+    try{const[uRow]=await query<{username:string;display_name:string}>('SELECT username,display_name FROM users WHERE id=$1',[userId]);const username=uRow?.username||uRow?.display_name||'Trainer';await writeLog(null,{type:'brawl_item',userId,username,action:`Brawl Item: ${itemKey}`,details:{itemKey,quantity:result.quantity,balance:result.balance},valueIn:0,valueOut:0,result:'success'});}catch(e:any){console.error('[brawl/items/buy] writeLog failed:',e?.message);}
     return c.json({ success: true, balance: result.balance, quantity: result.quantity, itemKey });
   } catch (e: any) {
     const messages: Record<string, string> = {
@@ -267,6 +269,7 @@ app.post('/brawl/safari/pull', async c => {
   await advanceChallenge(userId, 'open_safari');
   const pulled = await getSpeciesByIds(speciesIds);
   const balance = await getWalletBalance(userId);
+  try{const[uRow]=await query<{username:string;display_name:string}>('SELECT username,display_name FROM users WHERE id=$1',[userId]);const username=uRow?.username||uRow?.display_name||'Trainer';await writeLog(null,{type:'safari_pull',userId,username,action:`Safari Zone Tier ${tierConfig.tier}`,details:{tier:tierConfig.tier,cost:tierConfig.cost,pokemon:pulled.map((p:any)=>p.name).filter(Boolean),count:pulled.length},valueIn:tierConfig.cost,valueOut:0,result:'success'});}catch(e:any){console.error('[brawl/safari] writeLog failed:',e?.message);}
   return c.json({ success: true, pulled, instanceIds, balance });
 });
 
@@ -461,6 +464,7 @@ app.post('/brawl/battle/3v3', async c => {
   const rating = await applyRatingChange(userId, ratingDelta);
 
   const balance = await getWalletBalance(userId);
+  try{const[uRow]=await query<{username:string;display_name:string}>('SELECT username,display_name FROM users WHERE id=$1',[userId]);const username=uRow?.username||uRow?.display_name||'Trainer';await writeLog(null,{type:'brawl_battle',userId,username,action:status==='won'?`Brawl 3v3 Win — ${config.label}`:`Brawl 3v3 Loss — ${config.label}`,details:{tier:config.id,tierLabel:config.label,mode:'3v3',status,matchesWon,matchesTotal:config.matches,reward,entryCost:config.entryCost},valueIn:config.entryCost,valueOut:reward,result:status==='won'?'win':'loss'});}catch(e:any){console.error('[brawl/3v3] writeLog failed:',e?.message);}
   return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, rating, gemsEarned: 0 });
 });
 
@@ -568,6 +572,7 @@ app.post('/brawl/battle/play', async c => {
   const rating = await applyRatingChange(userId, ratingDelta);
 
   const balance = await getWalletBalance(userId);
+  try{const[uRow]=await query<{username:string;display_name:string}>('SELECT username,display_name FROM users WHERE id=$1',[userId]);const username=uRow?.username||uRow?.display_name||'Trainer';await writeLog(null,{type:'brawl_battle',userId,username,action:status==='won'?`Brawl Win — ${config.label}`:`Brawl Loss — ${config.label}`,details:{tier:config.id,tierLabel:config.label,mode:'6v6',status,matchesWon,matchesTotal:config.matches,reward,entryCost:config.entryCost},valueIn:config.entryCost,valueOut:reward,result:status==='won'?'win':'loss'});}catch(e:any){console.error('[brawl/play] writeLog failed:',e?.message);}
   return c.json({ success: true, tier: config.id, status, matchesWon, matchesTotal: config.matches, reward, balance, matches, rating, gemsEarned: 0 });
 });
 
