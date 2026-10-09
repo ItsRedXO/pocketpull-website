@@ -18,6 +18,7 @@ export const GuestTrialBanner: React.FC = () => {
     <motion.div
       initial={{ y: -40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
+      data-guest-banner="true"
       className="fixed top-14 left-0 right-0 z-[49] flex items-center justify-between gap-3 px-4 py-2"
       style={{ background: 'rgba(9,9,15,0.97)', borderBottom: '1px solid rgba(155,92,255,0.25)', backdropFilter: 'blur(12px)' }}
     >

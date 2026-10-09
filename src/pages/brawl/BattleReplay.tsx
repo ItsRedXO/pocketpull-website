@@ -453,12 +453,17 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   const [showVsIntro, setShowVsIntro] = useState(true);
   const theme = useMemo(() => ARENA_THEMES[Math.floor(Math.random() * ARENA_THEMES.length)], [matchIndex]);
 
-  // Hide the mobile bottom nav while the modal is open — it sits at the same
-  // Y position as the footer and intercepts taps on iOS Safari despite lower z-index.
+  // On iOS Safari, fixed elements inside a transformed ancestor don't escape
+  // the stacking context, so the nav (z-50) and guest banner (z-49) can sit
+  // on top of this modal (z-200) even though that seems backwards. Hide them
+  // explicitly while the replay is open.
   useEffect(() => {
+    const els: HTMLElement[] = [];
     const nav = document.querySelector('nav') as HTMLElement | null;
-    if (nav) nav.style.display = 'none';
-    return () => { if (nav) nav.style.display = ''; };
+    const banner = document.querySelector('[data-guest-banner]') as HTMLElement | null;
+    if (nav) { els.push(nav); nav.style.display = 'none'; }
+    if (banner) { els.push(banner); banner.style.display = 'none'; }
+    return () => els.forEach(el => { el.style.display = ''; });
   }, []);
 
   useEffect(() => {
