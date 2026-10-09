@@ -279,8 +279,7 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
                   style={{ left: '12%', top: `${y}%`, transform: 'translate(-50%, -50%)', zIndex: Math.round(y * 10) }}
                 >
                 <motion.div
-                  className="cursor-pointer select-none"
-                  whileHover={!revealing ? { scale: 1.08 } : undefined}
+                  className="cursor-pointer select-none p-2"
                   whileTap={!revealing ? { scale: 0.92 } : undefined}
                   onClick={() => toggle(mon.speciesId)}
                 >
@@ -526,7 +525,6 @@ export function PlayTab() {
       <div className="flex items-center gap-2 mb-5">
         <Trophy size={16} className="text-[#9b5cff]" /><h3 className="font-display text-sm uppercase tracking-widest text-white/70">Battle Tiers</h3>
       </div>
-      {error && <p className="text-red-400 text-xs mb-3">{error}</p>}
       {loadingSetup && <p className="text-white/40 text-xs mb-3">Loading team preview…</p>}
       <div className="relative">
         <div className="absolute left-5 top-5 bottom-5 w-px" style={{ background: 'linear-gradient(180deg, rgba(136,146,164,0.3), rgba(250,204,21,0.3))' }} />
@@ -568,6 +566,30 @@ export function PlayTab() {
       {result && (
         <BattleReplay matches={result.matches} tierLabel={config.battleTiers[result.tier]?.label || result.tier} status={result.status} reward={result.reward} onClose={handleCloseReplay} />
       )}
+
+      <AnimatePresence>
+        {error && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.75)' }}
+            onClick={() => setError(null)}
+          >
+            <motion.div initial={{ scale: 0.92 }} animate={{ scale: 1 }} exit={{ scale: 0.92 }}
+              className="w-full max-w-sm rounded-2xl border border-red-500/30 p-6 text-center"
+              style={{ background: '#0d0e14' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <p className="text-red-400 text-sm font-bold mb-1">Battle Error</p>
+              <p className="text-white/60 text-xs leading-relaxed mb-4">{error}</p>
+              <button onClick={() => setError(null)}
+                className="px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider"
+                style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>
+                Dismiss
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
