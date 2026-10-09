@@ -88,26 +88,25 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }}
       onClick={onClose}
     >
-      <motion.div
-        initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+      {/* Static card — no transform animation so iOS hit-testing stays accurate */}
+      <div
         className="w-full max-w-sm rounded-2xl border border-white/10 p-6"
         style={{ background: '#0d0e14' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-base uppercase tracking-widest text-white">Select Battle Mode</h2>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors"><X size={18} /></button>
+          <button onClick={onClose} className="text-white/40 transition-colors p-1"><X size={18} /></button>
         </div>
         <div className="space-y-3">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => onSelect('6v6')}
-            className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
+            className="w-full rounded-xl border p-4 text-left flex items-start gap-3 active:opacity-70 transition-opacity"
             style={{ borderColor: `${tierColor}40`, background: `${tierColor}12` }}
           >
             <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${tierColor}25` }}>
@@ -117,12 +116,11 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
               <p className="font-display text-sm text-white uppercase tracking-wide">Standard 6v6</p>
               <p className="text-[11px] text-white/40 mt-0.5">Full team battle. All 6 Pokemon fight together.</p>
             </div>
-          </motion.button>
+          </button>
 
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => onSelect('3v3')}
-            className="w-full rounded-xl border p-4 text-left flex items-start gap-3 transition-colors"
+            className="w-full rounded-xl border p-4 text-left flex items-start gap-3 active:opacity-70 transition-opacity"
             style={{ borderColor: 'rgba(250,204,21,0.35)', background: 'rgba(250,204,21,0.07)' }}
           >
             <div className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(250,204,21,0.15)' }}>
@@ -132,9 +130,9 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
               <p className="font-display text-sm text-white uppercase tracking-wide">3v3 Draft <span className="text-[#facc15] text-[10px] ml-1 normal-case tracking-normal font-sans">NEW</span></p>
               <p className="text-[11px] text-white/40 mt-0.5">Standard 3v3 draft format.</p>
             </div>
-          </motion.button>
+          </button>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
