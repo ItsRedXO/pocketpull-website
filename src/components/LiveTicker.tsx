@@ -38,7 +38,7 @@ function makeFeedFromCards(cards: any[], count = 30): PullEntry[] {
   if (!cards.length) return [];
   const out: PullEntry[] = [];
   // Fisher-Yates shuffle so each page load shows a different card order
-  const pool = [...cards];
+  const pool = [...cards].filter(c => c.cardImageUrl && String(c.cardImageUrl).trim() !== '');
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -77,6 +77,7 @@ function blendInitialFeed(cards: any[], realPulls: any[], count = 30): PullEntry
   // the shuffled simulated variety (30 real pulls with step=1 overwrites everything)
   const seen = new Set<string>();
   const real = realPulls
+    .filter(p => p.cardImageUrl && String(p.cardImageUrl).trim() !== '')
     .filter(p => { const key = p.cardName; if (seen.has(key)) return false; seen.add(key); return true; })
     .slice(0, 10)
     .map(p => ({ ...realPullToEntry(p), pulledAt: Date.now() }));
@@ -215,10 +216,10 @@ export const LiveTicker: React.FC = React.memo(() => {
   // ever touches one tile's content instead of reordering the whole strip.
   const replaceIndexRef = useRef(0);
 
-  // Update cards ref
+  // Update cards ref — only cards with a real image so the ticker never shows blank tiles
   useEffect(() => {
     if (allCards.length > 0) {
-      cardsRef.current = allCards;
+      cardsRef.current = allCards.filter(c => c.cardImageUrl && String(c.cardImageUrl).trim() !== '');
     }
   }, [allCards]);
 
