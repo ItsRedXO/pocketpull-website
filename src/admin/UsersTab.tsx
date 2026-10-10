@@ -43,8 +43,9 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
       return rows
         .filter((r: any) => {
           const isBot = Number(r.isBot || r.is_bot) > 0;
+          const isGuest = Boolean(r.is_guest || r.data?.is_guest);
           const hasAccountIdentity = Boolean(r.username || r.displayName || r.display_name || r.email);
-          return !isBot && hasAccountIdentity;
+          return !isBot && !isGuest && hasAccountIdentity;
         })
         .map((r: any) => ({
           id: r.id,
