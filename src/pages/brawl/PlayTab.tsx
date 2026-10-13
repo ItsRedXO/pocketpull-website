@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Lock, Clock, Coins, Trophy, Swords, X, Check, Zap, Users, Loader2 } from 'lucide-react';
@@ -85,9 +86,10 @@ function TierRow({ index, color, config, status, wins, onPlay, playing }: { inde
 function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
   tierId: string; tierColor: string; onSelect: (mode: '6v6' | '3v3') => void; onClose: () => void;
 }) {
-  return (
-    // Plain div (not motion.div) so position:fixed escapes any transformed ancestor's stacking
-    // context on iOS Safari — same fix as BattleReplay.
+  // Portal to document.body so the overlay escapes all ancestor stacking contexts
+  // (backdrop-filter and Framer Motion transforms in PokeBrawlPage trap position:fixed
+  // children on iOS Safari, desynchronising the visual position from the tap-target).
+  return createPortal(
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }}
@@ -135,7 +137,8 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
           </button>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
