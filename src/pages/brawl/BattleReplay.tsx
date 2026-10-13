@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimate } from 'framer-motion';
 import { Play, Pause, FastForward, X, Skull, Trophy, Coins, Clock } from 'lucide-react';
 import type { ArenaAttackEvent, ArenaFrame, ArenaObstacle, BrawlMatchResult, Effectiveness } from '../../lib/brawlApi';
@@ -508,7 +509,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
   // #7 — skip VS intro
   const skipVsIntro = () => { setShowVsIntro(false); setPlaying(true); };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm p-3 overflow-hidden">
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="h-full w-full max-w-4xl mx-auto rounded-2xl border border-white/10 flex flex-col overflow-hidden" style={{ background: '#0d0e14' }}>
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 shrink-0">
@@ -670,6 +671,7 @@ export function BattleReplay({ matches, tierLabel, status, reward, onClose }: { 
           </div>
         )}
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }

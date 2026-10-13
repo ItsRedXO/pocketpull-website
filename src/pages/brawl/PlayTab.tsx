@@ -211,8 +211,7 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
     </div>
   );
 
-  return (
-    // ── Same outer structure as BattleReplay ──
+  return createPortal(
     <div className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3">
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
@@ -426,7 +425,8 @@ function TeamPickPhase({ userTeam, opponentTeam, opponentSpeciesIds, onConfirm, 
           </div>
         </div>
       </motion.div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
