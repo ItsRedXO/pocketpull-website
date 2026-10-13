@@ -34,6 +34,7 @@ interface Fighter extends BattleSpecies {
   targetId: string | null;
   routeCorner: Point | null;
   stuckTicks: number;
+  synergy: number;
 }
 
 export interface ArenaObstacle { x1: number; y1: number; x2: number; y2: number; }
@@ -146,14 +147,23 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function toFighter(species: BattleSpecies, side: Side, index: number, teamSize = 6): Fighter {
+// 1 pokemon of a type → ×1.00 (no bonus), 2 → ×1.05, 3 → ×1.10, … 6 → ×1.25
+function teamSynergyMap(species: BattleSpecies[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const s of species) counts.set(s.primaryType, (counts.get(s.primaryType) || 0) + 1);
+  const result = new Map<string, number>();
+  for (const [type, count] of counts) result.set(type, 1 + 0.05 * (count - 1));
+  return result;
+}
+
+function toFighter(species: BattleSpecies, side: Side, index: number, synergy: number, teamSize = 6): Fighter {
   const maxHp = Math.max(20, Math.round(species.baseHp * HP_SCALE));
   return {
     ...species, id: `${side}-${index}`, side,
     x: side === 'user' ? 12 : 88,
     y: 8 + index * (84 / Math.max(teamSize - 1, 1)),
     hp: maxHp, maxHp, fainted: false, moves: buildMoveset(species.primaryType, species.secondaryType),
-    cooldown: 0, targetId: null, routeCorner: null, stuckTicks: 0,
+    cooldown: 0, targetId: null, routeCorner: null, stuckTicks: 0, synergy,
   };
 }
 
@@ -349,8 +359,10 @@ function shuffled<T>(items: T[]): T[] {
 export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: BattleSpecies[]): BattleOutcome {
   const obstacles = generateObstacles();
   const teamSize = Math.max(userSpecies.length, opponentSpecies.length);
-  const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i, teamSize));
-  const opponentTeam = opponentSpecies.map((s, i) => toFighter(s, 'opponent', i, teamSize));
+  const userSynergy = teamSynergyMap(userSpecies);
+  const opponentSynergy = teamSynergyMap(opponentSpecies);
+  const userTeam = userSpecies.map((s, i) => toFighter(s, 'user', i, userSynergy.get(s.primaryType) ?? 1, teamSize));
+  const opponentTeam = opponentSpecies.map((s, i) => toFighter(s, 'opponent', i, opponentSynergy.get(s.primaryType) ?? 1, teamSize));
   const all = [...userTeam, ...opponentTeam];
   const byId = new Map(all.map(f => [f.id, f]));
   let koUser = 0, koOpponent = 0;
@@ -416,7 +428,7 @@ export function simulateBattle(userSpecies: BattleSpecies[], opponentSpecies: Ba
 
       let damage = 0;
       if (mult > 0) {
-        const raw = move.power * DAMAGE_SCALE * atkFactor * overallFactor * stab * mult * falloff * variance;
+        const raw = move.power * DAMAGE_SCALE * atkFactor * overallFactor * stab * mult * falloff * variance * fighter.synergy;
         const capped = Math.min(raw, target.maxHp * ONE_SHOT_CAP);
         damage = Math.max(1, Math.round(capped * (1 - defBlock)));
       }
