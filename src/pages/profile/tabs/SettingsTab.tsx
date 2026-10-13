@@ -20,9 +20,17 @@ export const SettingsTab: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl p-5"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+      className="relative rounded-2xl overflow-hidden p-5"
+      style={{
+        background: 'rgba(13,14,20,0.9)',
+        border: '1px solid rgba(155,92,255,0.15)',
+        boxShadow: '0 0 40px -15px rgba(155,92,255,0.2)',
+      }}
     >
+      <div
+        className="absolute top-0 left-0 right-0 h-[1px]"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(0,200,255,0.5), rgba(155,92,255,0.7), transparent)' }}
+      />
       <div className="flex items-center gap-3 mb-5">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center"
