@@ -86,15 +86,17 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
   tierId: string; tierColor: string; onSelect: (mode: '6v6' | '3v3') => void; onClose: () => void;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
+    // Plain div (not motion.div) so position:fixed escapes any transformed ancestor's stacking
+    // context on iOS Safari — same fix as BattleReplay.
+    <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }}
       onClick={onClose}
     >
-      {/* Static card — no transform animation so iOS hit-testing stays accurate */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.15 }}
         className="w-full max-w-sm rounded-2xl border border-white/10 p-6"
         style={{ background: '#0d0e14' }}
         onClick={e => e.stopPropagation()}
@@ -132,8 +134,8 @@ function ModeSelectModal({ tierId, tierColor, onSelect, onClose }: {
             </div>
           </button>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -439,12 +441,17 @@ export function PlayTab() {
   // Mode select state
   const [modeSelectTier, setModeSelectTier] = useState<string | null>(null);
 
-  // Hide the mobile bottom nav while the mode-select modal is open (same iOS tap-intercept fix as BattleReplay)
+  // On iOS Safari, fixed elements inside a transformed ancestor don't escape the stacking
+  // context, so the nav (z-50) and guest banner (z-49) can sit on top of this modal even
+  // though z-[200] seems higher. Hide them explicitly while the modal is open (mirrors BattleReplay fix).
   useEffect(() => {
     if (!modeSelectTier) return;
+    const els: HTMLElement[] = [];
     const nav = document.querySelector('nav') as HTMLElement | null;
-    if (nav) nav.style.display = 'none';
-    return () => { if (nav) nav.style.display = ''; };
+    const banner = document.querySelector('[data-guest-banner]') as HTMLElement | null;
+    if (nav) { els.push(nav); nav.style.display = 'none'; }
+    if (banner) { els.push(banner); banner.style.display = 'none'; }
+    return () => els.forEach(el => { el.style.display = ''; });
   }, [modeSelectTier]);
   // Team pick state
   type PickSetup = { tierId: string; userTeam: TeamPreviewMon[]; opponentTeam: TeamPreviewMon[]; opponentSpeciesIds: number[] };
