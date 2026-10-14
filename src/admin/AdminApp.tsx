@@ -31,7 +31,7 @@ export const AdminApp: React.FC = () => {
         if (!currentUser?.id) { setRoleVerified(false); return; }
 
         const rows = await blink.db.users.list({ where: { id: currentUser.id }, limit: 1 });
-        if (rows && rows.length > 0 && (rows[0] as any).role === 'admin') {
+        if (rows && rows.length > 0 && ((rows[0] as any).role === 'admin' || (rows[0] as any).role === 'owner')) {
           // Auto-grant admin session for this browser session
           sessionStorage.setItem('pp_admin_session', 'true');
           setRoleVerified(true);
