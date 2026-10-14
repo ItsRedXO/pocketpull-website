@@ -123,7 +123,7 @@ app.post('/shop/purchase', async (c) => {
   try {
     const result = await transaction(async (client) => {
       const userResult = await client.query(
-        `SELECT id, gems, is_deleted, is_banned FROM users WHERE id = $1 FOR UPDATE`,
+        `SELECT id, gems, username, display_name, is_deleted, is_banned FROM users WHERE id = $1 FOR UPDATE`,
         [userId],
       );
       if (!userResult.rowCount) throw Object.assign(new Error('User not found'), { status: 404 });
