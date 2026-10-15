@@ -11,7 +11,7 @@ const navTabs: { id: Page; label: string }[] = [
   { id: 'home', label: 'Packs' }, { id: 'upgrader', label: 'Upgrader' }, { id: 'battle', label: 'Pack Battle' }, { id: 'exchanger', label: 'Exchanger' }, { id: 'inventory', label: 'My Collection' }, { id: 'brawl', label: 'Poke Brawl' }, { id: 'shop', label: 'Shop' },
 ];
 export const Navbar: React.FC<NavbarProps> = React.memo(({ currentPage, onPageChange, openAuthModal, onProfileOpen, onDepositOpen }) => {
- const { user, isAuthenticated, isLoading: authLoading } = useAuth(); const { stats } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified); const { balance: liveBalance, isLoading: balanceLoading } = useBalance(user?.id); const isAdminUser = stats?.role === 'admin';
+ const { user, isAuthenticated, isLoading: authLoading } = useAuth(); const { stats } = useUserStats(user?.id, user?.email, user?.displayName, user?.emailVerified); const { balance: liveBalance, isLoading: balanceLoading } = useBalance(user?.id); const isAdminUser = stats?.role === 'admin' || stats?.role === 'owner';
  const avatarUrl = stats?.avatarUrl || (user as any)?.photoURL || (user as any)?.avatarUrl || '';
  const profileName = stats?.displayName || user?.displayName || user?.email || 'Trainer';
  const initials = profileName.trim().slice(0, 1).toUpperCase();
