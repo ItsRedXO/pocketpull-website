@@ -77,7 +77,7 @@ export function useAdminAuth() {
         }
       }
 
-      if (account.role !== 'admin') {
+      if (account.role !== 'admin' && account.role !== 'owner') {
         if (supabase) await supabase.auth.signOut().catch(() => {});
         await blink.auth.signOut().catch(() => {});
         setError('Access denied. This account does not have admin privileges.');
