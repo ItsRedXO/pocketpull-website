@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Search, Ban, UserX, ChevronLeft, ChevronRight, Shield, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Ban, UserX, ChevronLeft, ChevronRight, Shield, ArrowUpDown, ArrowUp, ArrowDown, Crown, Star } from 'lucide-react';
 import { UserRow, FilterTab } from './types';
 import { getPresenceStatus, PRESENCE_COLOR, PRESENCE_LABEL } from './presence';
 
@@ -25,7 +25,7 @@ const USERS_PER_PAGE = 25;
 
 type SortKey = 'username' | 'balance' | 'createdAt' | 'gems' | 'cardValue';
 type SortDir = 'asc' | 'desc';
-type RoleFilter = 'all' | 'admin' | 'user';
+type RoleFilter = 'all' | 'owner' | 'admin' | 'creator' | 'user';
 
 const SORT_OPTIONS: { key: SortKey; label: string; asc: string; desc: string }[] = [
   { key: 'username',  label: 'Name',     asc: 'A→Z',       desc: 'Z→A' },
@@ -36,9 +36,11 @@ const SORT_OPTIONS: { key: SortKey; label: string; asc: string; desc: string }[]
 ];
 
 const ROLE_FILTERS: { key: RoleFilter; label: string }[] = [
-  { key: 'all',   label: 'All Roles' },
-  { key: 'admin', label: 'Admins' },
-  { key: 'user',  label: 'Users' },
+  { key: 'all',     label: 'All Roles' },
+  { key: 'owner',   label: 'Owners' },
+  { key: 'admin',   label: 'Admins' },
+  { key: 'creator', label: 'Creators' },
+  { key: 'user',    label: 'Users' },
 ];
 
 export function UserList({
@@ -71,9 +73,10 @@ export function UserList({
   });
 
   const filtered = tabFiltered.filter((u) => {
-    const isAdmin = u.role === 'admin' || u.role === 'owner';
-    if (roleFilter === 'admin' && !isAdmin) return false;
-    if (roleFilter === 'user' && isAdmin) return false;
+    if (roleFilter === 'owner' && u.role !== 'owner') return false;
+    if (roleFilter === 'admin' && u.role !== 'admin') return false;
+    if (roleFilter === 'creator' && u.role !== 'creator') return false;
+    if (roleFilter === 'user' && (u.role === 'owner' || u.role === 'admin' || u.role === 'creator')) return false;
     const s = search.toLowerCase();
     if (!s) return true;
     return (
@@ -161,22 +164,33 @@ export function UserList({
       </div>
 
       {/* Role filter */}
-      <div className="flex gap-1 mb-2 shrink-0">
-        {ROLE_FILTERS.map(rf => (
-          <button
-            key={rf.key}
-            onClick={() => setRoleFilter(rf.key)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all"
-            style={{
-              background: roleFilter === rf.key ? 'rgba(0,200,255,0.12)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${roleFilter === rf.key ? 'rgba(0,200,255,0.35)' : 'rgba(255,255,255,0.08)'}`,
-              color: roleFilter === rf.key ? '#00c8ff' : 'rgba(255,255,255,0.3)',
-            }}
-          >
-            {rf.key === 'admin' && <Shield size={9} />}
-            {rf.label}
-          </button>
-        ))}
+      <div className="flex gap-1 mb-2 shrink-0 flex-wrap">
+        {ROLE_FILTERS.map(rf => {
+          const colors: Record<RoleFilter, { active: string; border: string; icon?: React.ReactNode }> = {
+            all:     { active: '#00c8ff', border: 'rgba(0,200,255,0.35)' },
+            owner:   { active: '#ef4444', border: 'rgba(239,68,68,0.4)',   icon: <Crown size={9} /> },
+            admin:   { active: '#9b5cff', border: 'rgba(155,92,255,0.4)',  icon: <Shield size={9} /> },
+            creator: { active: '#fbbf24', border: 'rgba(251,191,36,0.4)',  icon: <Star size={9} /> },
+            user:    { active: '#00c8ff', border: 'rgba(0,200,255,0.35)' },
+          };
+          const c = colors[rf.key];
+          const isActive = roleFilter === rf.key;
+          return (
+            <button
+              key={rf.key}
+              onClick={() => setRoleFilter(rf.key)}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all"
+              style={{
+                background: isActive ? `${c.active}1e` : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${isActive ? c.border : 'rgba(255,255,255,0.08)'}`,
+                color: isActive ? c.active : 'rgba(255,255,255,0.3)',
+              }}
+            >
+              {c.icon}
+              {rf.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex justify-between items-center mb-1 px-1 shrink-0">
@@ -241,8 +255,14 @@ export function UserList({
                         <p className={`text-[12px] font-sans truncate ${u.isDeleted ? 'text-white/30' : 'text-white'}`}>
                           {u.username || u.displayName || 'Unknown'}
                         </p>
+                        {u.role === 'owner' && !u.isDeleted && (
+                          <Crown size={10} className="shrink-0" style={{ color: '#ef4444' }} />
+                        )}
                         {u.role === 'admin' && !u.isDeleted && (
                           <Shield size={10} className="text-purple-400 shrink-0" />
+                        )}
+                        {u.role === 'creator' && !u.isDeleted && (
+                          <Star size={10} className="shrink-0" style={{ color: '#fbbf24' }} />
                         )}
                       </div>
                       <p className="text-[10px] text-white/30 truncate">
