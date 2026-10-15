@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, ShieldPlus } from 'lucide-react';
+import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, ShieldPlus, ShieldMinus } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 import { UserRow, InventoryRow } from './types';
@@ -12,6 +12,7 @@ import { ActivitySection } from './ActivitySection';
 import { ReferralsSection } from './ReferralsSection';
 import { UserPokeBrawlSection } from './UserPokeBrawlSection';
 import { GemsSection } from './GemsSection';
+import { getAdminAuthHeaders } from './adminAuthHeaders';
 
 interface UserDetailProps {
   user: UserRow;
@@ -20,6 +21,7 @@ interface UserDetailProps {
   onUpdate: (user: UserRow | null) => void;
   onPreviewCard: (card: InventoryRow) => void;
   logAdminAction: (action: string, targetUser: string, details?: any) => void;
+  callerRole?: 'owner' | 'admin' | null;
 }
 
 function safeNum(v: any): number {
@@ -27,11 +29,12 @@ function safeNum(v: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, logAdminAction }: UserDetailProps) {
+export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, logAdminAction, callerRole }: UserDetailProps) {
   const qc = useQueryClient();
   const [banningUser, setBanningUser] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
   const [promotingUser, setPromotingUser] = useState(false);
+  const [removingRole, setRemovingRole] = useState(false);
 
   // Fallback for "Last Online" when the presence heartbeat has no data yet
   // (a brand new signal -- most accounts won't have pinged it yet) or never
@@ -147,6 +150,26 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
     setDeletingUser(false);
   };
 
+  const handleRemoveRole = async () => {
+    const roleName = user.role === 'admin' ? 'Admin' : 'Creator';
+    const confirmed = window.confirm(`Remove ${roleName} role from "${user.username || user.email}"?`);
+    if (!confirmed) return;
+    setRemovingRole(true);
+    try {
+      const headers = await getAdminAuthHeaders();
+      const r = await fetch(`${BACKEND_BASE}/admin/roles/${user.id}`, { method: 'DELETE', headers });
+      const j = await r.json();
+      if (!r.ok) { showToast(j.error || `Failed to remove ${roleName} role`, false); return; }
+      onUpdate({ ...user, role: '' });
+      qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+      showToast(`${roleName} role removed from "${user.username || user.email}".`);
+      logAdminAction(`Admin Removed ${roleName} Role`, user.username, { userId: user.id });
+    } catch (err: any) {
+      showToast(`Remove role failed: ${err.message || 'Unknown error'}`, false);
+    }
+    setRemovingRole(false);
+  };
+
   const handlePromoteToAdmin = async () => {
     const confirmed = window.confirm(
       `Promote "${user.username || user.email}" to Admin?\n\n` +
@@ -234,11 +257,18 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
                 </button>
               </>
             )}
-            {!user.isDeleted && user.role !== 'admin' && (
+            {!user.isDeleted && user.role !== 'admin' && user.role !== 'owner' && (
               <button onClick={handlePromoteToAdmin} disabled={promotingUser}
                 className="p-2 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all"
                 title="Promote to Admin">
                 <ShieldPlus size={16} />
+              </button>
+            )}
+            {!user.isDeleted && ((user.role === 'admin' && callerRole === 'owner') || (user.role === 'creator' && (callerRole === 'owner' || callerRole === 'admin'))) && (
+              <button onClick={handleRemoveRole} disabled={removingRole}
+                className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                title={`Remove ${user.role === 'admin' ? 'Admin' : 'Creator'} role`}>
+                <ShieldMinus size={16} />
               </button>
             )}
             <button onClick={onClose} className="text-white/20 hover:text-white/50 p-1">

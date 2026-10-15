@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users } from 'lucide-react';
 import { blink } from '../lib/blink';
@@ -35,6 +35,20 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
   const [filterTab, setFilterTab] = useState<FilterTab>('active');
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [previewCard, setPreviewCard] = useState<InventoryRow | null>(null);
+  const [callerRole, setCallerRole] = useState<'owner' | 'admin' | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const headers = await getAdminAuthHeaders();
+        const r = await fetch(`${BACKEND_BASE}/admin/roles/me`, { headers });
+        if (r.ok) {
+          const j = await r.json();
+          setCallerRole(j.role === 'owner' ? 'owner' : 'admin');
+        }
+      } catch { /* non-critical */ }
+    })();
+  }, []);
 
   const { data: allUsers = [], isLoading } = useQuery<UserRow[]>({
     queryKey: ['admin-users-all'],
@@ -105,7 +119,7 @@ export function UsersTab({ showToast }: { showToast: (m: string, ok?: boolean) =
         <UserList users={usersWithCardValues} isLoading={isLoading} search={search} setSearch={setSearch} filterTab={filterTab} setFilterTab={(t) => { setFilterTab(t); setSelectedUser(null); }} selectedUserId={currentSelectedUser?.id || null} onSelectUser={setSelectedUser} counts={counts} />
       </div>
       <div className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto pr-0 lg:pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
-        {!currentSelectedUser ? <div className="flex items-center justify-center h-full min-h-48"><div className="text-center"><Users size={36} className="text-white/10 mx-auto mb-3" /><p className="text-white/20 text-sm">Select a user to view details</p></div></div> : <><button onClick={() => setSelectedUser(null)} className="lg:hidden flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-[#00c8ff] bg-[#00c8ff]/10 border border-[#00c8ff]/20">← Back to users</button><UserDetail user={currentSelectedUser} showToast={showToast} onClose={() => setSelectedUser(null)} onUpdate={setSelectedUser} onPreviewCard={setPreviewCard} logAdminAction={logAdminAction} /></>}
+        {!currentSelectedUser ? <div className="flex items-center justify-center h-full min-h-48"><div className="text-center"><Users size={36} className="text-white/10 mx-auto mb-3" /><p className="text-white/20 text-sm">Select a user to view details</p></div></div> : <><button onClick={() => setSelectedUser(null)} className="lg:hidden flex items-center gap-2 mb-3 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-[#00c8ff] bg-[#00c8ff]/10 border border-[#00c8ff]/20">← Back to users</button><UserDetail user={currentSelectedUser} showToast={showToast} onClose={() => setSelectedUser(null)} onUpdate={setSelectedUser} onPreviewCard={setPreviewCard} logAdminAction={logAdminAction} callerRole={callerRole} /></>}
       </div>
       <CardPreviewModal card={previewCard} onClose={() => setPreviewCard(null)} />
     </div>

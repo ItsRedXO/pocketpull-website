@@ -50,7 +50,7 @@ export const SupportChat: React.FC = React.memo(() => {
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
   }, []);
-  const isAdmin = stats?.role === 'admin';
+  const isAdmin = stats?.role === 'admin' || stats?.role === 'owner';
   const username = stats?.username || stats?.displayName || user?.displayName || 'Trainer';
 
   const { chat, messages, loading, sendMessage } = useUserSupportChat(
