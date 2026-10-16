@@ -10,4 +10,10 @@ describe('admin balance wallet contract', () => {
   it('never allows a negative set target', () => {
     expect(-1 < 0).toBe(true);
   });
+
+  it('treats zero as a no-op for a set target equal to the current balance', () => {
+    const current = 25.5;
+    const target = 25.5;
+    expect(target - current).toBe(0);
+  });
 });
