@@ -4,6 +4,7 @@ import { query, transaction } from '../lib/postgres';
 import { writeLog } from './logs';
 import { processFirstDepositBonus, processReferralReward } from '../lib/payments';
 import { processWalletTransactionInClient } from '../repositories/wallet';
+import { recordPendingDeposit, confirmPendingDeposit } from './creatorDashboard';
 
 const app = new Hono();
 // NOTE: reads from process.env, not c.env -- under @hono/node-server (this
@@ -52,6 +53,19 @@ app.post('/create-payment-intent', async c => {
       } catch (e: any) { console.warn('[Stripe] Customer lookup/create failed:', e.message); }
     }
     const pi = await stripe.paymentIntents.create({ amount: amountCents, currency: 'usd', automatic_payment_methods: { enabled: true }, ...(customerId ? { customer: customerId } : {}), metadata: { userId, username: safeUsername, email: safeEmail, amountUsd: String(amountUsd) }, description: safeEmail ? `PocketPull deposit - ${safeUsername} (${safeEmail})` : `PocketPull deposit - ${safeUsername} [${userId}]` });
+
+    // Record pending creator deposit if this user was referred
+    try {
+      const userRows = await query<any>('SELECT referred_by_id FROM users WHERE id=$1 LIMIT 1', [userId]);
+      const referrerId = userRows[0]?.referred_by_id;
+      if (referrerId) {
+        const referrerRows = await query<any>("SELECT role FROM users WHERE id=$1 LIMIT 1", [referrerId]);
+        if (['creator', 'admin', 'owner'].includes(referrerRows[0]?.role)) {
+          await recordPendingDeposit(pi.id, referrerId, userId, parseFloat(amountUsd));
+        }
+      }
+    } catch (e) { console.warn('[Stripe] recordPendingDeposit failed:', e); }
+
     return c.json({ clientSecret: pi.client_secret, id: pi.id });
   } catch (e: any) { return c.json({ error: e.message || 'Internal Server Error' }, 500); }
 });
@@ -111,6 +125,8 @@ async function processSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     catch (e) { console.warn('[Stripe] Activity log failed', e); }
   }
   const user: any = result.user;
+  // Confirm pending creator deposit record (PI is now cleared by Stripe)
+  try { await confirmPendingDeposit(piId); } catch (e) { console.warn('[Stripe] confirmPendingDeposit failed:', e); }
   if (Number(user.first_deposit_bonus_paid || 0) === 0) await processFirstDepositBonus(null, userId, depositAmt);
   if (depositAmt >= 5 && user.referred_by_id && !Number(user.referral_reward_paid || 0)) await processReferralReward(null, userId, user.referred_by_id, depositAmt);
   return { status: 'success', newBalance: result.newBalance };

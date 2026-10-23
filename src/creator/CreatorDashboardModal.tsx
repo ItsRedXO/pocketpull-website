@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, Copy, Share2, CheckCircle2, Loader2, ChevronUp, ChevronDown, Zap } from 'lucide-react';
+import { X, Star, Copy, Share2, CheckCircle2, Loader2, ChevronUp, ChevronDown, Zap, Clock } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchCreatorDashboard, requestCreatorPayout, CreatorReferral, fetchDailyAllowance, applyDailyAllowance } from '../lib/creatorApi';
 
@@ -166,9 +166,23 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
                           Level {data.level}
                         </span>
                       </div>
-                      <span className="text-[10px] text-white/30 font-mono">{data.xp.toFixed(0)} / {data.xpToNextLevel} XP</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-white/30 font-mono">{data.xp.toFixed(0)} / {data.xpToNextLevel} XP</span>
+                        {data.pendingXp > 0 && (
+                          <span className="flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.08)', color: 'rgba(251,191,36,0.5)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                            <Clock size={8} /> +{data.pendingXp.toFixed(0)} pending
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      {/* Pending XP layer (dimmer, behind confirmed) */}
+                      {data.pendingXp > 0 && (
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{ width: `${Math.min(100, ((data.xp + data.pendingXp) / data.xpToNextLevel) * 100)}%`, background: 'rgba(251,191,36,0.2)' }}
+                        />
+                      )}
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${xpPct}%` }}
@@ -259,16 +273,21 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
 
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Total Earned', value: `$${data.totalEarned.toFixed(2)}`, color: '#10b981' },
-                      { label: 'Referrals', value: String(data.referrals.length), color: '#fbbf24' },
-                      { label: 'Deposited', value: String(depositorCount), color: '#60a5fa' },
-                    ].map(s => (
-                      <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <p className="text-lg font-bold" style={{ color: s.color }}>{s.value}</p>
-                        <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">{s.label}</p>
-                      </div>
-                    ))}
+                    <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-lg font-bold" style={{ color: '#10b981' }}>${data.totalEarned.toFixed(2)}</p>
+                      {data.pendingEarned > 0 && (
+                        <p className="text-[9px] font-mono" style={{ color: 'rgba(16,185,129,0.45)' }}>+${data.pendingEarned.toFixed(2)} pending</p>
+                      )}
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Total Earned</p>
+                    </div>
+                    <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-lg font-bold" style={{ color: '#fbbf24' }}>{data.referrals.length}</p>
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Referrals</p>
+                    </div>
+                    <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-lg font-bold" style={{ color: '#60a5fa' }}>{depositorCount}</p>
+                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Deposited</p>
+                    </div>
                   </div>
 
                   {/* Referral Code */}
@@ -313,14 +332,26 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
                                   {ref.signedUpAt ? new Date(ref.signedUpAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                                 </td>
                                 <td className="px-4 py-2.5 text-[11px] font-mono">
-                                  {ref.firstDepositAmount !== null
-                                    ? <span className="text-green-400">${ref.firstDepositAmount.toFixed(2)}</span>
-                                    : <span className="text-white/20">—</span>}
+                                  {ref.depositStatus === 'confirmed' && ref.firstDepositAmount !== null ? (
+                                    <span className="text-green-400">${ref.firstDepositAmount.toFixed(2)}</span>
+                                  ) : ref.depositStatus === 'pending' && ref.pendingDepositAmount !== null ? (
+                                    <span className="flex items-center gap-1" style={{ color: 'rgba(251,191,36,0.6)' }}>
+                                      <Clock size={9} /> ${ref.pendingDepositAmount.toFixed(2)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-white/20">—</span>
+                                  )}
                                 </td>
                                 <td className="px-4 py-2.5 text-[11px] font-bold">
-                                  {ref.payoutEarned > 0
-                                    ? <span style={{ color: '#fbbf24' }}>${ref.payoutEarned.toFixed(0)}</span>
-                                    : <span className="text-white/20">—</span>}
+                                  {ref.depositStatus === 'confirmed' && ref.payoutEarned > 0 ? (
+                                    <span style={{ color: '#fbbf24' }}>${ref.payoutEarned.toFixed(0)}</span>
+                                  ) : ref.depositStatus === 'pending' && ref.pendingPayout > 0 ? (
+                                    <span className="flex items-center gap-1" style={{ color: 'rgba(251,191,36,0.45)' }}>
+                                      <Clock size={9} /> ${ref.pendingPayout.toFixed(0)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-white/20">—</span>
+                                  )}
                                 </td>
                               </tr>
                             ))}

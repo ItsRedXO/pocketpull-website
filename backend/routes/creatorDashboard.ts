@@ -28,6 +28,18 @@ query(`
   )
 `).catch(e => console.error('[creator] allowance table init failed:', e));
 
+query(`
+  CREATE TABLE IF NOT EXISTS creator_pending_deposits (
+    payment_intent_id TEXT PRIMARY KEY,
+    creator_id TEXT NOT NULL,
+    referred_user_id TEXT NOT NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    confirmed_at TIMESTAMPTZ
+  )
+`).catch(e => console.error('[creator] pending deposits table init failed:', e));
+
 const DAILY_LIMIT = 100;
 
 function getPSTDate(): string {
@@ -84,20 +96,49 @@ async function getCreatorStats(userId: string) {
     const hasDeposited = firstDepositAmount !== null;
     const qualifies = firstDepositAmount !== null && firstDepositAmount >= 5;
     const payoutEarned = qualifies ? getCreatorPayout(firstDepositAmount!) : 0;
+
+    // Check for a pending deposit (PI created but not yet confirmed)
+    let pendingAmount: number | null = null;
+    let depositStatus: 'confirmed' | 'pending' | 'none' = 'none';
+    if (hasDeposited) {
+      depositStatus = 'confirmed';
+    } else {
+      const pendingRow = await query<any>(
+        `SELECT amount FROM creator_pending_deposits WHERE creator_id=$1 AND referred_user_id=$2 AND status='pending' ORDER BY created_at DESC LIMIT 1`,
+        [userId, ref.id]
+      );
+      if (pendingRow[0]) {
+        pendingAmount = Number(pendingRow[0].amount);
+        depositStatus = 'pending';
+      }
+    }
+
+    const effectiveAmount = firstDepositAmount ?? pendingAmount;
+    const pendingPayout = depositStatus === 'pending' && pendingAmount !== null && pendingAmount >= 5
+      ? getCreatorPayout(pendingAmount) : 0;
+
     return {
       id: ref.id,
       username: ref.username || ref.display_name || `User${ref.id.slice(-4)}`,
       signedUpAt: ref.created_at || '',
       firstDepositAmount: hasDeposited ? firstDepositAmount : null,
+      pendingDepositAmount: depositStatus === 'pending' ? pendingAmount : null,
+      depositStatus,
       hasDeposited,
       payoutEarned,
+      pendingPayout,
       rewardPaid: Number(ref.referral_reward_paid || 0) > 0,
     };
   }));
 
+  // XP: confirmed deposits count fully; pending deposits show as pending XP
   const xp = referrals.reduce((sum, r) =>
     r.firstDepositAmount !== null && r.firstDepositAmount >= 5 ? sum + r.firstDepositAmount : sum, 0);
+  const pendingXp = referrals.reduce((sum, r) =>
+    r.depositStatus === 'pending' && r.pendingDepositAmount !== null && r.pendingDepositAmount >= 5
+      ? sum + r.pendingDepositAmount : sum, 0);
   const totalEarned = referrals.reduce((sum, r) => sum + r.payoutEarned, 0);
+  const pendingEarned = referrals.reduce((sum, r) => sum + r.pendingPayout, 0);
 
   const paidOutRows = await query<any>(
     `SELECT COALESCE(SUM(amount),0)::numeric AS total FROM creator_payout_requests WHERE creator_id=$1 AND status IN ('approved','paid')`,
@@ -111,7 +152,29 @@ async function getCreatorStats(userId: string) {
   );
 
   const availableForPayout = Math.max(0, totalEarned - totalPaidOut);
-  return { referrals, xp, totalEarned, totalPaidOut, availableForPayout, hasPendingRequest: pendingRows.length > 0 };
+  return { referrals, xp, pendingXp, totalEarned, pendingEarned, totalPaidOut, availableForPayout, hasPendingRequest: pendingRows.length > 0 };
+}
+
+// Called from stripe.ts when a payment intent is created for a referred user
+export async function recordPendingDeposit(paymentIntentId: string, creatorId: string, referredUserId: string, amount: number): Promise<void> {
+  // Only record if this referred user hasn't already deposited
+  const existing = await query<any>(
+    `SELECT 1 FROM transactions WHERE user_id=$1 AND type='deposit' LIMIT 1`,
+    [referredUserId]
+  );
+  if (existing[0]) return; // already has a confirmed deposit, skip
+  await query(`
+    INSERT INTO creator_pending_deposits(payment_intent_id, creator_id, referred_user_id, amount, status, created_at)
+    VALUES($1,$2,$3,$4,'pending',NOW())
+    ON CONFLICT(payment_intent_id) DO NOTHING
+  `, [paymentIntentId, creatorId, referredUserId, amount]);
+}
+
+// Called from stripe.ts when payment_intent.succeeded fires
+export async function confirmPendingDeposit(paymentIntentId: string): Promise<void> {
+  await query(`
+    UPDATE creator_pending_deposits SET status='confirmed', confirmed_at=NOW() WHERE payment_intent_id=$1
+  `, [paymentIntentId]);
 }
 
 app.get('/creator/dashboard', async c => {
@@ -130,8 +193,10 @@ app.get('/creator/dashboard', async c => {
       referralCode,
       level: 1,
       xp: stats.xp,
+      pendingXp: stats.pendingXp,
       xpToNextLevel: 500,
       totalEarned: stats.totalEarned,
+      pendingEarned: stats.pendingEarned,
       totalPaidOut: stats.totalPaidOut,
       availableForPayout: stats.availableForPayout,
       canRequestPayout: stats.availableForPayout >= 25 && !stats.hasPendingRequest,

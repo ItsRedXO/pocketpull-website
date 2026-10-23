@@ -12,8 +12,11 @@ export interface CreatorReferral {
   username: string;
   signedUpAt: string;
   firstDepositAmount: number | null;
+  pendingDepositAmount: number | null;
+  depositStatus: 'confirmed' | 'pending' | 'none';
   hasDeposited: boolean;
   payoutEarned: number;
+  pendingPayout: number;
   rewardPaid: boolean;
 }
 
@@ -21,8 +24,10 @@ export interface CreatorDashboardData {
   referralCode: string;
   level: number;
   xp: number;
+  pendingXp: number;
   xpToNextLevel: number;
   totalEarned: number;
+  pendingEarned: number;
   totalPaidOut: number;
   availableForPayout: number;
   canRequestPayout: boolean;
