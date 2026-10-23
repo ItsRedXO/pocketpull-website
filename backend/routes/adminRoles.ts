@@ -6,22 +6,29 @@ import { isAdminSecretCandidate } from '../lib/adminAuthorization';
 const app = new Hono();
 
 // Returns { callerId, callerRole } where callerRole is 'owner' | 'admin' | null
+// JWT role takes precedence over X-Admin-Secret so owner accounts correctly
+// return 'owner' even when the admin password is also sent.
 async function resolveCallerRole(c: any): Promise<{ callerId: string | null; callerRole: 'owner' | 'admin' | null }> {
+  // Check JWT first — if the request carries a signed user token we trust the
+  // role stored in the DB for that user, which is authoritative.
+  const userId = await resolveUserId(c).catch(() => null);
+  if (userId) {
+    const rows = await query<{ role: string; is_admin: number }>('SELECT role, is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const u = rows[0];
+    if (u) {
+      if (u.role === 'owner') return { callerId: userId, callerRole: 'owner' };
+      if (u.role === 'admin' || Number(u.is_admin) === 1) return { callerId: userId, callerRole: 'admin' };
+    }
+  }
+
+  // Fall back to shared admin secret (non-user-specific admin password).
   const secret = c.req.header('X-Admin-Secret');
   if (isAdminSecretCandidate(secret)) {
     const rows = await query<{ id: string }>('SELECT id FROM admin_credentials WHERE admin_pass=$1 LIMIT 1', [secret]);
     if (rows[0]?.id) return { callerId: null, callerRole: 'admin' };
   }
 
-  const userId = await resolveUserId(c);
-  if (!userId) return { callerId: null, callerRole: null };
-
-  const rows = await query<{ role: string; is_admin: number }>('SELECT role, is_admin FROM users WHERE id=$1 LIMIT 1', [userId]);
-  const u = rows[0];
-  if (!u) return { callerId: userId, callerRole: null };
-  if (u.role === 'owner') return { callerId: userId, callerRole: 'owner' };
-  if (u.role === 'admin' || Number(u.is_admin) === 1) return { callerId: userId, callerRole: 'admin' };
-  return { callerId: userId, callerRole: null };
+  return { callerId: null, callerRole: null };
 }
 
 // GET /admin/roles/me — returns caller's role for the frontend to drive UI

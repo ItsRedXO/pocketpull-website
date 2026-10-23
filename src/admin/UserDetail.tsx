@@ -289,7 +289,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
                 </button>
               </>
             )}
-            {!user.isDeleted && callerRole === 'owner' && user.role !== 'owner' && (
+            {!user.isDeleted && (callerRole === 'owner' || callerRole === 'admin') && user.role !== 'owner' && (
               <button
                 onClick={handleToggleAdmin}
                 disabled={togglingAdmin}
