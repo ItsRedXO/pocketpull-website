@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, Copy, Share2, CheckCircle2, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchCreatorDashboard, requestCreatorPayout, CreatorReferral } from '../lib/creatorApi';
+import { X, Star, Copy, Share2, CheckCircle2, Loader2, ChevronUp, ChevronDown, Zap } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchCreatorDashboard, requestCreatorPayout, CreatorReferral, fetchDailyAllowance, applyDailyAllowance } from '../lib/creatorApi';
 
 interface Props {
   isOpen: boolean;
@@ -30,12 +30,24 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [showTiers, setShowTiers] = useState(false);
+  const [allowanceAmount, setAllowanceAmount] = useState('');
+  const [applyingAllowance, setApplyingAllowance] = useState(false);
+  const [allowanceResult, setAllowanceResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const qc = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['creator-dashboard', userId],
     queryFn: fetchCreatorDashboard,
     enabled: isOpen && !!userId,
     staleTime: 30_000,
+  });
+
+  const { data: allowance, refetch: refetchAllowance } = useQuery({
+    queryKey: ['creator-daily-allowance', userId],
+    queryFn: fetchDailyAllowance,
+    enabled: isOpen && !!userId,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
   const handleCopy = () => {
@@ -71,6 +83,24 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
       setSubmitResult({ ok: false, msg: err?.message || 'Failed to submit request' });
     }
     setSubmitting(false);
+  };
+
+  const handleApplyAllowance = async () => {
+    const amt = parseFloat(allowanceAmount);
+    if (!amt || amt <= 0) return;
+    setApplyingAllowance(true);
+    setAllowanceResult(null);
+    try {
+      const res = await applyDailyAllowance(amt);
+      setAllowanceResult({ ok: true, msg: `$${amt.toFixed(2)} added to your wallet!` });
+      setAllowanceAmount('');
+      refetchAllowance();
+      qc.invalidateQueries({ queryKey: ['user-stats'] });
+      qc.invalidateQueries({ queryKey: ['balance'] });
+    } catch (err: any) {
+      setAllowanceResult({ ok: false, msg: err?.message || 'Failed to apply allowance' });
+    }
+    setApplyingAllowance(false);
   };
 
   const xpPct = data ? Math.min(100, (data.xp / data.xpToNextLevel) * 100) : 0;
@@ -148,6 +178,83 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
                       />
                     </div>
                     <p className="text-[9px] text-white/20 mt-1.5">XP earned from your referrals' deposits. Level 2 unlocks higher payouts.</p>
+                  </div>
+
+                  {/* Daily Allowance */}
+                  <div className="rounded-xl p-4" style={{ background: 'rgba(0,200,255,0.04)', border: '1px solid rgba(0,200,255,0.15)' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(0,200,255,0.12)', border: '1px solid rgba(0,200,255,0.25)' }}>
+                        <Zap size={12} style={{ color: '#00c8ff' }} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#00c8ff' }}>Daily Allowance</span>
+                    </div>
+
+                    {allowance ? (
+                      <>
+                        <div className="flex items-end justify-between mb-2">
+                          <div>
+                            <span className="text-2xl font-black" style={{ color: allowance.remaining > 0 ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                              ${allowance.used.toFixed(0)}
+                            </span>
+                            <span className="text-sm font-bold text-white/30"> / ${allowance.limit}</span>
+                          </div>
+                          <span className="text-[10px] text-white/30 font-mono">${allowance.remaining.toFixed(2)} remaining</span>
+                        </div>
+                        <div className="relative h-2 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, (allowance.used / allowance.limit) * 100)}%` }}
+                            transition={{ duration: 0.6, ease: 'easeOut' }}
+                            className="absolute inset-y-0 left-0 rounded-full"
+                            style={{ background: allowance.remaining > 0 ? 'linear-gradient(90deg, #0ea5e9, #00c8ff)' : 'rgba(255,255,255,0.15)' }}
+                          />
+                        </div>
+
+                        {allowance.remaining > 0 ? (
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max={allowance.remaining}
+                              step="0.01"
+                              value={allowanceAmount}
+                              onChange={e => { setAllowanceAmount(e.target.value); setAllowanceResult(null); }}
+                              placeholder={`Enter amount (max $${allowance.remaining.toFixed(2)})`}
+                              className="flex-1 px-3 py-2 rounded-lg text-sm text-white placeholder-white/20 focus:outline-none"
+                              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,200,255,0.15)' }}
+                            />
+                            <button
+                              onClick={handleApplyAllowance}
+                              disabled={applyingAllowance || !allowanceAmount || parseFloat(allowanceAmount) <= 0}
+                              className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-30"
+                              style={{ background: 'rgba(0,200,255,0.12)', color: '#00c8ff', border: '1px solid rgba(0,200,255,0.25)' }}
+                            >
+                              {applyingAllowance ? <Loader2 size={13} className="animate-spin" /> : 'Apply'}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-white/25">Daily allowance used. Resets at midnight PST.</p>
+                        )}
+
+                        {allowanceResult && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`mt-2 px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-2 ${allowanceResult.ok ? 'text-cyan-400' : 'text-red-400'}`}
+                            style={{ background: allowanceResult.ok ? 'rgba(0,200,255,0.07)' : 'rgba(248,113,113,0.08)', border: `1px solid ${allowanceResult.ok ? 'rgba(0,200,255,0.2)' : 'rgba(248,113,113,0.2)'}` }}
+                          >
+                            {allowanceResult.ok && <CheckCircle2 size={11} />}
+                            {allowanceResult.msg}
+                          </motion.div>
+                        )}
+
+                        <p className="text-[9px] text-white/20 mt-2">Resets daily at midnight PST. Wallet balance clears at reset, cards are kept.</p>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 size={18} className="animate-spin" style={{ color: '#00c8ff' }} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Stats */}

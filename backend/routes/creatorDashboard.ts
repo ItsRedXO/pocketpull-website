@@ -4,7 +4,7 @@ import { query } from '../lib/postgres';
 
 const app = new Hono();
 
-// Ensure table exists on startup
+// Ensure tables exist on startup
 query(`
   CREATE TABLE IF NOT EXISTS creator_payout_requests (
     id TEXT PRIMARY KEY,
@@ -17,7 +17,45 @@ query(`
     processed_at TIMESTAMPTZ,
     admin_notes TEXT
   )
-`).catch(e => console.error('[creator] table init failed:', e));
+`).catch(e => console.error('[creator] payout table init failed:', e));
+
+query(`
+  CREATE TABLE IF NOT EXISTS creator_daily_allowance (
+    creator_id TEXT PRIMARY KEY,
+    amount_used NUMERIC(10,2) NOT NULL DEFAULT 0,
+    pst_date TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(e => console.error('[creator] allowance table init failed:', e));
+
+const DAILY_LIMIT = 100;
+
+function getPSTDate(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}
+
+// Check if it's a new PST day; if so wipe wallet balance and reset counter.
+// Returns current amount_used for today.
+async function checkAndResetAllowance(creatorId: string): Promise<number> {
+  const today = getPSTDate();
+  const rows = await query<any>(
+    'SELECT amount_used, pst_date FROM creator_daily_allowance WHERE creator_id=$1 LIMIT 1',
+    [creatorId]
+  );
+
+  if (!rows[0] || rows[0].pst_date !== today) {
+    // New day — wipe wallet balance and reset counter
+    await query('UPDATE users SET balance=0 WHERE id=$1', [creatorId]);
+    await query(`
+      INSERT INTO creator_daily_allowance(creator_id, amount_used, pst_date, updated_at)
+      VALUES($1, 0, $2, NOW())
+      ON CONFLICT(creator_id) DO UPDATE SET amount_used=0, pst_date=$2, updated_at=NOW()
+    `, [creatorId, today]);
+    return 0;
+  }
+
+  return Number(rows[0].amount_used);
+}
 
 function getCreatorPayout(depositAmount: number): number {
   if (depositAmount >= 100) return 10;
@@ -133,6 +171,63 @@ app.post('/creator/request-payout', async c => {
     return c.json({ success: true, requestId: id, amount: stats.availableForPayout });
   } catch (err: any) {
     console.error('[creator/request-payout]', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+// GET /creator/daily-allowance — returns today's used/remaining allowance
+app.get('/creator/daily-allowance', async c => {
+  let userId: string;
+  try { userId = await requireAuth(c); } catch { return c.json({ error: 'Authentication required' }, 403); }
+  try {
+    const userRows = await query<any>('SELECT role FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const user = userRows[0];
+    if (!user) return c.json({ error: 'User not found' }, 404);
+    if (!['creator', 'admin', 'owner'].includes(user.role)) return c.json({ error: 'Creator access required' }, 403);
+
+    const used = await checkAndResetAllowance(userId);
+    const remaining = Math.max(0, DAILY_LIMIT - used);
+    return c.json({ used, limit: DAILY_LIMIT, remaining, pstDate: getPSTDate() });
+  } catch (err: any) {
+    console.error('[creator/daily-allowance]', err);
+    return c.json({ error: err.message || 'Internal server error' }, 500);
+  }
+});
+
+// POST /creator/daily-allowance/apply — apply amount to wallet
+app.post('/creator/daily-allowance/apply', async c => {
+  let userId: string;
+  try { userId = await requireAuth(c); } catch { return c.json({ error: 'Authentication required' }, 403); }
+  try {
+    const userRows = await query<any>('SELECT role FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const user = userRows[0];
+    if (!user) return c.json({ error: 'User not found' }, 404);
+    if (!['creator', 'admin', 'owner'].includes(user.role)) return c.json({ error: 'Creator access required' }, 403);
+
+    const body = await c.req.json().catch(() => ({}));
+    const amount = Number(body.amount);
+    if (!amount || amount <= 0) return c.json({ error: 'Invalid amount' }, 400);
+
+    const used = await checkAndResetAllowance(userId);
+    const remaining = Math.max(0, DAILY_LIMIT - used);
+    if (amount > remaining) {
+      return c.json({ error: `Only $${remaining.toFixed(2)} remaining in your daily allowance.` }, 400);
+    }
+
+    const today = getPSTDate();
+    // Add to wallet balance
+    await query('UPDATE users SET balance = COALESCE(balance,0) + $1 WHERE id=$2', [amount, userId]);
+    // Record usage
+    await query(`
+      INSERT INTO creator_daily_allowance(creator_id, amount_used, pst_date, updated_at)
+      VALUES($1, $2, $3, NOW())
+      ON CONFLICT(creator_id) DO UPDATE SET amount_used = creator_daily_allowance.amount_used + $2, updated_at=NOW()
+    `, [userId, amount, today]);
+
+    const newUsed = used + amount;
+    return c.json({ success: true, used: newUsed, limit: DAILY_LIMIT, remaining: Math.max(0, DAILY_LIMIT - newUsed) });
+  } catch (err: any) {
+    console.error('[creator/daily-allowance/apply]', err);
     return c.json({ error: err.message || 'Internal server error' }, 500);
   }
 });

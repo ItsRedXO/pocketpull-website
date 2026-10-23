@@ -70,3 +70,24 @@ export async function updateCreatorPayoutStatus(id: string, status: string, admi
   const data = await res.json() as any;
   if (!res.ok) throw new Error(data?.error || `API error ${res.status}`);
 }
+
+export interface DailyAllowanceData {
+  used: number;
+  limit: number;
+  remaining: number;
+  pstDate: string;
+}
+
+export async function fetchDailyAllowance(): Promise<DailyAllowanceData> {
+  const res = await fetch(`${BACKEND_BASE}/creator/daily-allowance`, { headers: await authHeaders() });
+  const data = await res.json() as any;
+  if (!res.ok) throw new Error(data?.error || `API error ${res.status}`);
+  return data as DailyAllowanceData;
+}
+
+export async function applyDailyAllowance(amount: number): Promise<DailyAllowanceData> {
+  const res = await fetch(`${BACKEND_BASE}/creator/daily-allowance/apply`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ amount }) });
+  const data = await res.json() as any;
+  if (!res.ok) throw new Error(data?.error || `API error ${res.status}`);
+  return { used: data.used, limit: data.limit, remaining: data.remaining, pstDate: '' };
+}
