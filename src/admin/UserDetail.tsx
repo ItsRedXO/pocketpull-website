@@ -289,7 +289,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
                 </button>
               </>
             )}
-            {!user.isDeleted && (callerRole === 'owner' || callerRole === 'admin') && user.role !== 'owner' && (
+            {!user.isDeleted && user.role !== 'owner' && (
               <button
                 onClick={handleToggleAdmin}
                 disabled={togglingAdmin}
@@ -302,7 +302,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
                 <Shield size={12} /> Admin
               </button>
             )}
-            {!user.isDeleted && (callerRole === 'owner' || callerRole === 'admin') && user.role !== 'owner' && user.role !== 'admin' && (
+            {!user.isDeleted && user.role !== 'owner' && user.role !== 'admin' && (
               <button
                 onClick={handleToggleCreator}
                 disabled={togglingCreator}
