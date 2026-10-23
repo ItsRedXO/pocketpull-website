@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, ShieldPlus, ShieldMinus } from 'lucide-react';
+﻿import React, { useState } from 'react';
+import { Users, X, Trash2, Ban, UserX, Shield, UsersRound, Star } from 'lucide-react';
 import { blink } from '../lib/blink';
 import { BACKEND_BASE } from '../lib/backend';
 import { UserRow, InventoryRow } from './types';
@@ -33,8 +33,8 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
   const qc = useQueryClient();
   const [banningUser, setBanningUser] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
-  const [promotingUser, setPromotingUser] = useState(false);
-  const [removingRole, setRemovingRole] = useState(false);
+  const [togglingAdmin, setTogglingAdmin] = useState(false);
+  const [togglingCreator, setTogglingCreator] = useState(false);
 
   // Fallback for "Last Online" when the presence heartbeat has no data yet
   // (a brand new signal -- most accounts won't have pinged it yet) or never
@@ -150,24 +150,67 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
     setDeletingUser(false);
   };
 
-  const handleRemoveRole = async () => {
-    const roleName = user.role === 'admin' ? 'Admin' : 'Creator';
-    const confirmed = window.confirm(`Remove ${roleName} role from "${user.username || user.email}"?`);
-    if (!confirmed) return;
-    setRemovingRole(true);
-    try {
-      const headers = await getAdminAuthHeaders();
-      const r = await fetch(`${BACKEND_BASE}/admin/roles/${user.id}`, { method: 'DELETE', headers });
-      const j = await r.json();
-      if (!r.ok) { showToast(j.error || `Failed to remove ${roleName} role`, false); return; }
-      onUpdate({ ...user, role: '' });
-      qc.invalidateQueries({ queryKey: ['admin-users-all'] });
-      showToast(`${roleName} role removed from "${user.username || user.email}".`);
-      logAdminAction(`Admin Removed ${roleName} Role`, user.username, { userId: user.id });
-    } catch (err: any) {
-      showToast(`Remove role failed: ${err.message || 'Unknown error'}`, false);
+  const handleToggleAdmin = async () => {
+    const isAdmin = user.role === 'admin';
+    if (isAdmin) {
+      if (!window.confirm(`Remove Admin role from "${user.username || user.email}"?`)) return;
+      setTogglingAdmin(true);
+      try {
+        const headers = await getAdminAuthHeaders();
+        const r = await fetch(`${BACKEND_BASE}/admin/roles/${user.id}`, { method: 'DELETE', headers });
+        const j = await r.json();
+        if (!r.ok) { showToast(j.error || 'Failed to remove Admin role', false); setTogglingAdmin(false); return; }
+        onUpdate({ ...user, role: '' });
+        qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+        showToast(`Admin role removed from "${user.username || user.email}".`);
+        logAdminAction('Admin Removed Admin Role', user.username, { userId: user.id });
+      } catch (err: any) { showToast(`Failed: ${err.message}`, false); }
+      setTogglingAdmin(false);
+    } else {
+      if (!window.confirm(`Promote "${user.username || user.email}" to Admin?\n\nThis grants full admin panel access.`)) return;
+      setTogglingAdmin(true);
+      try {
+        await blink.db.users.update(user.id, { role: 'admin' });
+        onUpdate({ ...user, role: 'admin' });
+        qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+        showToast(`"${user.username || user.email}" promoted to Admin.`);
+        logAdminAction('Admin Promoted User to Admin', user.username, { userId: user.id });
+      } catch (err: any) { showToast(`Failed: ${err.message}`, false); }
+      setTogglingAdmin(false);
     }
-    setRemovingRole(false);
+  };
+
+  const handleToggleCreator = async () => {
+    const isCreator = user.role === 'creator';
+    if (isCreator) {
+      if (!window.confirm(`Remove Creator role from "${user.username || user.email}"?`)) return;
+      setTogglingCreator(true);
+      try {
+        const headers = await getAdminAuthHeaders();
+        const r = await fetch(`${BACKEND_BASE}/admin/roles/${user.id}`, { method: 'DELETE', headers });
+        const j = await r.json();
+        if (!r.ok) { showToast(j.error || 'Failed to remove Creator role', false); setTogglingCreator(false); return; }
+        onUpdate({ ...user, role: '' });
+        qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+        showToast(`Creator role removed from "${user.username || user.email}".`);
+        logAdminAction('Admin Removed Creator Role', user.username, { userId: user.id });
+      } catch (err: any) { showToast(`Failed: ${err.message}`, false); }
+      setTogglingCreator(false);
+    } else {
+      if (!window.confirm(`Assign Creator role to "${user.username || user.email}"?\n\nThis gives them the Creator badge and dashboard.`)) return;
+      setTogglingCreator(true);
+      try {
+        const headers = await getAdminAuthHeaders();
+        const r = await fetch(`${BACKEND_BASE}/admin/roles/${user.id}`, { method: 'POST', headers, body: JSON.stringify({ role: 'creator' }) });
+        const j = await r.json();
+        if (!r.ok) { showToast(j.error || 'Failed to assign Creator role', false); setTogglingCreator(false); return; }
+        onUpdate({ ...user, role: 'creator' });
+        qc.invalidateQueries({ queryKey: ['admin-users-all'] });
+        showToast(`"${user.username || user.email}" is now a Creator.`);
+        logAdminAction('Admin Assigned Creator Role', user.username, { userId: user.id });
+      } catch (err: any) { showToast(`Failed: ${err.message}`, false); }
+      setTogglingCreator(false);
+    }
   };
 
   const handlePromoteToAdmin = async () => {
@@ -179,18 +222,6 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
       `â€¢ Support chat admin tools\n\n` +
       `âš  This action cannot be undone through the UI.`
     );
-    if (!confirmed) return;
-    setPromotingUser(true);
-    try {
-      await blink.db.users.update(user.id, { role: 'admin' });
-      onUpdate({ ...user, role: 'admin' });
-      qc.invalidateQueries({ queryKey: ['admin-users-all'] });
-      showToast(`"${user.username || user.email}" has been promoted to Admin.`);
-      logAdminAction('Admin Promoted User to Admin', user.username, { userId: user.id });
-    } catch (err: any) {
-      showToast(`Promotion failed: ${err.message || 'Unknown error'}`, false);
-    }
-    setPromotingUser(false);
   };
 
   const balance = safeNum(user.balance);
@@ -226,6 +257,7 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
                   {user.isBanned && <span className="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20 tracking-widest flex items-center gap-1"><Ban size={8} /> BANNED</span>}
                   {user.isDeleted && <span className="text-[9px] bg-gray-500/10 text-gray-400 px-1.5 py-0.5 rounded border border-gray-500/20 tracking-widest flex items-center gap-1"><UserX size={8} /> DELETED</span>}
                   {user.role === 'admin' && <span className="text-[9px] bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20 tracking-widest flex items-center gap-1"><Shield size={8} /> ADMIN</span>}
+                  {user.role === 'creator' && <span className="text-[9px] px-1.5 py-0.5 rounded tracking-widest flex items-center gap-1" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}><Star size={8} /> CREATOR</span>}
                 </div>
               </h3>
               <p className="text-[11px] text-white/40">
@@ -257,18 +289,30 @@ export function UserDetail({ user, showToast, onClose, onUpdate, onPreviewCard, 
                 </button>
               </>
             )}
-            {!user.isDeleted && user.role !== 'admin' && user.role !== 'owner' && (
-              <button onClick={handlePromoteToAdmin} disabled={promotingUser}
-                className="p-2 rounded-xl bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all"
-                title="Promote to Admin">
-                <ShieldPlus size={16} />
+            {!user.isDeleted && callerRole === 'owner' && user.role !== 'owner' && (
+              <button
+                onClick={handleToggleAdmin}
+                disabled={togglingAdmin}
+                title={user.role === 'admin' ? 'Remove Admin role' : 'Assign Admin role'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                style={user.role === 'admin'
+                  ? { background: 'rgba(155,92,255,0.18)', color: '#9b5cff', border: '1px solid rgba(155,92,255,0.5)', boxShadow: '0 0 10px rgba(155,92,255,0.3)' }
+                  : { background: 'rgba(155,92,255,0.06)', color: 'rgba(155,92,255,0.45)', border: '1px solid rgba(155,92,255,0.15)' }}
+              >
+                <Shield size={12} /> Admin
               </button>
             )}
-            {!user.isDeleted && ((user.role === 'admin' && callerRole === 'owner') || (user.role === 'creator' && (callerRole === 'owner' || callerRole === 'admin'))) && (
-              <button onClick={handleRemoveRole} disabled={removingRole}
-                className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                title={`Remove ${user.role === 'admin' ? 'Admin' : 'Creator'} role`}>
-                <ShieldMinus size={16} />
+            {!user.isDeleted && (callerRole === 'owner' || callerRole === 'admin') && user.role !== 'owner' && user.role !== 'admin' && (
+              <button
+                onClick={handleToggleCreator}
+                disabled={togglingCreator}
+                title={user.role === 'creator' ? 'Remove Creator role' : 'Assign Creator role'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                style={user.role === 'creator'
+                  ? { background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.45)', boxShadow: '0 0 10px rgba(251,191,36,0.25)' }
+                  : { background: 'rgba(251,191,36,0.05)', color: 'rgba(251,191,36,0.4)', border: '1px solid rgba(251,191,36,0.12)' }}
+              >
+                <Star size={12} /> Creator
               </button>
             )}
             <button onClick={onClose} className="text-white/20 hover:text-white/50 p-1">
