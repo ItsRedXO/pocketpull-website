@@ -17,7 +17,7 @@ import { StripePaymentSection } from './deposit/StripePaymentSection';
 const BACKEND = 'https://b2nnhe2n.backend.blink.new';
 
 export const DepositModal: React.FC<DepositModalProps> = ({
-  isOpen, onClose, userId, username, email, currentBalance, onBalanceUpdate,
+  isOpen, onClose, userId, username, email, currentBalance, currentMatchedBalance = 0, onBalanceUpdate,
 }) => {
   // ── Card / Stripe state ──────────────────────────────────────
   const [amount, setAmount]               = useState(25);
@@ -186,7 +186,14 @@ export const DepositModal: React.FC<DepositModalProps> = ({
             <div className="mx-7 mb-5 flex items-center justify-between px-4 py-2.5 rounded-xl"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <span className="text-xs text-gray-500">Current Balance</span>
-              <span className="font-display text-base text-[#10b981]">${currentBalance.toFixed(2)}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-display text-base text-[#10b981]">${Math.max(0, currentBalance - currentMatchedBalance).toFixed(2)}</span>
+                {currentMatchedBalance > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)' }}>
+                    Matched: ${currentMatchedBalance.toFixed(2)}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Content */}

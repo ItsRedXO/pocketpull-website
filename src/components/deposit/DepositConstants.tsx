@@ -5,6 +5,7 @@ export interface DepositModalProps {
   username?: string;
   email?: string;
   currentBalance: number;
+  currentMatchedBalance?: number;
   onBalanceUpdate: (newBalance: number) => void;
 }
 

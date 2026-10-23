@@ -269,9 +269,16 @@ export function UserList({
                         {u.isDeleted ? <span className="text-white/15 italic">email released</span> : u.email}
                       </p>
                       {!u.isDeleted && (
-                        <p className="text-[10px] font-bold" style={{ color: '#10b981' }}>
-                          ${u.balance.toFixed(2)}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-[10px] font-bold" style={{ color: '#10b981' }}>
+                            ${Math.max(0, u.balance - u.matchedBalance).toFixed(2)}
+                          </p>
+                          {u.matchedBalance > 0 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)' }}>
+                              M: ${u.matchedBalance.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
