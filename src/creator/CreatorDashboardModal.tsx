@@ -166,7 +166,7 @@ export const CreatorDashboardModal: React.FC<Props> = ({ isOpen, onClose, userId
                           Level {data.level}
                         </span>
                       </div>
-                      <span className="text-[10px] text-white/30 font-mono">${data.xp.toFixed(0)} / ${data.xpToNextLevel} XP</span>
+                      <span className="text-[10px] text-white/30 font-mono">{data.xp.toFixed(0)} / {data.xpToNextLevel} XP</span>
                     </div>
                     <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
                       <motion.div
