@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { requireAuth } from '../lib/auth';
 import { query } from '../lib/postgres';
+import { writeLog } from './logs';
 
 const app = new Hono();
 
@@ -233,6 +234,14 @@ app.post('/creator/request-payout', async c => {
       `INSERT INTO creator_payout_requests(id,creator_id,amount,status,payment_method,payment_details,created_at) VALUES($1,$2,$3,'pending',$4,$5,NOW())`,
       [id, userId, stats.availableForPayout, paymentMethod, paymentDetails]
     );
+    try {
+      await writeLog(null, {
+        type: 'creator_payout', userId, username: user.username || 'Creator',
+        action: 'Creator Payout Requested',
+        details: { requestId: id, amount: stats.availableForPayout, paymentMethod },
+        valueIn: 0, valueOut: stats.availableForPayout, result: 'pending',
+      });
+    } catch {}
     return c.json({ success: true, requestId: id, amount: stats.availableForPayout });
   } catch (err: any) {
     console.error('[creator/request-payout]', err);
@@ -264,7 +273,7 @@ app.post('/creator/daily-allowance/apply', async c => {
   let userId: string;
   try { userId = await requireAuth(c); } catch { return c.json({ error: 'Authentication required' }, 403); }
   try {
-    const userRows = await query<any>('SELECT role FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const userRows = await query<any>('SELECT role, username FROM users WHERE id=$1 LIMIT 1', [userId]);
     const user = userRows[0];
     if (!user) return c.json({ error: 'User not found' }, 404);
     if (!['creator', 'admin', 'owner'].includes(user.role)) return c.json({ error: 'Creator access required' }, 403);
@@ -290,6 +299,14 @@ app.post('/creator/daily-allowance/apply', async c => {
     `, [userId, amount, today]);
 
     const newUsed = used + amount;
+    try {
+      await writeLog(null, {
+        type: 'creator_daily_allowance', userId, username: user.username || 'Creator',
+        action: 'Creator Daily Allowance Applied',
+        details: { amount, usedToday: newUsed, limit: DAILY_LIMIT, remaining: Math.max(0, DAILY_LIMIT - newUsed), pstDate: today },
+        valueIn: amount, valueOut: 0, result: 'success',
+      });
+    } catch {}
     return c.json({ success: true, used: newUsed, limit: DAILY_LIMIT, remaining: Math.max(0, DAILY_LIMIT - newUsed) });
   } catch (err: any) {
     console.error('[creator/daily-allowance/apply]', err);
