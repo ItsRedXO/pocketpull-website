@@ -51,6 +51,7 @@ function resultIcon(result: string | null) {
 }
 
 function fmt(v: number) { return `$${v.toFixed(2)}`; }
+function fmtBrawl(v: number) { return `₽${v.toFixed(2)}`; }
 function fmtDate(s: string) {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? s : d.toLocaleString();
@@ -295,6 +296,10 @@ export function LogsTabFixed() {
                       <p className="text-[10px] text-red-400">-{fmt(Number(log.details?.packCost || log.valueIn || 0))}</p>
                       <p className="text-[11px] font-bold text-green-400">+{fmt(Number(log.details?.cardValue || log.valueOut || 0))}</p>
                     </div>
+                  ) : log.type === 'brawl_battle' ? (
+                    <span className="text-[11px] font-bold" style={{ color: value ? '#00c8ff' : '#ffffff40' }}>
+                      {value ? fmtBrawl(value) : '—'}
+                    </span>
                   ) : (
                     <span className="text-[11px] font-bold" style={{ color: value ? '#10b981' : '#ffffff40' }}>
                       {value ? fmt(value) : '—'}
@@ -396,7 +401,7 @@ function LogDetailModal({ log, cardImageMap, onClose }: { log: LogEntry; cardIma
               <InfoCell label="Date" value={fmtDate(log.createdAt)} />
               {log.result && <InfoCell label="Result" value={log.result} />}
               {log.valueIn > 0 && <InfoCell label="Value In" value={fmt(log.valueIn)} color="text-red-400" />}
-              {log.valueOut > 0 && <InfoCell label="Value Out" value={fmt(log.valueOut)} color="text-green-400" />}
+              {log.valueOut > 0 && <InfoCell label="Value Out" value={log.type === 'brawl_battle' ? fmtBrawl(log.valueOut) : fmt(log.valueOut)} color={log.type === 'brawl_battle' ? 'text-[#00c8ff]' : 'text-green-400'} />}
             </div>
 
             {/* Type-specific detail body */}
